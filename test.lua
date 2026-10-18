@@ -244,6 +244,30 @@ local function joinDiscord(code)
     end)
 end
 
+local Library
+local function getSafeGuiParent()
+    local hidden
+    pcall(function()
+        if typeof(gethui) == "function" then
+            hidden = gethui()
+        end
+    end)
+    if typeof(hidden) == "Instance" then
+        return hidden
+    end
+    local core
+    pcall(function()
+        core = game:GetService("CoreGui")
+        local probe = Instance.new("Folder")
+        probe.Parent = core
+        probe:Destroy()
+    end)
+    if core then
+        return core
+    end
+    return LocalPlayer:WaitForChild("PlayerGui")
+end
+
 local currentAtmosphere = "None"
 local atmosphereItems = {}
 local atmosphereStepConnection = nil
@@ -277,9 +301,8 @@ local function applyAtmosphere(selfOrName, nameOrNil)
 
     local cam = workspace.CurrentCamera
     local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
-    local holderSize = holder.AbsoluteSize
-    local width = (holderSize.X > 50) and holderSize.X or ((vp.X > 50) and vp.X or 1280)
-    local height = (holderSize.Y > 50) and holderSize.Y or ((vp.Y > 50) and vp.Y or 720)
+    local width = (vp.X > 50) and vp.X or 1280
+    local height = (vp.Y > 50) and vp.Y or 720
 
     if currentAtmosphere == "Spooky Halloween" then
         local webLeft = Instance.new("ImageLabel")
@@ -288,7 +311,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
         webLeft.Position = UDim2.new(0, 0, 0, 0)
         webLeft.Size = UDim2.new(0, 180, 0, 180)
         webLeft.BackgroundTransparency = 1
-        webLeft.Image = "rbxthumb://type=Asset&id=491303937&w=420&h=420"
+        webLeft.Image = "rbxassetid://491303937"
         webLeft.ImageColor3 = Color3.fromRGB(240, 235, 255)
         webLeft.ImageTransparency = 0.25 + (1 - atmosphereOpacity) * 0.4
         webLeft.Active = false
@@ -303,7 +326,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
         webRight.Position = UDim2.new(1, 0, 0, 0)
         webRight.Size = UDim2.new(0, 180, 0, 180)
         webRight.BackgroundTransparency = 1
-        webRight.Image = "rbxthumb://type=Asset&id=491303937&w=420&h=420"
+        webRight.Image = "rbxassetid://491303937"
         webRight.ImageColor3 = Color3.fromRGB(240, 235, 255)
         webRight.ImageTransparency = 0.25 + (1 - atmosphereOpacity) * 0.4
         webRight.Rotation = 90
@@ -314,29 +337,28 @@ local function applyAtmosphere(selfOrName, nameOrNil)
         table.insert(atmosphereItems, webRight)
 
         local embers = {}
-        for i = 1, 16 do
-            local sz = math.random(4, 7)
+        for i = 1, 24 do
+            local sz = math.random(8, 14)
             local isOrange = (i % 2 == 1)
             local col = isOrange and Color3.fromRGB(255, 140, 40) or Color3.fromRGB(168, 85, 247)
-            local p = Instance.new("Frame")
+            local p = Instance.new("ImageLabel")
             p.AnchorPoint = Vector2.new(0.5, 0.5)
             p.Position = UDim2.new(math.random(), 0, math.random(), 0)
             p.Size = UDim2.new(0, sz, 0, sz)
-            p.BackgroundColor3 = col
-            p.BorderSizePixel = 0
-            p.BackgroundTransparency = 0.25
+            p.BackgroundTransparency = 1
+            p.Image = "rbxassetid://242205518"
+            p.ImageColor3 = col
+            p.ImageTransparency = 0.2 + (1 - atmosphereOpacity) * 0.5
             p.Active = false
             p.Selectable = false
             p.ZIndex = 2
-            local c = Instance.new("UICorner", p)
-            c.CornerRadius = UDim.new(1, 0)
             p.Parent = holder
             table.insert(atmosphereItems, p)
             table.insert(embers, {
                 obj = p,
                 baseX = math.random() * width,
                 y = math.random() * height,
-                speed = math.random(25, 55),
+                speed = math.random(30, 65),
                 swayFreq = math.random(10, 25) / 10,
                 swayAmp = math.random(15, 35),
                 phase = math.random() * 6.28,
@@ -371,8 +393,10 @@ local function applyAtmosphere(selfOrName, nameOrNil)
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
             t = t + dt
-            local curW = (holder.AbsoluteSize.X > 50) and holder.AbsoluteSize.X or width
-            local curH = (holder.AbsoluteSize.Y > 50) and holder.AbsoluteSize.Y or height
+            local curCam = workspace.CurrentCamera
+            local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
+            local curW = (curVp.X > 50) and curVp.X or 1280
+            local curH = (curVp.Y > 50) and curVp.Y or 720
             local webAlpha = (0.25 + (1 - atmosphereOpacity) * 0.4) + math.sin(t * 1.5) * 0.05
             webLeft.ImageTransparency = math.clamp(webAlpha, 0, 1)
             webRight.ImageTransparency = math.clamp(webAlpha, 0, 1)
@@ -429,8 +453,10 @@ local function applyAtmosphere(selfOrName, nameOrNil)
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
             t = t + dt
-            local curW = (holder.AbsoluteSize.X > 50) and holder.AbsoluteSize.X or width
-            local curH = (holder.AbsoluteSize.Y > 50) and holder.AbsoluteSize.Y or height
+            local curCam = workspace.CurrentCamera
+            local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
+            local curW = (curVp.X > 50) and curVp.X or 1280
+            local curH = (curVp.Y > 50) and curVp.Y or 720
             for _, s in ipairs(stars) do
                 s.y = s.y - s.speed * dt
                 if s.y < -10 then
@@ -472,8 +498,10 @@ local function applyAtmosphere(selfOrName, nameOrNil)
         end
 
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
-            local curW = (holder.AbsoluteSize.X > 50) and holder.AbsoluteSize.X or width
-            local curH = (holder.AbsoluteSize.Y > 50) and holder.AbsoluteSize.Y or height
+            local curCam = workspace.CurrentCamera
+            local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
+            local curW = (curVp.X > 50) and curVp.X or 1280
+            local curH = (curVp.Y > 50) and curVp.Y or 720
             for _, sp in ipairs(sparks) do
                 sp.y = sp.y - sp.speed * dt
                 if sp.y < -15 then
@@ -517,8 +545,10 @@ local function applyAtmosphere(selfOrName, nameOrNil)
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
             t = t + dt
-            local curW = (holder.AbsoluteSize.X > 50) and holder.AbsoluteSize.X or width
-            local curH = (holder.AbsoluteSize.Y > 50) and holder.AbsoluteSize.Y or height
+            local curCam = workspace.CurrentCamera
+            local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
+            local curW = (curVp.X > 50) and curVp.X or 1280
+            local curH = (curVp.Y > 50) and curVp.Y or 720
             for _, l in ipairs(leaves) do
                 l.y = l.y + l.speedY * dt
                 l.baseX = l.baseX + l.driftX * dt
@@ -534,28 +564,27 @@ local function applyAtmosphere(selfOrName, nameOrNil)
 
     elseif currentAtmosphere == "Frost Snowfall" then
         local flakes = {}
-        for i = 1, 16 do
-            local sz = math.random(3, 6)
-            local p = Instance.new("Frame")
+        for i = 1, 24 do
+            local sz = math.random(8, 16)
+            local p = Instance.new("ImageLabel")
             p.AnchorPoint = Vector2.new(0.5, 0.5)
             p.Position = UDim2.new(math.random(), 0, math.random(), 0)
             p.Size = UDim2.new(0, sz, 0, sz)
-            p.BackgroundColor3 = Color3.fromRGB(230, 245, 255)
-            p.BorderSizePixel = 0
-            p.BackgroundTransparency = 0.3
+            p.BackgroundTransparency = 1
+            p.Image = "rbxassetid://99851851"
+            p.ImageColor3 = Color3.fromRGB(220, 240, 255)
+            p.ImageTransparency = 0.2 + (1 - atmosphereOpacity) * 0.5
             p.Active = false
             p.Selectable = false
             p.ZIndex = 2
-            local c = Instance.new("UICorner", p)
-            c.CornerRadius = UDim.new(1, 0)
             p.Parent = holder
             table.insert(atmosphereItems, p)
             table.insert(flakes, {
                 obj = p,
                 baseX = math.random() * width,
                 y = math.random() * height,
-                speed = math.random(25, 55),
-                driftAmp = math.random(8, 20),
+                speed = math.random(30, 65),
+                driftAmp = math.random(10, 24),
                 phase = math.random() * 6.28,
             })
         end
@@ -563,8 +592,10 @@ local function applyAtmosphere(selfOrName, nameOrNil)
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
             t = t + dt
-            local curW = (holder.AbsoluteSize.X > 50) and holder.AbsoluteSize.X or width
-            local curH = (holder.AbsoluteSize.Y > 50) and holder.AbsoluteSize.Y or height
+            local curCam = workspace.CurrentCamera
+            local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
+            local curW = (curVp.X > 50) and curVp.X or 1280
+            local curH = (curVp.Y > 50) and curVp.Y or 720
             for _, f in ipairs(flakes) do
                 f.y = f.y + f.speed * dt
                 if f.y > curH + 10 then
@@ -578,7 +609,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
     end
 end
 
-local Library = {
+Library = {
     IsMobile = IsMobile,
     connections = {},
     Flags = {},
@@ -1195,7 +1226,8 @@ end
 
 function Library:clear()
     Library.Keybinds = {}
-    for _, object in ipairs(CoreGui:GetChildren()) do
+    local parentGui = getSafeGuiParent()
+    for _, object in ipairs(parentGui:GetChildren()) do
         if object.Name == "Moondiety" or object.Name == "cac" then
             pcall(function() object:Destroy() end)
         end
@@ -1379,7 +1411,7 @@ function Library.new(selfOrOpts, options)
         IgnoreGuiInset = true,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
     })
-    screen.Parent = CoreGui
+    screen.Parent = getSafeGuiParent()
     Library.core = screen
     genv.CloseUi = screen
 
@@ -1684,6 +1716,186 @@ function Library.new(selfOrOpts, options)
         Padding = UDim.new(0, 10),
     }, NotifLayout)
 
+    function Library:Prompt(options)
+        options = options or {}
+        local promptTitle = options.Title or options.title or "Warning"
+        local promptMsg = options.Message or options.message or options.Content or options.Text or "Are you sure you want to proceed?"
+        local confirmText = options.ConfirmText or options.confirmText or "Confirm"
+        local cancelText = options.CancelText or options.cancelText or "Cancel"
+        local isDanger = (options.Danger ~= false)
+        local onConfirm = options.OnConfirm or options.callback
+        local onCancel = options.OnCancel
+
+        local promptOverlay = new("TextButton", {
+            Name = "PromptOverlay",
+            Size = UDim2.fromScale(1, 1),
+            Position = UDim2.new(0, 0, 0, 0),
+            BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            AutoButtonColor = false,
+            Text = "",
+            ZIndex = 1200,
+        }, screen)
+
+        local promptCard = new("Frame", {
+            Name = "PromptCard",
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(0, 360, 0, 175),
+            BackgroundColor3 = genv.uicontainer or Color3.fromRGB(20, 21, 26),
+            BorderSizePixel = 0,
+            ClipsDescendants = true,
+            ZIndex = 1201,
+        }, promptOverlay)
+        corner(promptCard, 12)
+        local cardStroke = stroke(promptCard, isDanger and Color3.fromRGB(220, 38, 38) or (genv.accent or Color3.fromRGB(168, 85, 247)), 1, 0.3)
+
+        local topAccentBar = new("Frame", {
+            Position = UDim2.new(0, 0, 0, 0),
+            Size = UDim2.new(1, 0, 0, 3),
+            BackgroundColor3 = isDanger and Color3.fromRGB(220, 38, 38) or (genv.accent or Color3.fromRGB(168, 85, 247)),
+            BorderSizePixel = 0,
+            ZIndex = 1202,
+        }, promptCard)
+
+        local iconBadge = new("Frame", {
+            Position = UDim2.new(0, 18, 0, 16),
+            Size = UDim2.new(0, 32, 0, 32),
+            BackgroundColor3 = isDanger and Color3.fromRGB(45, 18, 22) or Color3.fromRGB(28, 30, 42),
+            BorderSizePixel = 0,
+            ZIndex = 1202,
+        }, promptCard)
+        corner(iconBadge, 8)
+
+        local warnIcon = new("ImageLabel", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(0, 18, 0, 18),
+            BackgroundTransparency = 1,
+            Image = isDanger and "rbxassetid://10709751996" or "rbxassetid://10709752035",
+            ImageColor3 = isDanger and Color3.fromRGB(239, 68, 68) or (genv.accent or Color3.fromRGB(168, 85, 247)),
+            ZIndex = 1203,
+        }, iconBadge)
+
+        local titleLabel = new("TextLabel", {
+            Position = UDim2.new(0, 60, 0, 16),
+            Size = UDim2.new(1, -78, 0, 32),
+            BackgroundTransparency = 1,
+            FontFace = font(Enum.FontWeight.SemiBold),
+            Text = promptTitle,
+            TextColor3 = WHITE,
+            TextSize = 15,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 1202,
+        }, promptCard)
+
+        local messageLabel = new("TextLabel", {
+            Position = UDim2.new(0, 18, 0, 56),
+            Size = UDim2.new(1, -36, 0, 52),
+            BackgroundTransparency = 1,
+            FontFace = font(),
+            Text = promptMsg,
+            TextColor3 = Color3.fromRGB(180, 184, 198),
+            TextSize = 12,
+            TextWrapped = true,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            ZIndex = 1202,
+        }, promptCard)
+
+        local footer = new("Frame", {
+            Position = UDim2.new(0, 18, 1, -48),
+            Size = UDim2.new(1, -36, 0, 34),
+            BackgroundTransparency = 1,
+            ZIndex = 1202,
+        }, promptCard)
+
+        local cancelBtn = new("TextButton", {
+            Position = UDim2.new(0, 0, 0, 0),
+            Size = UDim2.new(0.48, -4, 1, 0),
+            BackgroundColor3 = Color3.fromRGB(28, 30, 38),
+            BorderSizePixel = 0,
+            AutoButtonColor = false,
+            Text = cancelText,
+            TextColor3 = WHITE,
+            TextSize = 12,
+            FontFace = font(Enum.FontWeight.Medium),
+            ZIndex = 1203,
+        }, footer)
+        corner(cancelBtn, 6)
+        stroke(cancelBtn, Color3.fromRGB(44, 46, 58), 1, 0.4)
+
+        local confirmBtn = new("TextButton", {
+            Position = UDim2.new(0.52, 4, 0, 0),
+            Size = UDim2.new(0.48, -4, 1, 0),
+            BackgroundColor3 = isDanger and Color3.fromRGB(220, 38, 38) or (genv.accent or Color3.fromRGB(168, 85, 247)),
+            BorderSizePixel = 0,
+            AutoButtonColor = false,
+            Text = confirmText,
+            TextColor3 = WHITE,
+            TextSize = 12,
+            FontFace = font(Enum.FontWeight.SemiBold),
+            ZIndex = 1203,
+        }, footer)
+        corner(confirmBtn, 6)
+
+        cancelBtn.MouseEnter:Connect(function()
+            TweenService:Create(cancelBtn, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(38, 41, 52)}):Play()
+        end)
+        cancelBtn.MouseLeave:Connect(function()
+            TweenService:Create(cancelBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(28, 30, 38)}):Play()
+        end)
+
+        confirmBtn.MouseEnter:Connect(function()
+            local base = isDanger and Color3.fromRGB(220, 38, 38) or (genv.accent or Color3.fromRGB(168, 85, 247))
+            TweenService:Create(confirmBtn, TweenInfo.new(0.18), {BackgroundColor3 = base:lerp(WHITE, 0.15)}):Play()
+        end)
+        confirmBtn.MouseLeave:Connect(function()
+            local base = isDanger and Color3.fromRGB(220, 38, 38) or (genv.accent or Color3.fromRGB(168, 85, 247))
+            TweenService:Create(confirmBtn, TweenInfo.new(0.2), {BackgroundColor3 = base}):Play()
+        end)
+
+        local cardScale = new("UIScale", {
+            Scale = 0.85,
+        }, promptCard)
+
+        TweenService:Create(promptOverlay, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundTransparency = 0.55
+        }):Play()
+        TweenService:Create(cardScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Scale = 1
+        }):Play()
+
+        local closing = false
+        local function dismiss(confirmed)
+            if closing then return end
+            closing = true
+            TweenService:Create(promptOverlay, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundTransparency = 1
+            }):Play()
+            local closeTween = TweenService:Create(cardScale, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Scale = 0.85
+            })
+            closeTween:Play()
+            closeTween.Completed:Once(function()
+                promptOverlay:Destroy()
+                if confirmed then
+                    if onConfirm then onConfirm() end
+                else
+                    if onCancel then onCancel() end
+                end
+            end)
+        end
+
+        bindTap(cancelBtn, function()
+            dismiss(false)
+        end)
+        bindTap(confirmBtn, function()
+            dismiss(true)
+        end)
+    end
+
     local notifyCount = 0
     function Library:Notify(options)
         if genv.hide_notifications then return end
@@ -1969,7 +2181,7 @@ function Library.new(selfOrOpts, options)
     local wmPingIcon = new("ImageLabel", {
         Size = UDim2.new(0, 13, 0, 13),
         BackgroundTransparency = 1,
-        Image = "rbxassetid://78424889355261",
+        Image = "rbxassetid://7743878148",
         ImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
         ZIndex = 852,
     }, wmPingFrame)
@@ -2785,7 +2997,7 @@ function Library.new(selfOrOpts, options)
         Position = UDim2.new(1, 0, 0.5, 0),
         Size = UDim2.new(0, 15, 0, 15),
         BackgroundTransparency = 1,
-        Image = "rbxassetid://78424889355261",
+        Image = "rbxassetid://7743878148",
         ImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
         ZIndex = 853,
     }, islandVisualizer)
@@ -2957,7 +3169,7 @@ function Library.new(selfOrOpts, options)
     local pingTileIcon = new("ImageLabel", {
         Size = UDim2.new(0, 14, 0, 14),
         BackgroundTransparency = 1,
-        Image = "rbxassetid://78424889355261",
+        Image = "rbxassetid://7743878148",
         ImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
         ZIndex = 854,
     }, pingTile)
@@ -3668,8 +3880,17 @@ function Library.new(selfOrOpts, options)
         setHidden(true)
     end)
     bindTap(closeBtn, function()
-        Library:disconnect()
-        pcall(function() screen:Destroy() end)
+        Library:Prompt({
+            Title = "Unload Moondiety?",
+            Message = "Are you sure you want to unload Moondiety? All active features, keybinds, and visual interfaces will be permanently destroyed.",
+            ConfirmText = "Unload",
+            CancelText = "Cancel",
+            Danger = true,
+            OnConfirm = function()
+                Library:disconnect()
+                pcall(function() screen:Destroy() end)
+            end,
+        })
     end)
     bindTap(restoreBtn, function()
         setHidden(false)
@@ -5061,7 +5282,7 @@ function Library.new(selfOrOpts, options)
                 return valLabel
             end
 
-            modalData.pingVal = createMetricTile(1, "rbxassetid://78424889355261", "Ping", "0 ms")
+            modalData.pingVal = createMetricTile(1, "rbxassetid://7743878148", "Ping", "0 ms")
             modalData.fpsVal = createMetricTile(2, "rbxassetid://110273524101447", "FPS", "60 fps")
             modalData.memVal = createMetricTile(3, "rbxassetid://77549309870247", "Memory", "0 MB")
             createMetricTile(4, "rbxassetid://138635884129147", "Executor", (identifyexecutor and identifyexecutor()) or "Potassium")
@@ -5185,9 +5406,8 @@ function Library.new(selfOrOpts, options)
             BorderSizePixel = 0,
             Position = UDim2.new(0.245, 0, 0.127, 0),
             Size = UDim2.new(0.74, 0, 0.87, 0),
-            ScrollBarThickness = 3,
-            ScrollBarImageTransparency = 0.5,
-            ScrollBarImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
+            ScrollBarThickness = 0,
+            ScrollBarImageTransparency = 1,
             VerticalScrollBarInset = Enum.ScrollBarInset.None,
             VerticalScrollBarPosition = Enum.VerticalScrollBarPosition.Right,
             ElasticBehavior = Enum.ElasticBehavior.Never,
@@ -5197,35 +5417,220 @@ function Library.new(selfOrOpts, options)
         }, Container)
         table.insert(allItemSections, itemsSection)
 
-        local scrollFadeThread
-        local function triggerScrollAnim()
-            if scrollFadeThread then task.cancel(scrollFadeThread); scrollFadeThread = nil end
-            TweenService:Create(itemsSection, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                ScrollBarThickness = 6,
-                ScrollBarImageTransparency = 0.1,
-            }):Play()
-            scrollFadeThread = task.delay(1.2, function()
-                TweenService:Create(itemsSection, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                    ScrollBarThickness = 3,
-                    ScrollBarImageTransparency = 0.5,
-                }):Play()
-            end)
+        local customScrollBar = new("Frame", {
+            Name = "CustomScrollBar",
+            AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(0.988, 0, 0.127, 0),
+            Size = UDim2.new(0, 14, 0.87, 0),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ZIndex = 80,
+            Visible = false,
+        }, Container)
+
+        local upArrowBtn = new("TextButton", {
+            Name = "UpArrow",
+            Position = UDim2.new(0, 0, 0, 0),
+            Size = UDim2.new(1, 0, 0, 14),
+            BackgroundColor3 = Color3.fromRGB(24, 25, 30),
+            BorderSizePixel = 0,
+            AutoButtonColor = false,
+            Text = "",
+            ZIndex = 81,
+        }, customScrollBar)
+        corner(upArrowBtn, 3)
+
+        local upArrowIcon = new("ImageLabel", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(0, 8, 0, 8),
+            BackgroundTransparency = 1,
+            Image = "rbxassetid://10709790948",
+            ImageColor3 = Color3.fromRGB(150, 155, 175),
+            ZIndex = 82,
+        }, upArrowBtn)
+
+        local downArrowBtn = new("TextButton", {
+            Name = "DownArrow",
+            AnchorPoint = Vector2.new(0, 1),
+            Position = UDim2.new(0, 0, 1, 0),
+            Size = UDim2.new(1, 0, 0, 14),
+            BackgroundColor3 = Color3.fromRGB(24, 25, 30),
+            BorderSizePixel = 0,
+            AutoButtonColor = false,
+            Text = "",
+            ZIndex = 81,
+        }, customScrollBar)
+        corner(downArrowBtn, 3)
+
+        local downArrowIcon = new("ImageLabel", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(0, 8, 0, 8),
+            Rotation = 180,
+            BackgroundTransparency = 1,
+            Image = "rbxassetid://10709790948",
+            ImageColor3 = Color3.fromRGB(150, 155, 175),
+            ZIndex = 82,
+        }, downArrowBtn)
+
+        local scrollTrack = new("TextButton", {
+            Name = "Track",
+            AnchorPoint = Vector2.new(0.5, 0),
+            Position = UDim2.new(0.5, 0, 0, 17),
+            Size = UDim2.new(0, 4, 1, -34),
+            BackgroundColor3 = Color3.fromRGB(26, 27, 34),
+            BackgroundTransparency = 0.3,
+            BorderSizePixel = 0,
+            AutoButtonColor = false,
+            Text = "",
+            ZIndex = 81,
+        }, customScrollBar)
+        corner(scrollTrack, 2)
+
+        local scrollThumb = new("Frame", {
+            Name = "Thumb",
+            AnchorPoint = Vector2.new(0.5, 0),
+            Position = UDim2.new(0.5, 0, 0, 17),
+            Size = UDim2.new(0, 6, 0, 30),
+            BackgroundColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
+            BackgroundTransparency = 0.35,
+            BorderSizePixel = 0,
+            ZIndex = 82,
+        }, customScrollBar)
+        corner(scrollThumb, 3)
+
+        local function updateCustomScroll()
+            local winH = itemsSection.AbsoluteWindowSize.Y
+            local canH = itemsSection.CanvasSize.Y.Offset
+            local trackH = customScrollBar.AbsoluteSize.Y - 34
+            if canH <= winH or canH <= 0 or trackH <= 0 then
+                scrollThumb.Visible = false
+                scrollTrack.BackgroundTransparency = 0.8
+                upArrowIcon.ImageTransparency = 0.6
+                downArrowIcon.ImageTransparency = 0.6
+                return
+            end
+            scrollThumb.Visible = true
+            scrollTrack.BackgroundTransparency = 0.3
+            upArrowIcon.ImageTransparency = 0
+            downArrowIcon.ImageTransparency = 0
+            local thumbH = math.clamp((winH / canH) * trackH, 20, trackH)
+            local maxScroll = canH - winH
+            local progress = math.clamp(itemsSection.CanvasPosition.Y / maxScroll, 0, 1)
+            local thumbY = 17 + progress * (trackH - thumbH)
+            scrollThumb.Size = UDim2.new(0, 6, 0, thumbH)
+            scrollThumb.Position = UDim2.new(0.5, 0, 0, thumbY)
         end
-        itemsSection:GetPropertyChangedSignal("CanvasPosition"):Connect(triggerScrollAnim)
-        itemsSection.MouseEnter:Connect(function()
-            if scrollFadeThread then task.cancel(scrollFadeThread); scrollFadeThread = nil end
-            TweenService:Create(itemsSection, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                ScrollBarThickness = 6,
-                ScrollBarImageTransparency = 0.1,
+
+        itemsSection:GetPropertyChangedSignal("CanvasPosition"):Connect(updateCustomScroll)
+        itemsSection:GetPropertyChangedSignal("CanvasSize"):Connect(updateCustomScroll)
+        itemsSection:GetPropertyChangedSignal("AbsoluteWindowSize"):Connect(updateCustomScroll)
+        customScrollBar:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateCustomScroll)
+        itemsSection:GetPropertyChangedSignal("Visible"):Connect(function()
+            customScrollBar.Visible = itemsSection.Visible
+            if customScrollBar.Visible then updateCustomScroll() end
+        end)
+
+        upArrowBtn.MouseEnter:Connect(function()
+            TweenService:Create(upArrowBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(36, 38, 48)}):Play()
+            TweenService:Create(upArrowIcon, TweenInfo.new(0.15), {ImageColor3 = genv.accent or WHITE}):Play()
+        end)
+        upArrowBtn.MouseLeave:Connect(function()
+            TweenService:Create(upArrowBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(24, 25, 30)}):Play()
+            TweenService:Create(upArrowIcon, TweenInfo.new(0.2), {ImageColor3 = Color3.fromRGB(150, 155, 175)}):Play()
+        end)
+        bindTap(upArrowBtn, function()
+            local curY = itemsSection.CanvasPosition.Y
+            local newY = math.max(0, curY - 50)
+            TweenService:Create(itemsSection, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                CanvasPosition = Vector2.new(itemsSection.CanvasPosition.X, newY)
             }):Play()
         end)
-        itemsSection.MouseLeave:Connect(function()
-            scrollFadeThread = task.delay(0.4, function()
-                TweenService:Create(itemsSection, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                    ScrollBarThickness = 3,
-                    ScrollBarImageTransparency = 0.5,
+
+        downArrowBtn.MouseEnter:Connect(function()
+            TweenService:Create(downArrowBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(36, 38, 48)}):Play()
+            TweenService:Create(downArrowIcon, TweenInfo.new(0.15), {ImageColor3 = genv.accent or WHITE}):Play()
+        end)
+        downArrowBtn.MouseLeave:Connect(function()
+            TweenService:Create(downArrowBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(24, 25, 30)}):Play()
+            TweenService:Create(downArrowIcon, TweenInfo.new(0.2), {ImageColor3 = Color3.fromRGB(150, 155, 175)}):Play()
+        end)
+        bindTap(downArrowBtn, function()
+            local winH = itemsSection.AbsoluteWindowSize.Y
+            local maxScroll = math.max(0, itemsSection.CanvasSize.Y.Offset - winH)
+            local curY = itemsSection.CanvasPosition.Y
+            local newY = math.min(maxScroll, curY + 50)
+            TweenService:Create(itemsSection, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                CanvasPosition = Vector2.new(itemsSection.CanvasPosition.X, newY)
+            }):Play()
+        end)
+
+        bindTap(scrollTrack, function(pos)
+            local trackH = customScrollBar.AbsoluteSize.Y - 34
+            local winH = itemsSection.AbsoluteWindowSize.Y
+            local canH = itemsSection.CanvasSize.Y.Offset
+            if canH > winH and trackH > 0 then
+                local relY = math.clamp(pos.Y - (customScrollBar.AbsolutePosition.Y + 17), 0, trackH)
+                local ratio = relY / trackH
+                local maxScroll = canH - winH
+                TweenService:Create(itemsSection, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                    CanvasPosition = Vector2.new(itemsSection.CanvasPosition.X, ratio * maxScroll)
                 }):Play()
-            end)
+            end
+        end)
+
+        customScrollBar.MouseEnter:Connect(function()
+            TweenService:Create(scrollThumb, TweenInfo.new(0.15), {
+                BackgroundTransparency = 0.1,
+                Size = UDim2.new(0, 8, 0, scrollThumb.Size.Y.Offset),
+            }):Play()
+        end)
+        customScrollBar.MouseLeave:Connect(function()
+            TweenService:Create(scrollThumb, TweenInfo.new(0.25), {
+                BackgroundTransparency = 0.35,
+                Size = UDim2.new(0, 6, 0, scrollThumb.Size.Y.Offset),
+            }):Play()
+        end)
+
+        local thumbDragging = false
+        local dragStartY = 0
+        local dragStartScrollY = 0
+        scrollThumb.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                thumbDragging = true
+                dragStartY = input.Position.Y
+                dragStartScrollY = itemsSection.CanvasPosition.Y
+                local moveConn, endConn
+                moveConn = UserInputService.InputChanged:Connect(function(moveInput)
+                    if not thumbDragging then
+                        if moveConn then moveConn:Disconnect() end
+                        return
+                    end
+                    if moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch then
+                        local trackH = customScrollBar.AbsoluteSize.Y - 34
+                        local winH = itemsSection.AbsoluteWindowSize.Y
+                        local canH = itemsSection.CanvasSize.Y.Offset
+                        if canH > winH and trackH > 0 then
+                            local thumbH = math.clamp((winH / canH) * trackH, 20, trackH)
+                            local scrollableTrack = trackH - thumbH
+                            if scrollableTrack > 0 then
+                                local deltaY = moveInput.Position.Y - dragStartY
+                                local maxScroll = canH - winH
+                                local deltaScroll = (deltaY / scrollableTrack) * maxScroll
+                                itemsSection.CanvasPosition = Vector2.new(itemsSection.CanvasPosition.X, math.clamp(dragStartScrollY + deltaScroll, 0, maxScroll))
+                            end
+                        end
+                    end
+                end)
+                endConn = UserInputService.InputEnded:Connect(function(endInput)
+                    if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then
+                        thumbDragging = false
+                        if moveConn then moveConn:Disconnect() end
+                        if endConn then endConn:Disconnect() end
+                    end
+                end)
+            end
         end)
 
         local GAP = 6
@@ -7087,7 +7492,7 @@ function Library.new(selfOrOpts, options)
 
             local function applyOpenSize()
                 local h = sideStyle and math.min(optionsHeight, MAX_H) or optionsHeight
-                TweenService:Create(Options, TweenInfo.new(0.4), {Size = UDim2.new(1, 0, 0, h)}):Play()
+                TweenService:Create(Options, TweenInfo.new(0.24, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, h)}):Play()
                 if not sideStyle then
                     updateItemHeight(dropdownRow, ELEMENT_HEIGHT + optionsHeight)
                 end
@@ -7099,9 +7504,9 @@ function Library.new(selfOrOpts, options)
                 Options.Visible = true
                 setBump(true)
                 applyOpenSize()
-                TweenService:Create(Arrow, TweenInfo.new(0.4), {Rotation = 180, ImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247)}):Play()
+                TweenService:Create(Arrow, TweenInfo.new(0.24, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Rotation = 180, ImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247)}):Play()
                 if boxStroke then
-                    TweenService:Create(boxStroke, TweenInfo.new(0.25), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.15}):Play()
+                    TweenService:Create(boxStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.15}):Play()
                 end
             end
 
@@ -7110,16 +7515,16 @@ function Library.new(selfOrOpts, options)
                 animToken += 1
                 local token = animToken
                 itemsSection.ScrollingEnabled = true
-                local tweenClose = TweenService:Create(Options, TweenInfo.new(0.4), {Size = UDim2.new(1, 0, 0, 0)})
+                local tweenClose = TweenService:Create(Options, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 0, 0)})
                 tweenClose:Play()
                 if not sideStyle then
                     updateItemHeight(dropdownRow, ELEMENT_HEIGHT)
                 end
-                TweenService:Create(Arrow, TweenInfo.new(0.4), {Rotation = 0, ImageColor3 = WHITE}):Play()
+                TweenService:Create(Arrow, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Rotation = 0, ImageColor3 = WHITE}):Play()
                 local baseCol = genv[keys.boxKey] or Color3.fromRGB(22, 23, 27)
-                TweenService:Create(Box, TweenInfo.new(0.3), {BackgroundColor3 = baseCol}):Play()
+                TweenService:Create(Box, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = baseCol}):Play()
                 if boxStroke then
-                    TweenService:Create(boxStroke, TweenInfo.new(0.3), {Color = genv.uiline or Color3.fromRGB(40, 42, 54), Transparency = 0.5}):Play()
+                    TweenService:Create(boxStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Color = genv.uiline or Color3.fromRGB(40, 42, 54), Transparency = 0.5}):Play()
                 end
                 tweenClose.Completed:Once(function()
                     if token ~= animToken then return end
@@ -7144,29 +7549,37 @@ function Library.new(selfOrOpts, options)
                     local strVal = tostring(value)
                     if searchQuery == "" or string.find(string.lower(strVal), string.lower(searchQuery), 1, true) then
                         count += 1
+                        local isSel = isSelected(value)
                         local btn = new("TextButton", {
                             Name = "Option",
                             LayoutOrder = index + 1,
+                            BackgroundColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
                             BackgroundTransparency = 1,
                             BorderSizePixel = 0,
                             AutoButtonColor = false,
                             Size = UDim2.new(1, 0, 0, OPT_H),
                             ZIndex = (sideStyle and open) and 53 or 4,
-                            FontFace = font(),
-                            TextColor3 = WHITE,
+                            FontFace = font(isSel and Enum.FontWeight.SemiBold or Enum.FontWeight.Regular),
+                            TextColor3 = isSel and (genv.accent or WHITE) or WHITE,
                             TextSize = 12,
-                            TextTransparency = isSelected(value) and 0 or 0.5,
+                            TextTransparency = isSel and 0 or 0.5,
                             TextXAlignment = Enum.TextXAlignment.Left,
                             Text = strVal,
                         }, Options)
+                        corner(btn, 4)
 
                         btn.MouseEnter:Connect(function()
-                            TweenService:Create(btn, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+                            TweenService:Create(btn, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                                BackgroundTransparency = 0.88,
+                                TextTransparency = 0,
+                            }):Play()
                         end)
                         btn.MouseLeave:Connect(function()
-                            if not isSelected(value) then
-                                TweenService:Create(btn, TweenInfo.new(0.3), {TextTransparency = 0.5}):Play()
-                            end
+                            local curSel = isSelected(value)
+                            TweenService:Create(btn, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                                BackgroundTransparency = 1,
+                                TextTransparency = curSel and 0 or 0.5,
+                            }):Play()
                         end)
 
                         bindTap(btn, function()
@@ -7248,8 +7661,10 @@ function Library.new(selfOrOpts, options)
             setText()
             D:update()
 
-            Library.Flags[cfg.flag] = multi and D.selectedOptions or D.selectedOption
-            Library:RegisterObject(cfg.flag, D)
+            if cfg.flag then
+                Library.Flags[cfg.flag] = multi and D.selectedOptions or D.selectedOption
+                Library:RegisterObject(cfg.flag, D)
+            end
 
             if sideStyle then
                 Options.MouseEnter:Connect(function()
@@ -7322,6 +7737,9 @@ function Library.new(selfOrOpts, options)
     end
     WindowController.Notify = function(_, opts)
         return Library:Notify(opts)
+    end
+    WindowController.Prompt = function(_, opts)
+        return Library:Prompt(opts)
     end
     WindowController.SetScale = function(_, s)
         return Library:SetScale(s)
