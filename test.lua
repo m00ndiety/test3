@@ -301,6 +301,7 @@ local atmosphereItems = {}
 local atmosphereStepConnection = nil
 local atmosphereOpacity = 0.85
 local atmosphereVisibleWithUI = false
+local atmosphereEnabled = true
 local allItemSections = {}
 
 local function cleanupAtmosphere()
@@ -325,7 +326,11 @@ local function applyAtmosphere(selfOrName, nameOrNil)
     Library.CurrentAtmosphere = currentAtmosphere
     if not Library.AtmosphereHolder then return end
     local holder = Library.AtmosphereHolder
-    if currentAtmosphere == "None" then return end
+    if currentAtmosphere == "None" then
+        holder.Visible = false
+        return
+    end
+    holder.Visible = atmosphereEnabled and ((not atmosphereVisibleWithUI) or (not Library.hidden))
 
     local cam = workspace.CurrentCamera
     local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
@@ -375,66 +380,384 @@ local function applyAtmosphere(selfOrName, nameOrNil)
     table.insert(atmosphereItems, bottomGlow)
 
     if currentAtmosphere == "Spooky Halloween" then
-        local particles = {}
-        for i = 1, 48 do
-            local s = math.random(6, 15)
-            local isOrange = (i % 3 ~= 0)
-            local isPurple = (i % 3 == 0)
-            local col = isPurple and Color3.fromRGB(190, 80, 255) or (isOrange and Color3.fromRGB(255, 85, 20):lerp(Color3.fromRGB(255, 185, 40), math.random()) or Color3.fromRGB(255, 50, 15))
-            local p = Instance.new("ImageLabel")
-            p.AnchorPoint = Vector2.new(0.5, 0.5)
-            p.Size = UDim2.new(0, s, 0, s)
-            p.BackgroundTransparency = 1
-            p.Image = "rbxassetid://242205518"
-            p.ImageColor3 = col
-            p.ImageTransparency = 0.2
-            p.Active = false
-            p.Selectable = false
-            p.ZIndex = 3
-            p.Parent = holder
-            table.insert(atmosphereItems, p)
-            table.insert(particles, {
-                obj = p,
-                x = math.random() * width,
-                y = math.random() * height,
-                size = s,
-                vy = -math.random(65, 160),
-                vx = math.random(-14, 14),
-                sway = math.random(12, 32),
-                freq = math.random(10, 24) / 10,
-                spin = math.random(-120, 120),
-                rot = math.random(0, 360),
+        local function makeWeb(parent, ox, oy, flipX)
+            local webRoot = new("Frame", {
+                Name = "SpiderWeb",
+                Position = UDim2.new(flipX and 1 or 0, ox, 0, oy),
+                AnchorPoint = Vector2.new(flipX and 1 or 0, 0),
+                Size = UDim2.new(0, 0, 0, 0),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                ZIndex = 3,
+                ClipsDescendants = false,
+            }, parent)
+            table.insert(atmosphereItems, webRoot)
+
+            local webColor = Color3.fromRGB(210, 200, 235)
+            local webAlpha = 0.45 + (1 - atmosphereOpacity) * 0.35
+            local angles = { 0, 30, 60, 90, 120, 145 }
+            local radii = { 60, 90, 120 }
+            local strands = {}
+            for _, ang in ipairs(angles) do
+                local rad = math.rad(ang + (flipX and 180 or 0))
+                local len = 130
+                local dx = math.cos(rad) * len
+                local dy = math.sin(rad) * len
+                local lineLen = math.sqrt(dx*dx + dy*dy)
+                local strand = new("Frame", {
+                    Position = UDim2.new(0, math.min(0, dx), 0, math.max(0, dy)),
+                    AnchorPoint = Vector2.new(dx < 0 and 1 or 0, dy < 0 and 1 or 0),
+                    Size = UDim2.new(0, math.abs(dx) + 1, 0, math.abs(dy) + 1),
+                    BackgroundTransparency = 1,
+                    BorderSizePixel = 0,
+                    ZIndex = 3,
+                    ClipsDescendants = false,
+                }, webRoot)
+                local line = new("Frame", {
+                    Position = UDim2.new(0, 0, 0, 0),
+                    Size = UDim2.new(0, 1, 0, lineLen),
+                    BackgroundColor3 = webColor,
+                    BackgroundTransparency = webAlpha,
+                    BorderSizePixel = 0,
+                    Rotation = ang + (flipX and 180 or 0),
+                    ZIndex = 3,
+                    AnchorPoint = Vector2.new(0.5, 0),
+                    Position = UDim2.new(0.5, 0, 0, 0),
+                }, strand)
+                table.insert(atmosphereItems, strand)
+                table.insert(atmosphereItems, line)
+                table.insert(strands, {obj = line, phase = math.random() * 6.28})
+            end
+            for _, r in ipairs(radii) do
+                local arcSegs = math.max(3, math.floor(r * 0.35))
+                local startAng = flipX and 90 or 270
+                local endAng = flipX and 270 or 90
+                for s = 0, arcSegs - 1 do
+                    local a1 = math.rad(startAng + (endAng - startAng) * (s / arcSegs))
+                    local a2 = math.rad(startAng + (endAng - startAng) * ((s+1) / arcSegs))
+                    local x1 = (flipX and -1 or 1) * r * math.cos(a1)
+                    local y1 = r * math.sin(a1)
+                    local x2 = (flipX and -1 or 1) * r * math.cos(a2)
+                    local y2 = r * math.sin(a2)
+                    local mx = (x1 + x2) / 2
+                    local my = (y1 + y2) / 2
+                    local segLen = math.sqrt((x2-x1)^2 + (y2-y1)^2)
+                    local ang = math.deg(math.atan2(y2-y1, x2-x1))
+                    local seg = new("Frame", {
+                        AnchorPoint = Vector2.new(0.5, 0.5),
+                        Position = UDim2.new(0, mx, 0, my),
+                        Size = UDim2.new(0, segLen, 0, 1),
+                        BackgroundColor3 = webColor,
+                        BackgroundTransparency = webAlpha + 0.1,
+                        BorderSizePixel = 0,
+                        Rotation = ang,
+                        ZIndex = 3,
+                    }, webRoot)
+                    table.insert(atmosphereItems, seg)
+                    table.insert(strands, {obj = seg, phase = math.random() * 6.28, isArc = true})
+                end
+            end
+            return strands
+        end
+
+        local function makeSpider(parent, px, py)
+            local spiderContainer = new("Frame", {
+                Name = "Spider",
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0, px, 0, py),
+                Size = UDim2.new(0, 12, 0, 10),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                ZIndex = 4,
+                ClipsDescendants = false,
+            }, parent)
+            local body = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, 0, 0.5, 0),
+                Size = UDim2.new(0, 6, 0, 7),
+                BackgroundColor3 = Color3.fromRGB(20, 10, 30),
+                BackgroundTransparency = 0.05,
+                BorderSizePixel = 0,
+                ZIndex = 5,
+            }, spiderContainer)
+            corner(body, 3)
+            local legs = { {-5, -2}, {-5, 0}, {-5, 2}, {5, -2}, {5, 0}, {5, 2} }
+            for _, lp in ipairs(legs) do
+                new("Frame", {
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Position = UDim2.new(0.5, lp[1], 0.5, lp[2]),
+                    Size = UDim2.new(0, 5, 0, 1),
+                    BackgroundColor3 = Color3.fromRGB(30, 20, 40),
+                    BackgroundTransparency = 0.1,
+                    BorderSizePixel = 0,
+                    ZIndex = 5,
+                }, spiderContainer)
+            end
+            table.insert(atmosphereItems, spiderContainer)
+            return spiderContainer
+        end
+
+        local function makePumpkin(parent, px, py, sz, flip)
+            local pumpContainer = new("Frame", {
+                Name = "Pumpkin",
+                AnchorPoint = Vector2.new(0.5, 1),
+                Position = UDim2.new(0, px, 1, py),
+                Size = UDim2.new(0, sz, 0, sz),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                ZIndex = 4,
+                ClipsDescendants = false,
+            }, parent)
+            local stemH = math.floor(sz * 0.22)
+            local stem = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 1),
+                Position = UDim2.new(0.5, flip and sz * 0.08 or -sz * 0.08, 0, 0),
+                Size = UDim2.new(0, 4, 0, stemH),
+                BackgroundColor3 = Color3.fromRGB(50, 110, 30),
+                BackgroundTransparency = 0,
+                BorderSizePixel = 0,
+                ZIndex = 5,
+            }, pumpContainer)
+            corner(stem, 2)
+            local bodyH = math.floor(sz * 0.78)
+            local body = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 1),
+                Position = UDim2.new(0.5, 0, 1, 0),
+                Size = UDim2.new(0, sz, 0, bodyH),
+                BackgroundColor3 = Color3.fromRGB(230, 95, 10),
+                BackgroundTransparency = 0,
+                BorderSizePixel = 0,
+                ZIndex = 5,
+            }, pumpContainer)
+            corner(body, math.floor(sz * 0.28))
+            local ribW = 3
+            for rx = -1, 1 do
+                local rib = new("Frame", {
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Position = UDim2.new(0.5, rx * math.floor(sz * 0.22), 0.5, 0),
+                    Size = UDim2.new(0, ribW, 0, bodyH - 8),
+                    BackgroundColor3 = Color3.fromRGB(180, 75, 8),
+                    BackgroundTransparency = 0.4,
+                    BorderSizePixel = 0,
+                    ZIndex = 6,
+                }, body)
+                corner(rib, 2)
+            end
+            local eyeSize = math.floor(sz * 0.13)
+            local eyeY = -math.floor(bodyH * 0.28)
+            new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, -math.floor(sz * 0.2), 0.5, eyeY),
+                Size = UDim2.new(0, eyeSize, 0, eyeSize),
+                BackgroundColor3 = Color3.fromRGB(255, 200, 40),
+                BackgroundTransparency = 0,
+                Rotation = 45,
+                BorderSizePixel = 0,
+                ZIndex = 7,
+            }, body)
+            new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, math.floor(sz * 0.2), 0.5, eyeY),
+                Size = UDim2.new(0, eyeSize, 0, eyeSize),
+                BackgroundColor3 = Color3.fromRGB(255, 200, 40),
+                BackgroundTransparency = 0,
+                Rotation = 45,
+                BorderSizePixel = 0,
+                ZIndex = 7,
+            }, body)
+            local mouthW = math.floor(sz * 0.42)
+            local mouthH = math.floor(sz * 0.14)
+            local mouth = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, 0, 0.5, math.floor(bodyH * 0.2)),
+                Size = UDim2.new(0, mouthW, 0, mouthH),
+                BackgroundColor3 = Color3.fromRGB(255, 200, 40),
+                BackgroundTransparency = 0,
+                BorderSizePixel = 0,
+                ZIndex = 7,
+            }, body)
+            corner(mouth, 3)
+            local glowFrame = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, 0, 0.5, 2),
+                Size = UDim2.new(0, sz + 14, 0, bodyH + 14),
+                BackgroundColor3 = Color3.fromRGB(255, 130, 20),
+                BackgroundTransparency = 0.6,
+                BorderSizePixel = 0,
+                ZIndex = 4,
+            }, pumpContainer)
+            corner(glowFrame, math.floor(sz * 0.4))
+            table.insert(atmosphereItems, pumpContainer)
+            return { container = pumpContainer, body = body, glow = glowFrame, stem = stem }
+        end
+
+        local function makeBat(parent, startX, startY)
+            local sz = math.random(14, 24)
+            local batFrame = new("Frame", {
+                Name = "Bat",
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0, startX, 0, startY),
+                Size = UDim2.new(0, sz * 2, 0, sz),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                ZIndex = 5,
+                ClipsDescendants = false,
+            }, parent)
+            local bodyF = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, 0, 0.5, 0),
+                Size = UDim2.new(0, sz * 0.35, 0, sz * 0.55),
+                BackgroundColor3 = Color3.fromRGB(15, 5, 25),
+                BackgroundTransparency = 0.05,
+                BorderSizePixel = 0,
+                ZIndex = 6,
+            }, batFrame)
+            corner(bodyF, math.floor(sz * 0.18))
+            local wingDefs = { { side = -1, rot = -20 }, { side = 1, rot = 20 } }
+            for _, wd in ipairs(wingDefs) do
+                local wing = new("Frame", {
+                    AnchorPoint = Vector2.new(wd.side == -1 and 1 or 0, 0.5),
+                    Position = UDim2.new(0.5, wd.side * sz * 0.16, 0.5, 0),
+                    Size = UDim2.new(0, sz * 0.72, 0, sz * 0.55),
+                    BackgroundColor3 = Color3.fromRGB(25, 8, 40),
+                    BackgroundTransparency = 0.1,
+                    Rotation = wd.rot,
+                    BorderSizePixel = 0,
+                    ZIndex = 5,
+                }, batFrame)
+                corner(wing, math.floor(sz * 0.3))
+            end
+            table.insert(atmosphereItems, batFrame)
+            return batFrame
+        end
+
+        local function makeMoon(parent)
+            local moonX = width * 0.8
+            local moonY = height * 0.1
+            local moonSz = 52
+            local moonGlow = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0, moonX, 0, moonY),
+                Size = UDim2.new(0, moonSz + 30, 0, moonSz + 30),
+                BackgroundColor3 = Color3.fromRGB(255, 245, 190),
+                BackgroundTransparency = 0.72,
+                BorderSizePixel = 0,
+                ZIndex = 2,
+            }, parent)
+            corner(moonGlow, UDim.new(1, 0))
+            local moonCircle = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, 0, 0.5, 0),
+                Size = UDim2.new(0, moonSz, 0, moonSz),
+                BackgroundColor3 = Color3.fromRGB(255, 245, 185),
+                BackgroundTransparency = 0.02,
+                BorderSizePixel = 0,
+                ZIndex = 3,
+            }, moonGlow)
+            corner(moonCircle, UDim.new(1, 0))
+            local shadowCut = new("Frame", {
+                AnchorPoint = Vector2.new(0, 0.5),
+                Position = UDim2.new(0, moonSz * 0.18, 0.5, 0),
+                Size = UDim2.new(0, moonSz * 0.82, 0, moonSz),
+                BackgroundColor3 = Color3.fromRGB(8, 4, 18),
+                BackgroundTransparency = 0,
+                BorderSizePixel = 0,
+                ZIndex = 4,
+            }, moonCircle)
+            corner(shadowCut, UDim.new(1, 0))
+            table.insert(atmosphereItems, moonGlow)
+            return moonGlow
+        end
+
+        local function makeMistLayer(parent, yOff, alpha)
+            local mist = new("Frame", {
+                AnchorPoint = Vector2.new(0, 1),
+                Position = UDim2.new(0, 0, 1, yOff),
+                Size = UDim2.new(1, 0, 0, 80),
+                BackgroundColor3 = Color3.fromRGB(20, 8, 35),
+                BackgroundTransparency = 1 - alpha * atmosphereOpacity,
+                BorderSizePixel = 0,
+                ZIndex = 2,
+            }, parent)
+            new("UIGradient", {
+                Rotation = 90,
+                Transparency = NumberSequence.new({
+                    NumberSequenceKeypoint.new(0, 0),
+                    NumberSequenceKeypoint.new(1, 1),
+                }),
+            }, mist)
+            table.insert(atmosphereItems, mist)
+            return mist
+        end
+
+        local webStrandsL = makeWeb(holder, 0, 0, false)
+        local webStrandsR = makeWeb(holder, 0, 0, true)
+
+        local spider1 = makeSpider(holder, 58, 90)
+        local spider2 = makeSpider(holder, width - 58, 95)
+
+        local pumpL = makePumpkin(holder, 46, -8, 58, false)
+        local pumpR = makePumpkin(holder, width - 46, -8, 58, true)
+        local pumpMid = makePumpkin(holder, width * 0.5, -6, 42, false)
+
+        local moon = makeMoon(holder)
+
+        local mist1 = makeMistLayer(holder, 0, 0.35)
+        local mist2 = makeMistLayer(holder, -30, 0.22)
+        local mist3 = makeMistLayer(holder, -65, 0.12)
+
+        local bats = {}
+        for i = 1, 9 do
+            local bx = math.random() * width
+            local by = math.random(height * 0.05, height * 0.55)
+            local bat = makeBat(holder, bx, by)
+            table.insert(bats, {
+                obj = bat,
+                x = bx,
+                y = by,
+                vx = math.random(-60, 60),
+                vy = math.random(-30, 30),
+                sway = math.random(8, 20),
+                freq = math.random(15, 35) / 10,
+                flapFreq = math.random(4, 9),
                 phase = math.random() * 6.28,
                 time = math.random() * 10,
+                dir = (math.random() > 0.5) and 1 or -1,
             })
         end
 
-        local wisps = {}
-        for i = 1, 10 do
-            local s = math.random(16, 32)
-            local w = Instance.new("Frame")
-            w.AnchorPoint = Vector2.new(0.5, 0.5)
-            w.Size = UDim2.new(0, s, 0, s)
-            w.BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(255, 130, 30) or Color3.fromRGB(168, 85, 247)
-            w.BackgroundTransparency = 0.65
-            w.BorderSizePixel = 0
-            w.ZIndex = 2
-            corner(w, UDim.new(1, 0))
-            w.Parent = holder
-            table.insert(atmosphereItems, w)
-            table.insert(wisps, {
-                obj = w,
+        local embers = {}
+        for i = 1, 55 do
+            local isOrange = (i % 5 ~= 0)
+            local col = isOrange and Color3.fromRGB(255, 90 + math.random(-20, 20), 10) or Color3.fromRGB(175, 60, 255)
+            local sz2 = math.random(2, 5)
+            local em = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Size = UDim2.new(0, sz2, 0, sz2),
+                BackgroundColor3 = col,
+                BackgroundTransparency = 0.15,
+                BorderSizePixel = 0,
+                ZIndex = 4,
+            }, holder)
+            corner(em, UDim.new(1, 0))
+            table.insert(atmosphereItems, em)
+            table.insert(embers, {
+                obj = em,
                 x = math.random() * width,
-                y = math.random(height * 0.2, height * 0.95),
-                vx = math.random(-16, 16),
-                vy = math.random(-18, 12),
-                sway = math.random(14, 30),
-                freq = math.random(4, 9) / 10,
-                pulse = math.random(12, 28) / 10,
+                y = height + math.random(0, 60),
+                vy = -math.random(30, 90),
+                vx = math.random(-15, 15),
+                sway = math.random(8, 22),
+                freq = math.random(8, 20) / 10,
                 phase = math.random() * 6.28,
                 time = math.random() * 10,
+                flickerFreq = math.random(4, 12),
+                col = col,
             })
         end
+
+        local spiderDrop1 = { y = 35, vy = 12, minY = 15, maxY = 110 }
+        local spiderDrop2 = { y = 45, vy = 10, minY = 20, maxY = 120 }
 
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
@@ -444,37 +767,92 @@ local function applyAtmosphere(selfOrName, nameOrNil)
             local curW = (curVp.X > 50) and curVp.X or 1280
             local curH = (curVp.Y > 50) and curVp.Y or 720
 
-            bottomGlow.BackgroundTransparency = 1 - (0.24 + math.sin(t * 2.2) * 0.06) * atmosphereOpacity
+            local glow1 = 1 - (0.32 + math.sin(t * 2.1) * 0.09) * atmosphereOpacity
+            bottomGlow.BackgroundTransparency = glow1
+            mist1.BackgroundTransparency = 1 - (0.35 + math.sin(t * 1.4) * 0.06) * atmosphereOpacity
+            mist2.BackgroundTransparency = 1 - (0.22 + math.sin(t * 1.8 + 1) * 0.05) * atmosphereOpacity
+            mist3.BackgroundTransparency = 1 - (0.12 + math.sin(t * 2.3 + 2) * 0.04) * atmosphereOpacity
 
-            for _, e in ipairs(particles) do
+            local moonPulse = 0.72 - math.sin(t * 0.7) * 0.04
+            moon.BackgroundTransparency = math.clamp(moonPulse, 0, 1)
+
+            local pumpFlicker = 0 + math.sin(t * 9.3) * 0.06 + math.cos(t * 5.7) * 0.04
+            pumpL.body.BackgroundColor3 = Color3.fromRGB(
+                math.clamp(230 + math.floor(math.sin(t * 11) * 15), 210, 245),
+                math.clamp(95 + math.floor(math.sin(t * 8) * 10), 80, 110),
+                10)
+            pumpR.body.BackgroundColor3 = Color3.fromRGB(
+                math.clamp(230 + math.floor(math.sin(t * 13 + 0.8) * 15), 210, 245),
+                math.clamp(95 + math.floor(math.sin(t * 9 + 0.5) * 10), 80, 110),
+                10)
+            pumpMid.body.BackgroundColor3 = Color3.fromRGB(
+                math.clamp(230 + math.floor(math.sin(t * 10 + 1.2) * 15), 210, 245),
+                math.clamp(95 + math.floor(math.sin(t * 7 + 1) * 10), 80, 110),
+                10)
+            pumpL.glow.BackgroundTransparency = math.clamp(0.58 + pumpFlicker, 0.45, 0.75)
+            pumpR.glow.BackgroundTransparency = math.clamp(0.58 + math.sin(t * 7.2) * 0.06, 0.45, 0.75)
+            pumpMid.glow.BackgroundTransparency = math.clamp(0.62 + math.sin(t * 8.8 + 0.5) * 0.05, 0.48, 0.75)
+
+            local webAlpha = 0.45 + (1 - atmosphereOpacity) * 0.35
+            for _, s in ipairs(webStrandsL) do
+                if s.isArc then
+                    s.obj.BackgroundTransparency = math.clamp(webAlpha + 0.1 + math.sin(t * 1.2 + s.phase) * 0.06, 0, 1)
+                else
+                    s.obj.BackgroundTransparency = math.clamp(webAlpha + math.sin(t * 1.5 + s.phase) * 0.07, 0, 1)
+                end
+            end
+            for _, s in ipairs(webStrandsR) do
+                if s.isArc then
+                    s.obj.BackgroundTransparency = math.clamp(webAlpha + 0.1 + math.sin(t * 1.3 + s.phase) * 0.06, 0, 1)
+                else
+                    s.obj.BackgroundTransparency = math.clamp(webAlpha + math.sin(t * 1.6 + s.phase) * 0.07, 0, 1)
+                end
+            end
+
+            spiderDrop1.y = spiderDrop1.y + spiderDrop1.vy * dt
+            if spiderDrop1.y > spiderDrop1.maxY then spiderDrop1.vy = -math.abs(spiderDrop1.vy) end
+            if spiderDrop1.y < spiderDrop1.minY then spiderDrop1.vy = math.abs(spiderDrop1.vy) end
+            spider1.Position = UDim2.new(0, 58, 0, spiderDrop1.y)
+
+            spiderDrop2.y = spiderDrop2.y + spiderDrop2.vy * dt
+            if spiderDrop2.y > spiderDrop2.maxY then spiderDrop2.vy = -math.abs(spiderDrop2.vy) end
+            if spiderDrop2.y < spiderDrop2.minY then spiderDrop2.vy = math.abs(spiderDrop2.vy) end
+            spider2.Position = UDim2.new(0, curW - 58, 0, spiderDrop2.y)
+
+            for _, b in ipairs(bats) do
+                b.time = b.time + dt
+                b.x = b.x + b.vx * dt
+                b.y = b.y + b.vy * dt + math.sin(b.time * b.freq + b.phase) * 18 * dt
+                if b.x > curW + 40 then
+                    b.x = -40
+                    b.vx = math.abs(b.vx)
+                elseif b.x < -40 then
+                    b.x = curW + 40
+                    b.vx = -math.abs(b.vx)
+                end
+                if b.y > curH * 0.6 then b.vy = -math.abs(b.vy) * 0.8 end
+                if b.y < curH * 0.03 then b.vy = math.abs(b.vy) * 0.8 end
+                b.obj.Position = UDim2.new(0, b.x, 0, b.y)
+                local flapAng = math.sin(b.time * b.flapFreq) * 12
+                b.obj.Rotation = flapAng * 0.4
+                b.obj.BackgroundTransparency = math.clamp(0.92 + math.sin(b.time * 3 + b.phase) * 0.06, 0.85, 1)
+            end
+
+            for _, e in ipairs(embers) do
                 e.time = e.time + dt
                 e.x = e.x + e.vx * dt
                 e.y = e.y + e.vy * dt
-                e.rot = e.rot + e.spin * dt
-                if e.y < -20 then
-                    e.y = curH + math.random(10, 40)
+                if e.y < -10 then
+                    e.y = curH + math.random(10, 50)
                     e.x = math.random() * curW
                 end
-                if e.x > curW + 20 then e.x = -20 elseif e.x < -20 then e.x = curW + 20 end
+                if e.x > curW + 10 then e.x = -10 elseif e.x < -10 then e.x = curW + 10 end
                 local swayX = e.x + math.sin(e.time * e.freq + e.phase) * e.sway
-                local flicker = 0.75 + math.sin(e.time * 9 + e.phase) * 0.25
-                local burnout = math.clamp(e.y / (curH * 0.82), 0, 1) ^ 0.55
-                local alpha = (1 - 0.25 * atmosphereOpacity) * flicker * burnout
+                local flicker = 0.7 + math.sin(e.time * e.flickerFreq + e.phase) * 0.3
+                local burnout = math.clamp((-e.y + curH) / curH, 0.05, 1)
+                local alpha = flicker * burnout * atmosphereOpacity
                 e.obj.Position = UDim2.new(0, swayX, 0, e.y)
-                e.obj.Rotation = e.rot
-                e.obj.ImageTransparency = 1 - math.clamp(alpha, 0, 1)
-            end
-
-            for _, w in ipairs(wisps) do
-                w.time = w.time + dt
-                w.x = w.x + w.vx * dt
-                w.y = w.y + w.vy * dt
-                if w.y > curH + 20 then w.y = curH * 0.2 elseif w.y < curH * 0.1 then w.y = curH * 0.9 end
-                if w.x > curW + 30 then w.x = -30 elseif w.x < -30 then w.x = curW + 30 end
-                local posX = w.x + math.sin(w.time * w.freq + w.phase) * w.sway
-                local pulseAlpha = 0.35 + math.sin(w.time * w.pulse + w.phase) * 0.25
-                w.obj.Position = UDim2.new(0, posX, 0, w.y)
-                w.obj.BackgroundTransparency = 1 - math.clamp(pulseAlpha * atmosphereOpacity, 0, 0.85)
+                e.obj.BackgroundTransparency = math.clamp(1 - alpha, 0, 1)
             end
         end)
 
@@ -705,6 +1083,7 @@ Library = {
     CurrentAtmosphere = "None",
     AtmosphereOpacity = 0.85,
     AtmosphereVisibleWithUI = false,
+    AtmosphereEnabled = true,
     Atmospheres = {"Spooky Halloween", "Celestial Stardust", "Cyber Grid Sparks", "Autumn Breeze", "Frost Snowfall", "None"},
     SupportedGames = SupportedGames,
     ScriptActiveUsers = scriptActiveUsers,
@@ -723,7 +1102,15 @@ Library = {
         atmosphereVisibleWithUI = (v == true)
         Library.AtmosphereVisibleWithUI = atmosphereVisibleWithUI
         if Library.AtmosphereHolder then
-            Library.AtmosphereHolder.Visible = (not atmosphereVisibleWithUI) or (not Library.hidden)
+            Library.AtmosphereHolder.Visible = atmosphereEnabled and ((not atmosphereVisibleWithUI) or (not Library.hidden))
+        end
+    end,
+    SetAtmosphereEnabled = function(selfOrVal, val)
+        local v = (type(selfOrVal) == "boolean") and selfOrVal or val
+        atmosphereEnabled = (v ~= false)
+        Library.AtmosphereEnabled = atmosphereEnabled
+        if Library.AtmosphereHolder then
+            Library.AtmosphereHolder.Visible = atmosphereEnabled and ((not atmosphereVisibleWithUI) or (not Library.hidden))
         end
     end,
 }
@@ -4003,8 +4390,8 @@ function Library.new(selfOrOpts, options)
         else
             island.Visible = false
         end
-        if Library.AtmosphereVisibleWithUI and Library.AtmosphereHolder then
-            Library.AtmosphereHolder.Visible = not state
+        if Library.AtmosphereHolder then
+            Library.AtmosphereHolder.Visible = atmosphereEnabled and ((not Library.AtmosphereVisibleWithUI) or (not state))
         end
         if Library.UpdateKeybindList then
             Library:UpdateKeybindList()
@@ -7877,6 +8264,12 @@ function Library.new(selfOrOpts, options)
     end
     WindowController.Prompt = function(_, opts)
         return Library:Prompt(opts)
+    end
+    WindowController.SetAtmosphereEnabled = function(_, val)
+        return Library:SetAtmosphereEnabled(val)
+    end
+    WindowController.SetAtmosphere = function(_, val)
+        return Library:SetAtmosphere(val)
     end
     WindowController.SetScale = function(_, s)
         return Library:SetScale(s)
