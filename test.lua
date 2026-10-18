@@ -818,41 +818,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
             return cloud
         end
 
-        local function makeLightning(parent)
-            local bolt = new("Frame", {
-                AnchorPoint = Vector2.new(0.5, 0),
-                Position = UDim2.new(math.random(0.2, 0.8), 0, 0, 0),
-                Size = UDim2.new(0, 2, 0, math.random(80, 180)),
-                BackgroundColor3 = Color3.fromRGB(220, 215, 255),
-                BackgroundTransparency = 0,
-                Rotation = math.random(-12, 12),
-                BorderSizePixel = 0,
-                ZIndex = 8,
-            }, parent)
-            local fork = new("Frame", {
-                AnchorPoint = Vector2.new(0, 0),
-                Position = UDim2.new(0, 0, 0.5, 0),
-                Size = UDim2.new(0, 1, 0, math.random(40, 80)),
-                BackgroundColor3 = Color3.fromRGB(220, 215, 255),
-                BackgroundTransparency = 0,
-                Rotation = math.random(20, 40),
-                BorderSizePixel = 0,
-                ZIndex = 8,
-            }, bolt)
-            local flash = new("Frame", {
-                AnchorPoint = Vector2.new(0.5, 0),
-                Position = UDim2.new(0.5, 0, 0, 0),
-                Size = UDim2.new(1, 0, 1, 0),
-                BackgroundColor3 = Color3.fromRGB(200, 200, 255),
-                BackgroundTransparency = 0.6,
-                BorderSizePixel = 0,
-                ZIndex = 7,
-            }, parent)
-            table.insert(atmosphereItems, bolt)
-            table.insert(atmosphereItems, fork)
-            table.insert(atmosphereItems, flash)
-            return { bolt = bolt, fork = fork, flash = flash }
-        end
+
 
         local webStrandsL = makeWeb(holder, 0, 0, false)
         local webStrandsR = makeWeb(holder, 0, 0, true)
@@ -909,9 +875,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
             })
         end
 
-        local lightningData = nil
-        local lightningTimer = math.random(8, 18)
-        local lightningAlive = 0
+
 
         local bats = {}
         for i = 1, 4 do
@@ -1098,30 +1062,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
                 c.obj.BackgroundTransparency = math.clamp(cloudAlpha, 0.6, 0.85)
             end
 
-            lightningTimer = lightningTimer - dt
-            if lightningTimer <= 0 and not lightningData then
-                lightningData = makeLightning(holder)
-                lightningAlive = 0
-                lightningTimer = math.random(6, 18)
-            end
-            if lightningData then
-                lightningAlive = lightningAlive + dt
-                local fadeT = lightningAlive * 6
-                local boltAlpha = math.clamp(1 - fadeT, 0, 1)
-                if lightningData.bolt and lightningData.bolt.Parent then
-                    lightningData.bolt.BackgroundTransparency = 1 - boltAlpha
-                    lightningData.fork.BackgroundTransparency = 1 - boltAlpha * 0.7
-                    lightningData.flash.BackgroundTransparency = math.clamp(0.6 + fadeT * 0.4, 0, 1)
-                end
-                if lightningAlive > 0.22 then
-                    if lightningData.bolt and lightningData.bolt.Parent then
-                        pcall(function() lightningData.bolt:Destroy() end)
-                        pcall(function() lightningData.fork:Destroy() end)
-                        pcall(function() lightningData.flash:Destroy() end)
-                    end
-                    lightningData = nil
-                end
-            end
+
 
 
         end)
@@ -1337,7 +1278,7 @@ Library = {
     drag_position = nil,
     start_position = nil,
     hidden = false,
-    Theme = "Dark",
+    Theme = "Eclipse",
     UIScale = 1,
     IslandEnabled = true,
     IslandStyle = "Show on Hover",
@@ -1921,7 +1862,11 @@ if isfile("Moondiety/theme.txt") then
     local ok, themeName = pcall(readfile, "Moondiety/theme.txt")
     if ok and themeName and Themes[themeName] then
         Library.Theme = themeName
+    else
+        Library.Theme = "Eclipse"
     end
+else
+    Library.Theme = "Eclipse"
 end
 if isfile("Moondiety/accent.txt") then
     local ok, hex = pcall(readfile, "Moondiety/accent.txt")
@@ -3501,7 +3446,33 @@ function Library.new(selfOrOpts, options)
 
     Library.KeybindListFrame = keybindList
 
+    local keybindHudRows = {}
+
+    local function updateKeybindHudStates()
+        for name, item in pairs(keybindHudRows) do
+            if item.switchTrack and item.switchTrack.Parent and item.switchKnob and item.switchKnob.Parent and item.getState then
+                local isChecked = item.getState() == true
+                local targetPos = isChecked and UDim2.new(1, -13, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+                local targetCol = isChecked and (genv.togglecoloron or genv.accent or Color3.fromRGB(168, 85, 247)) or (genv.togglecoloroff or Color3.fromRGB(38, 40, 50))
+                TweenService:Create(item.switchKnob, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 14, 0, 11)}):Play()
+                TweenService:Create(item.switchKnob, TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = targetPos}):Play()
+                TweenService:Create(item.switchTrack, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = targetCol}):Play()
+                task.delay(0.09, function()
+                    if item.switchKnob and item.switchKnob.Parent then
+                        TweenService:Create(item.switchKnob, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 11, 0, 11)}):Play()
+                    end
+                end)
+                if item.rowStrk and item.rowStrk.Parent then
+                    local strkCol = isChecked and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(38, 40, 52)
+                    TweenService:Create(item.rowStrk, TweenInfo.new(0.2), {Color = strkCol}):Play()
+                end
+            end
+        end
+    end
+    Library.UpdateKeybindHudStates = updateKeybindHudStates
+
     local function refreshKeybindList()
+        table.clear(keybindHudRows)
         for _, child in ipairs(kbHolder:GetChildren()) do
             if child:IsA("Frame") or child:IsA("TextButton") then child:Destroy() end
         end
@@ -3522,6 +3493,16 @@ function Library.new(selfOrOpts, options)
                 corner(row, 6)
                 local rowStrk = stroke(row, Color3.fromRGB(38, 40, 52), 1, 0.4)
                 new("UIPadding", {PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 6)}, row)
+
+                local rScale = new("UIScale", {Scale = 1}, row)
+                row.MouseEnter:Connect(function()
+                    TweenService:Create(row, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(30, 32, 42)}):Play()
+                    TweenService:Create(rScale, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1.014}):Play()
+                end)
+                row.MouseLeave:Connect(function()
+                    TweenService:Create(row, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(24, 26, 33)}):Play()
+                    TweenService:Create(rScale, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {Scale = 1}):Play()
+                end)
 
                 local nameLabel = new("TextLabel", {
                     AnchorPoint = Vector2.new(0, 0.5),
@@ -3578,6 +3559,7 @@ function Library.new(selfOrOpts, options)
                     local function runAct()
                         if tick() - lastRun < 0.15 then return end
                         lastRun = tick()
+                        TweenService:Create(rScale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 0.95}):Play()
                         TweenService:Create(actBtn, TweenInfo.new(0.08), {BackgroundColor3 = genv.accent or Color3.fromRGB(168, 85, 247)}):Play()
                         actText.TextColor3 = WHITE
                         if kb.toggle then kb.toggle() elseif kb.callback then kb.callback() end
@@ -3585,6 +3567,7 @@ function Library.new(selfOrOpts, options)
                             if actBtn and actBtn.Parent then
                                 TweenService:Create(actBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(36, 38, 48)}):Play()
                                 actText.TextColor3 = genv.accent or WHITE
+                                TweenService:Create(rScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
                             end
                         end)
                     end
@@ -3613,32 +3596,30 @@ function Library.new(selfOrOpts, options)
                     }, switchTrack)
                     pill(switchKnob)
 
+                    keybindHudRows[kb.name] = {
+                        switchTrack = switchTrack,
+                        switchKnob = switchKnob,
+                        rowStrk = rowStrk,
+                        rScale = rScale,
+                        getState = kb.getState
+                    }
+
                     local lastTog = 0
                     local function toggleRow()
                         if tick() - lastTog < 0.15 then return end
                         lastTog = tick()
+                        TweenService:Create(rScale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 0.96}):Play()
+                        task.delay(0.08, function()
+                            if rScale and rScale.Parent then
+                                TweenService:Create(rScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+                            end
+                        end)
                         if kb.toggle then
                             kb.toggle()
                         elseif kb.callback then
                             kb.callback(not (kb.getState and kb.getState() or false))
                         end
-                        task.defer(function()
-                            local newState = kb.getState and kb.getState() or false
-                            local targetPos = (newState == true) and UDim2.new(1, -13, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
-                            local targetCol = (newState == true) and (genv.togglecoloron or genv.accent or Color3.fromRGB(168, 85, 247)) or (genv.togglecoloroff or Color3.fromRGB(38, 40, 50))
-                            TweenService:Create(switchKnob, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 14, 0, 11)}):Play()
-                            TweenService:Create(switchKnob, TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = targetPos}):Play()
-                            TweenService:Create(switchTrack, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = targetCol}):Play()
-                            task.delay(0.09, function()
-                                if switchKnob and switchKnob.Parent then
-                                    TweenService:Create(switchKnob, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 11, 0, 11)}):Play()
-                                end
-                            end)
-                            if rowStrk then
-                                local strkCol = (newState == true) and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(38, 40, 52)
-                                TweenService:Create(rowStrk, TweenInfo.new(0.2), {Color = strkCol}):Play()
-                            end
-                        end)
+                        updateKeybindHudStates()
                     end
                     row.MouseButton1Click:Connect(toggleRow)
                     row.TouchTap:Connect(toggleRow)
@@ -6706,6 +6687,7 @@ function Library.new(selfOrOpts, options)
                 BorderSizePixel = 0,
                 AutoButtonColor = false,
                 Text = "",
+                ClipsDescendants = true,
             }, itemsSection)
             corner(obj, 10)
             table.insert(genv.UIElements, obj)
@@ -6740,14 +6722,17 @@ function Library.new(selfOrOpts, options)
 
         local function rowTexts(parent, rowTitle, rowDesc, rightPad)
             local hasDesc = rowDesc ~= nil and rowDesc ~= ""
+            local pad = (rightPad or 20) + 16
             new("TextLabel", {
                 AnchorPoint = Vector2.new(0, 0.5),
                 BackgroundTransparency = 1,
+                ClipsDescendants = true,
                 Position = UDim2.new(0, 12, hasDesc and 0.38 or 0.5, 0),
-                Size = UDim2.new(1, -rightPad, 0, 14),
+                Size = UDim2.new(1, -pad, 0, 14),
                 FontFace = font(),
                 TextColor3 = WHITE,
                 TextSize = 13,
+                TextTruncate = Enum.TextTruncate.AtEnd,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Text = rowTitle or "",
                 ZIndex = 3,
@@ -6756,11 +6741,13 @@ function Library.new(selfOrOpts, options)
                 new("TextLabel", {
                     AnchorPoint = Vector2.new(0, 0.5),
                     BackgroundTransparency = 1,
+                    ClipsDescendants = true,
                     Position = UDim2.new(0, 12, 0.72, 0),
-                    Size = UDim2.new(1, -rightPad, 0, 12),
+                    Size = UDim2.new(1, -pad, 0, 12),
                     FontFace = font(Enum.FontWeight.Regular),
                     TextColor3 = GRAY,
                     TextSize = 11,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
                     TextXAlignment = Enum.TextXAlignment.Left,
                     Text = rowDesc,
                     ZIndex = 3,
@@ -6840,7 +6827,11 @@ function Library.new(selfOrOpts, options)
                     end)
                 end
                 Library.save_flags()
-                if Library.UpdateKeybindList then Library:UpdateKeybindList() end
+                if Library.UpdateKeybindHudStates then
+                    Library:UpdateKeybindHudStates()
+                elseif Library.UpdateKeybindList then
+                    Library:UpdateKeybindList()
+                end
                 if not skipCallback and self.callback then self.callback(self.state) end
             end
 
@@ -7516,7 +7507,7 @@ function Library.new(selfOrOpts, options)
             local cfg = resolve(self, arg)
             local side = getSide(cfg)
             local button = row("Button", "tabcolor")
-            local rightPad = cfg.keybind and 56 or 20
+            local rightPad = cfg.keybind and 68 or 20
             rowTexts(button, cfg.name, cfg.description, rightPad)
             attachTooltip(button, cfg.tooltip or cfg.desc)
             registerItem(button, side, ELEMENT_HEIGHT, cfg.name)
@@ -8419,6 +8410,8 @@ function Library.new(selfOrOpts, options)
                     if searchQuery == "" or string.find(string.lower(strVal), string.lower(searchQuery), 1, true) then
                         count += 1
                         local isSel = isSelected(value)
+                        local isEclipse = (Library.Theme == "Eclipse" or Library.Theme == "Dark")
+                        local selTextColor = isEclipse and Color3.fromRGB(235, 238, 245) or (genv.accent or WHITE)
                         local btn = new("TextButton", {
                             Name = "Option",
                             LayoutOrder = index + 1,
@@ -8429,7 +8422,7 @@ function Library.new(selfOrOpts, options)
                             Size = UDim2.new(1, 0, 0, OPT_H),
                             ZIndex = (sideStyle and open) and 53 or 4,
                             FontFace = font(isSel and Enum.FontWeight.SemiBold or Enum.FontWeight.Regular),
-                            TextColor3 = isSel and (genv.accent or WHITE) or WHITE,
+                            TextColor3 = isSel and selTextColor or WHITE,
                             TextSize = 12,
                             TextTransparency = isSel and 0 or 0.5,
                             TextXAlignment = Enum.TextXAlignment.Left,
@@ -8445,6 +8438,9 @@ function Library.new(selfOrOpts, options)
                         end)
                         btn.MouseLeave:Connect(function()
                             local curSel = isSelected(value)
+                            local isEcl = (Library.Theme == "Eclipse" or Library.Theme == "Dark")
+                            local curSelCol = isEcl and Color3.fromRGB(235, 238, 245) or (genv.accent or WHITE)
+                            btn.TextColor3 = curSel and curSelCol or WHITE
                             TweenService:Create(btn, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                                 BackgroundTransparency = 1,
                                 TextTransparency = curSel and 0 or 0.5,
