@@ -690,6 +690,207 @@ local function applyAtmosphere(selfOrName, nameOrNil)
             return mist
         end
 
+        local function makeGhost(parent, startX, startY)
+            local gsz = math.random(28, 44)
+            local gc = new("Frame", {
+                Name = "Ghost",
+                AnchorPoint = Vector2.new(0.5, 0),
+                Position = UDim2.new(0, startX, 0, startY),
+                Size = UDim2.new(0, gsz, 0, gsz + 10),
+                BackgroundColor3 = Color3.fromRGB(220, 230, 255),
+                BackgroundTransparency = 0.35,
+                BorderSizePixel = 0,
+                ZIndex = 3,
+                ClipsDescendants = false,
+            }, parent)
+            corner(gc, math.floor(gsz * 0.42))
+            local eyeOff = math.floor(gsz * 0.18)
+            local eyeR = math.floor(gsz * 0.1)
+            for _, ex in ipairs({ -eyeOff, eyeOff }) do
+                local eye = new("Frame", {
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Position = UDim2.new(0.5, ex, 0, math.floor(gsz * 0.32)),
+                    Size = UDim2.new(0, eyeR * 2, 0, eyeR * 2),
+                    BackgroundColor3 = Color3.fromRGB(80, 30, 140),
+                    BackgroundTransparency = 0,
+                    BorderSizePixel = 0,
+                    ZIndex = 4,
+                }, gc)
+                corner(eye, UDim.new(1, 0))
+                new("Frame", {
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Position = UDim2.new(0.3, 0, 0.3, 0),
+                    Size = UDim2.new(0, eyeR, 0, eyeR),
+                    BackgroundColor3 = Color3.fromRGB(180, 140, 255),
+                    BackgroundTransparency = 0.2,
+                    BorderSizePixel = 0,
+                    ZIndex = 5,
+                }, eye)
+            end
+            for bx = 0, 2 do
+                local bump = new("Frame", {
+                    AnchorPoint = Vector2.new(0.5, 0),
+                    Position = UDim2.new(0, math.floor(gsz * 0.18) + bx * math.floor(gsz * 0.28), 1, -6),
+                    Size = UDim2.new(0, math.floor(gsz * 0.26), 0, 12),
+                    BackgroundColor3 = Color3.fromRGB(220, 230, 255),
+                    BackgroundTransparency = 0.35,
+                    BorderSizePixel = 0,
+                    ZIndex = 3,
+                }, gc)
+                corner(bump, UDim.new(1, 0))
+            end
+            local trail = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0),
+                Position = UDim2.new(0.5, 0, 0.85, 0),
+                Size = UDim2.new(0, gsz * 0.6, 0, gsz * 0.4),
+                BackgroundColor3 = Color3.fromRGB(200, 215, 255),
+                BackgroundTransparency = 0.65,
+                BorderSizePixel = 0,
+                ZIndex = 2,
+            }, gc)
+            corner(trail, UDim.new(1, 0))
+            table.insert(atmosphereItems, gc)
+            return gc
+        end
+
+        local function makeTombstone(parent, px, label)
+            local tsW = 32
+            local tsH = 44
+            local ts = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 1),
+                Position = UDim2.new(0, px, 1, -2),
+                Size = UDim2.new(0, tsW, 0, tsH),
+                BackgroundColor3 = Color3.fromRGB(58, 52, 68),
+                BackgroundTransparency = 0.05,
+                BorderSizePixel = 0,
+                ZIndex = 4,
+            }, parent)
+            corner(ts, 10)
+            local cross = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, 0, 0.38, 0),
+                Size = UDim2.new(0, 2, 0, 14),
+                BackgroundColor3 = Color3.fromRGB(100, 90, 120),
+                BackgroundTransparency = 0.1,
+                BorderSizePixel = 0,
+                ZIndex = 5,
+            }, ts)
+            new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, 0, 0.5, 0),
+                Size = UDim2.new(0, 10, 0, 2),
+                BackgroundColor3 = Color3.fromRGB(100, 90, 120),
+                BackgroundTransparency = 0.1,
+                BorderSizePixel = 0,
+                ZIndex = 5,
+            }, cross)
+            local base = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0),
+                Position = UDim2.new(0.5, 0, 1, 0),
+                Size = UDim2.new(1.35, 0, 0, 6),
+                BackgroundColor3 = Color3.fromRGB(42, 36, 52),
+                BackgroundTransparency = 0.1,
+                BorderSizePixel = 0,
+                ZIndex = 4,
+            }, ts)
+            corner(base, 2)
+            table.insert(atmosphereItems, ts)
+            return ts
+        end
+
+        local function makeBloodDrip(parent, px)
+            local dripH = math.random(12, 35)
+            local drip = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0),
+                Position = UDim2.new(0, px, 0, 0),
+                Size = UDim2.new(0, math.random(3, 6), 0, dripH),
+                BackgroundColor3 = Color3.fromRGB(160, 8, 8),
+                BackgroundTransparency = 0.05,
+                BorderSizePixel = 0,
+                ZIndex = 4,
+            }, parent)
+            corner(drip, 2)
+            local drop = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0),
+                Position = UDim2.new(0.5, 0, 1, -2),
+                Size = UDim2.new(0, math.random(7, 11), 0, math.random(7, 11)),
+                BackgroundColor3 = Color3.fromRGB(160, 8, 8),
+                BackgroundTransparency = 0.05,
+                BorderSizePixel = 0,
+                ZIndex = 4,
+            }, drip)
+            corner(drop, UDim.new(1, 0))
+            table.insert(atmosphereItems, drip)
+            return { obj = drip, initH = dripH, px = px, growRate = math.random(6, 18), phase = math.random() * 6.28, drop = drop }
+        end
+
+        local function makeCloud(parent, startX, startY)
+            local cW = math.random(90, 160)
+            local cH = math.random(22, 38)
+            local cloud = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0, startX, 0, startY),
+                Size = UDim2.new(0, cW, 0, cH),
+                BackgroundColor3 = Color3.fromRGB(12, 8, 22),
+                BackgroundTransparency = 0.25,
+                BorderSizePixel = 0,
+                ZIndex = 2,
+                ClipsDescendants = false,
+            }, parent)
+            corner(cloud, math.floor(cH * 0.45))
+            for _, bp in ipairs({ {-cW * 0.28, -cH * 0.4}, {cW * 0.28, -cH * 0.35}, {0, -cH * 0.55} }) do
+                local bsz = math.floor(cH * 0.85)
+                local bulge = new("Frame", {
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Position = UDim2.new(0.5, bp[1], 0.5, bp[2]),
+                    Size = UDim2.new(0, bsz + math.random(-4, 8), 0, bsz),
+                    BackgroundColor3 = Color3.fromRGB(14, 10, 28),
+                    BackgroundTransparency = 0.3,
+                    BorderSizePixel = 0,
+                    ZIndex = 2,
+                }, cloud)
+                corner(bulge, UDim.new(1, 0))
+            end
+            table.insert(atmosphereItems, cloud)
+            return cloud
+        end
+
+        local function makeLightning(parent)
+            local bolt = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0),
+                Position = UDim2.new(math.random(0.2, 0.8), 0, 0, 0),
+                Size = UDim2.new(0, 2, 0, math.random(80, 180)),
+                BackgroundColor3 = Color3.fromRGB(220, 215, 255),
+                BackgroundTransparency = 0,
+                Rotation = math.random(-12, 12),
+                BorderSizePixel = 0,
+                ZIndex = 8,
+            }, parent)
+            local fork = new("Frame", {
+                AnchorPoint = Vector2.new(0, 0),
+                Position = UDim2.new(0, 0, 0.5, 0),
+                Size = UDim2.new(0, 1, 0, math.random(40, 80)),
+                BackgroundColor3 = Color3.fromRGB(220, 215, 255),
+                BackgroundTransparency = 0,
+                Rotation = math.random(20, 40),
+                BorderSizePixel = 0,
+                ZIndex = 8,
+            }, bolt)
+            local flash = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0),
+                Position = UDim2.new(0.5, 0, 0, 0),
+                Size = UDim2.new(1, 0, 1, 0),
+                BackgroundColor3 = Color3.fromRGB(200, 200, 255),
+                BackgroundTransparency = 0.6,
+                BorderSizePixel = 0,
+                ZIndex = 7,
+            }, parent)
+            table.insert(atmosphereItems, bolt)
+            table.insert(atmosphereItems, fork)
+            table.insert(atmosphereItems, flash)
+            return { bolt = bolt, fork = fork, flash = flash }
+        end
+
         local webStrandsL = makeWeb(holder, 0, 0, false)
         local webStrandsR = makeWeb(holder, 0, 0, true)
 
@@ -705,6 +906,57 @@ local function applyAtmosphere(selfOrName, nameOrNil)
         local mist1 = makeMistLayer(holder, 0, 0.35)
         local mist2 = makeMistLayer(holder, -30, 0.22)
         local mist3 = makeMistLayer(holder, -65, 0.12)
+
+        local ghosts = {}
+        for i = 1, 5 do
+            local gx = math.random(width * 0.05, width * 0.95)
+            local gy = math.random(height * 0.1, height * 0.5)
+            local ghost = makeGhost(holder, gx, gy)
+            table.insert(ghosts, {
+                obj = ghost,
+                x = gx,
+                y = gy,
+                vx = math.random(-22, 22),
+                vy = math.random(-12, 12),
+                sway = math.random(10, 25),
+                freq = math.random(5, 12) / 10,
+                pulse = math.random(8, 18) / 10,
+                bobAmp = math.random(8, 18),
+                phase = math.random() * 6.28,
+                time = math.random() * 10,
+            })
+        end
+
+        local tombPositions = { 60, 120, width * 0.38, width * 0.6, width - 120, width - 60 }
+        local tombs = {}
+        for _, tp in ipairs(tombPositions) do
+            table.insert(tombs, makeTombstone(holder, tp, "RIP"))
+        end
+
+        local drips = {}
+        for i = 1, 12 do
+            local dpx = math.random(20, width - 20)
+            table.insert(drips, makeBloodDrip(holder, dpx))
+        end
+
+        local clouds = {}
+        for i = 1, 7 do
+            local cx = math.random(0, width)
+            local cy = math.random(height * 0.04, height * 0.3)
+            local cloud = makeCloud(holder, cx, cy)
+            table.insert(clouds, {
+                obj = cloud,
+                x = cx,
+                y = cy,
+                vx = math.random(-18, -6),
+                phase = math.random() * 6.28,
+                time = math.random() * 10,
+            })
+        end
+
+        local lightningData = nil
+        local lightningTimer = math.random(3, 9)
+        local lightningAlive = 0
 
         local bats = {}
         for i = 1, 9 do
@@ -853,6 +1105,67 @@ local function applyAtmosphere(selfOrName, nameOrNil)
                 local alpha = flicker * burnout * atmosphereOpacity
                 e.obj.Position = UDim2.new(0, swayX, 0, e.y)
                 e.obj.BackgroundTransparency = math.clamp(1 - alpha, 0, 1)
+            end
+
+            for _, g in ipairs(ghosts) do
+                g.time = g.time + dt
+                g.x = g.x + g.vx * dt
+                g.y = g.y + g.vy * dt + math.sin(g.time * g.freq + g.phase) * g.bobAmp * dt
+                if g.x > curW + 50 then g.x = -50 elseif g.x < -50 then g.x = curW + 50 end
+                if g.y > curH * 0.65 then g.vy = -math.abs(g.vy) * 0.6 end
+                if g.y < curH * 0.04 then g.vy = math.abs(g.vy) * 0.6 end
+                g.obj.Position = UDim2.new(0, g.x, 0, g.y)
+                local ghostAlpha = 0.3 + math.sin(g.time * g.pulse + g.phase) * 0.2
+                g.obj.BackgroundTransparency = math.clamp(1 - ghostAlpha * atmosphereOpacity, 0, 1)
+                g.obj.Rotation = math.sin(g.time * 1.2 + g.phase) * 5
+            end
+
+            for _, d in ipairs(drips) do
+                local growBob = 0.5 + 0.5 * math.sin(t * d.growRate * 0.3 + d.phase)
+                local curH2 = d.initH + growBob * 10
+                d.obj.Size = UDim2.new(0, d.obj.Size.X.Offset, 0, curH2)
+                local dropAlpha = 0.05 + math.sin(t * 2.2 + d.phase) * 0.04
+                d.obj.BackgroundTransparency = math.clamp(dropAlpha, 0, 0.12)
+            end
+
+            for _, c in ipairs(clouds) do
+                c.time = c.time + dt
+                c.x = c.x + c.vx * dt
+                if c.x < -200 then c.x = curW + 200 end
+                local cloudY = c.y + math.sin(c.time * 0.4 + c.phase) * 6
+                c.obj.Position = UDim2.new(0, c.x, 0, cloudY)
+                local cloudAlpha = 0.72 + math.sin(c.time * 0.8 + c.phase) * 0.06
+                c.obj.BackgroundTransparency = math.clamp(cloudAlpha, 0.6, 0.85)
+            end
+
+            lightningTimer = lightningTimer - dt
+            if lightningTimer <= 0 and not lightningData then
+                lightningData = makeLightning(holder)
+                lightningAlive = 0
+                lightningTimer = math.random(6, 18)
+            end
+            if lightningData then
+                lightningAlive = lightningAlive + dt
+                local fadeT = lightningAlive * 6
+                local boltAlpha = math.clamp(1 - fadeT, 0, 1)
+                if lightningData.bolt and lightningData.bolt.Parent then
+                    lightningData.bolt.BackgroundTransparency = 1 - boltAlpha
+                    lightningData.fork.BackgroundTransparency = 1 - boltAlpha * 0.7
+                    lightningData.flash.BackgroundTransparency = math.clamp(0.6 + fadeT * 0.4, 0, 1)
+                end
+                if lightningAlive > 0.22 then
+                    if lightningData.bolt and lightningData.bolt.Parent then
+                        pcall(function() lightningData.bolt:Destroy() end)
+                        pcall(function() lightningData.fork:Destroy() end)
+                        pcall(function() lightningData.flash:Destroy() end)
+                    end
+                    lightningData = nil
+                end
+            end
+
+            for _, tb in ipairs(tombs) do
+                local tombShift = math.sin(t * 0.9) * 0.4
+                tb.BackgroundTransparency = math.clamp(0.05 + tombShift * 0.02, 0.03, 0.12)
             end
         end)
 
