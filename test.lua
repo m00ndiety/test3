@@ -34,7 +34,7 @@ genv.UIElements = {}
 local IsMobile = UserInputService.TouchEnabled and (not UserInputService.KeyboardEnabled or not UserInputService.MouseEnabled)
 
 local detectedGameName = "Roblox Experience"
-local detectedGameIcon = "rbxthumb://type=GameIcon&id=" .. tostring(game.PlaceId) .. "&w=150&h=150"
+local detectedGameIcon = (game.GameId and game.GameId > 0) and ("rbxthumb://type=GameIcon&id=" .. tostring(game.GameId) .. "&w=150&h=150") or ("rbxthumb://type=AutoGameIcon&id=" .. tostring(game.PlaceId) .. "&w=150&h=150")
 local gameNameListeners = {}
 
 local function onGameNameResolved(name, icon)
@@ -127,6 +127,7 @@ local SupportedGames = {
     { Name = "Evade", UniverseId = 3647333358, PlaceId = 9872472334, Playing = 113500 },
     { Name = "Grow a Garden 2", UniverseId = 10200395747, PlaceId = 97598239454123, Playing = 2500 },
     { Name = "Steal an Egg", UniverseId = 10563114921, PlaceId = 107778070777162, Playing = 1832000 },
+    { Name = "Land or Die!", UniverseId = 9312646406, PlaceId = 75547400568620, Playing = 4300 },
     { Name = "Murder Mystery 2", UniverseId = 66654135, PlaceId = 142823291, Playing = 249800 },
 }
 
@@ -177,12 +178,36 @@ end
 local function fetchScriptActiveUsers()
     task.spawn(function()
         local ok, res = pcall(function()
-            local url = "http://c-pl-1.apexnodes.xyz:10002/online"
-            local body = (httpRequest and httpRequest({Url = url, Method = "GET"}).Body) or game:HttpGet(url)
-            return HttpService:JSONDecode(body)
+            local url = "http://c-pl-1.apexnodes.xyz:10002/ping"
+            local payload = HttpService:JSONEncode({
+                id = (game.JobId or "job") .. ":" .. tostring(Players.LocalPlayer.UserId),
+                gameId = game.GameId,
+                placeId = game.PlaceId,
+                name = Players.LocalPlayer.DisplayName or Players.LocalPlayer.Name,
+                userId = Players.LocalPlayer.UserId,
+                jobId = game.JobId,
+            })
+            local resp
+            if httpRequest then
+                resp = httpRequest({
+                    Url = url,
+                    Method = "POST",
+                    Headers = { ["Content-Type"] = "application/json" },
+                    Body = payload,
+                })
+            end
+            if resp and resp.Body then
+                return HttpService:JSONDecode(resp.Body)
+            end
+            local getUrl = "http://c-pl-1.apexnodes.xyz:10002/online"
+            local getBody = (httpRequest and httpRequest({Url = getUrl, Method = "GET"}).Body) or game:HttpGet(getUrl)
+            return HttpService:JSONDecode(getBody)
         end)
-        if ok and type(res) == "table" and res.online then
-            scriptActiveUsers = tonumber(res.online) or scriptActiveUsers
+        if ok and type(res) == "table" then
+            local count = res.online or res.count or res.users or res.active
+            if count and tonumber(count) then
+                scriptActiveUsers = tonumber(count)
+            end
         elseif ok and tonumber(res) then
             scriptActiveUsers = tonumber(res)
         end
@@ -194,6 +219,18 @@ end
 
 fetchSupportedGamesPlaying()
 fetchScriptActiveUsers()
+
+task.spawn(function()
+    while task.wait(5) do
+        fetchScriptActiveUsers()
+    end
+end)
+
+task.spawn(function()
+    while task.wait(45) do
+        fetchSupportedGamesPlaying()
+    end
+end)
 
 local function joinDiscord(code)
     local targetCode = code or "moondiety"
@@ -227,31 +264,36 @@ local function cleanupAtmosphere()
     atmosphereItems = {}
 end
 
-local function applyAtmosphere(name)
+local function applyAtmosphere(selfOrName, nameOrNil)
+    local name = (type(selfOrName) == "string") and selfOrName or nameOrNil
+    name = name or "None"
     cleanupAtmosphere()
-    currentAtmosphere = name or "None"
+    currentAtmosphere = name
     if not Library then return end
     Library.CurrentAtmosphere = currentAtmosphere
     if not Library.AtmosphereHolder then return end
     local holder = Library.AtmosphereHolder
     if currentAtmosphere == "None" then return end
 
+    local cam = workspace.CurrentCamera
+    local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
     local holderSize = holder.AbsoluteSize
-    local width = (holderSize.X > 0) and holderSize.X or 1200
-    local height = (holderSize.Y > 0) and holderSize.Y or 800
+    local width = (holderSize.X > 50) and holderSize.X or ((vp.X > 50) and vp.X or 1280)
+    local height = (holderSize.Y > 50) and holderSize.Y or ((vp.Y > 50) and vp.Y or 720)
 
     if currentAtmosphere == "Spooky Halloween" then
         local webLeft = Instance.new("ImageLabel")
         webLeft.Name = "WebTopLeft"
         webLeft.AnchorPoint = Vector2.new(0, 0)
         webLeft.Position = UDim2.new(0, 0, 0, 0)
-        webLeft.Size = UDim2.new(0, 150, 0, 150)
+        webLeft.Size = UDim2.new(0, 180, 0, 180)
         webLeft.BackgroundTransparency = 1
-        webLeft.Image = "rbxassetid://15787505855"
-        webLeft.ImageColor3 = Color3.fromRGB(230, 220, 245)
-        webLeft.ImageTransparency = 0.35 + (1 - atmosphereOpacity) * 0.4
+        webLeft.Image = "rbxthumb://type=Asset&id=491303937&w=420&h=420"
+        webLeft.ImageColor3 = Color3.fromRGB(240, 235, 255)
+        webLeft.ImageTransparency = 0.25 + (1 - atmosphereOpacity) * 0.4
         webLeft.Active = false
-        webLeft.ZIndex = 0
+        webLeft.Selectable = false
+        webLeft.ZIndex = 2
         webLeft.Parent = holder
         table.insert(atmosphereItems, webLeft)
 
@@ -259,19 +301,20 @@ local function applyAtmosphere(name)
         webRight.Name = "WebTopRight"
         webRight.AnchorPoint = Vector2.new(1, 0)
         webRight.Position = UDim2.new(1, 0, 0, 0)
-        webRight.Size = UDim2.new(0, 150, 0, 150)
+        webRight.Size = UDim2.new(0, 180, 0, 180)
         webRight.BackgroundTransparency = 1
-        webRight.Image = "rbxassetid://15787505855"
-        webRight.ImageColor3 = Color3.fromRGB(230, 220, 245)
-        webRight.ImageTransparency = 0.35 + (1 - atmosphereOpacity) * 0.4
+        webRight.Image = "rbxthumb://type=Asset&id=491303937&w=420&h=420"
+        webRight.ImageColor3 = Color3.fromRGB(240, 235, 255)
+        webRight.ImageTransparency = 0.25 + (1 - atmosphereOpacity) * 0.4
         webRight.Rotation = 90
         webRight.Active = false
-        webRight.ZIndex = 0
+        webRight.Selectable = false
+        webRight.ZIndex = 2
         webRight.Parent = holder
         table.insert(atmosphereItems, webRight)
 
         local embers = {}
-        for i = 1, 14 do
+        for i = 1, 16 do
             local sz = math.random(4, 7)
             local isOrange = (i % 2 == 1)
             local col = isOrange and Color3.fromRGB(255, 140, 40) or Color3.fromRGB(168, 85, 247)
@@ -281,9 +324,10 @@ local function applyAtmosphere(name)
             p.Size = UDim2.new(0, sz, 0, sz)
             p.BackgroundColor3 = col
             p.BorderSizePixel = 0
-            p.BackgroundTransparency = 0.3
+            p.BackgroundTransparency = 0.25
             p.Active = false
-            p.ZIndex = 0
+            p.Selectable = false
+            p.ZIndex = 2
             local c = Instance.new("UICorner", p)
             c.CornerRadius = UDim.new(1, 0)
             p.Parent = holder
@@ -309,7 +353,8 @@ local function applyAtmosphere(name)
             bat.BorderSizePixel = 0
             bat.BackgroundTransparency = 0.35
             bat.Active = false
-            bat.ZIndex = 0
+            bat.Selectable = false
+            bat.ZIndex = 2
             local c = Instance.new("UICorner", bat)
             c.CornerRadius = UDim.new(0, 3)
             bat.Parent = holder
@@ -326,8 +371,11 @@ local function applyAtmosphere(name)
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
             t = t + dt
-            local curW = (holder.AbsoluteSize.X > 0) and holder.AbsoluteSize.X or width
-            local curH = (holder.AbsoluteSize.Y > 0) and holder.AbsoluteSize.Y or height
+            local curW = (holder.AbsoluteSize.X > 50) and holder.AbsoluteSize.X or width
+            local curH = (holder.AbsoluteSize.Y > 50) and holder.AbsoluteSize.Y or height
+            local webAlpha = (0.25 + (1 - atmosphereOpacity) * 0.4) + math.sin(t * 1.5) * 0.05
+            webLeft.ImageTransparency = math.clamp(webAlpha, 0, 1)
+            webRight.ImageTransparency = math.clamp(webAlpha, 0, 1)
             for _, e in ipairs(embers) do
                 e.y = e.y - e.speed * dt
                 if e.y < -15 then
@@ -362,7 +410,8 @@ local function applyAtmosphere(name)
             p.BorderSizePixel = 0
             p.BackgroundTransparency = 0.4
             p.Active = false
-            p.ZIndex = 0
+            p.Selectable = false
+            p.ZIndex = 2
             local c = Instance.new("UICorner", p)
             c.CornerRadius = UDim.new(1, 0)
             p.Parent = holder
@@ -380,8 +429,8 @@ local function applyAtmosphere(name)
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
             t = t + dt
-            local curW = (holder.AbsoluteSize.X > 0) and holder.AbsoluteSize.X or width
-            local curH = (holder.AbsoluteSize.Y > 0) and holder.AbsoluteSize.Y or height
+            local curW = (holder.AbsoluteSize.X > 50) and holder.AbsoluteSize.X or width
+            local curH = (holder.AbsoluteSize.Y > 50) and holder.AbsoluteSize.Y or height
             for _, s in ipairs(stars) do
                 s.y = s.y - s.speed * dt
                 if s.y < -10 then
@@ -408,7 +457,8 @@ local function applyAtmosphere(name)
             p.BorderSizePixel = 0
             p.BackgroundTransparency = 0.3
             p.Active = false
-            p.ZIndex = 0
+            p.Selectable = false
+            p.ZIndex = 2
             local c = Instance.new("UICorner", p)
             c.CornerRadius = UDim.new(0, 2)
             p.Parent = holder
@@ -422,8 +472,8 @@ local function applyAtmosphere(name)
         end
 
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
-            local curW = (holder.AbsoluteSize.X > 0) and holder.AbsoluteSize.X or width
-            local curH = (holder.AbsoluteSize.Y > 0) and holder.AbsoluteSize.Y or height
+            local curW = (holder.AbsoluteSize.X > 50) and holder.AbsoluteSize.X or width
+            local curH = (holder.AbsoluteSize.Y > 50) and holder.AbsoluteSize.Y or height
             for _, sp in ipairs(sparks) do
                 sp.y = sp.y - sp.speed * dt
                 if sp.y < -15 then
@@ -447,7 +497,8 @@ local function applyAtmosphere(name)
             p.BorderSizePixel = 0
             p.BackgroundTransparency = 0.35
             p.Active = false
-            p.ZIndex = 0
+            p.Selectable = false
+            p.ZIndex = 2
             local c = Instance.new("UICorner", p)
             c.CornerRadius = UDim.new(0, 4)
             p.Parent = holder
@@ -466,8 +517,8 @@ local function applyAtmosphere(name)
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
             t = t + dt
-            local curW = (holder.AbsoluteSize.X > 0) and holder.AbsoluteSize.X or width
-            local curH = (holder.AbsoluteSize.Y > 0) and holder.AbsoluteSize.Y or height
+            local curW = (holder.AbsoluteSize.X > 50) and holder.AbsoluteSize.X or width
+            local curH = (holder.AbsoluteSize.Y > 50) and holder.AbsoluteSize.Y or height
             for _, l in ipairs(leaves) do
                 l.y = l.y + l.speedY * dt
                 l.baseX = l.baseX + l.driftX * dt
@@ -493,7 +544,8 @@ local function applyAtmosphere(name)
             p.BorderSizePixel = 0
             p.BackgroundTransparency = 0.3
             p.Active = false
-            p.ZIndex = 0
+            p.Selectable = false
+            p.ZIndex = 2
             local c = Instance.new("UICorner", p)
             c.CornerRadius = UDim.new(1, 0)
             p.Parent = holder
@@ -511,8 +563,8 @@ local function applyAtmosphere(name)
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
             t = t + dt
-            local curW = (holder.AbsoluteSize.X > 0) and holder.AbsoluteSize.X or width
-            local curH = (holder.AbsoluteSize.Y > 0) and holder.AbsoluteSize.Y or height
+            local curW = (holder.AbsoluteSize.X > 50) and holder.AbsoluteSize.X or width
+            local curH = (holder.AbsoluteSize.Y > 50) and holder.AbsoluteSize.Y or height
             for _, f in ipairs(flakes) do
                 f.y = f.y + f.speed * dt
                 if f.y > curH + 10 then
@@ -1337,7 +1389,7 @@ function Library.new(selfOrOpts, options)
         BorderSizePixel = 0,
         Position = UDim2.new(0, 0, 0, 0),
         Size = UDim2.new(1, 0, 1, 0),
-        ZIndex = 0,
+        ZIndex = 2,
         Active = false,
         ClipsDescendants = false,
     }, screen)
@@ -1356,7 +1408,7 @@ function Library.new(selfOrOpts, options)
         Size = fullSize,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        ZIndex = 1,
+        ZIndex = 10,
     }, screen)
     Library.MainHolder = MainHolder
 
@@ -2626,7 +2678,7 @@ function Library.new(selfOrOpts, options)
         execName = resExec
     end
 
-    local bar1, bar2, bar3, bar4, islandMascot
+    local islandUserPfp, islandWifiIcon, islandMascot, bar1, bar2, bar3, bar4
 
     local island = new("Frame", {
         Name = "DynamicIsland",
@@ -2701,70 +2753,42 @@ function Library.new(selfOrOpts, options)
         Name = "IslandVisualizer",
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, 0, 0.5, 0),
-        Size = UDim2.new(0, 52, 0, 20),
+        Size = UDim2.new(0, 44, 0, 20),
         BackgroundTransparency = 1,
         ZIndex = 852,
     }, islandCompact)
 
-    islandMascot = new("ImageLabel", {
-        Name = "IslandMascot",
+    islandUserPfp = new("ImageLabel", {
+        Name = "IslandUserPfp",
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, 0, 0.5, 0),
         Size = UDim2.new(0, 18, 0, 18),
-        BackgroundTransparency = 1,
-        Image = "rbxassetid://10149736886",
+        BackgroundColor3 = Color3.fromRGB(24, 26, 32),
+        BackgroundTransparency = 0,
+        BorderSizePixel = 0,
         ZIndex = 853,
     }, islandVisualizer)
-    pill(islandMascot)
+    pill(islandUserPfp)
+    stroke(islandUserPfp, genv.uiline or Color3.fromRGB(45, 48, 60), 1, 0.4)
+    islandMascot = islandUserPfp
 
-    local islandBarsHolder = new("Frame", {
-        Name = "BarsHolder",
+    task.spawn(function()
+        local ok, url = pcall(function()
+            return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+        end)
+        if ok and url then islandUserPfp.Image = url end
+    end)
+
+    islandWifiIcon = new("ImageLabel", {
+        Name = "IslandWifi",
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, 0, 0.5, 0),
-        Size = UDim2.new(0, 24, 0, 16),
+        Size = UDim2.new(0, 15, 0, 15),
         BackgroundTransparency = 1,
+        Image = "rbxassetid://78424889355261",
+        ImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
         ZIndex = 853,
     }, islandVisualizer)
-
-    bar1 = new("Frame", {
-        AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.new(0, 0, 1, -1),
-        Size = UDim2.new(0, 3, 0, 5),
-        BackgroundColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
-        BorderSizePixel = 0,
-        ZIndex = 854,
-    }, islandBarsHolder)
-    pill(bar1)
-
-    bar2 = new("Frame", {
-        AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.new(0, 6, 1, -1),
-        Size = UDim2.new(0, 3, 0, 8),
-        BackgroundColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
-        BorderSizePixel = 0,
-        ZIndex = 854,
-    }, islandBarsHolder)
-    pill(bar2)
-
-    bar3 = new("Frame", {
-        AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.new(0, 12, 1, -1),
-        Size = UDim2.new(0, 3, 0, 11),
-        BackgroundColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
-        BorderSizePixel = 0,
-        ZIndex = 854,
-    }, islandBarsHolder)
-    pill(bar3)
-
-    bar4 = new("Frame", {
-        AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.new(0, 18, 1, -1),
-        Size = UDim2.new(0, 3, 0, 14),
-        BackgroundColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
-        BorderSizePixel = 0,
-        ZIndex = 854,
-    }, islandBarsHolder)
-    pill(bar4)
 
     local islandExpanded = new("Frame", {
         Name = "ExpandedView",
@@ -3507,6 +3531,7 @@ function Library.new(selfOrOpts, options)
             if pingTileIcon then pingTileIcon.ImageColor3 = cAccent end
             if plrTileIcon then plrTileIcon.ImageColor3 = cAccent end
             if actTileIcon then actTileIcon.ImageColor3 = cAccent end
+            if islandWifiIcon then islandWifiIcon.ImageColor3 = cAccent end
             if islandLogo then islandLogo.ImageColor3 = WHITE end
         end
         if Library.activeNotifications then
@@ -3536,11 +3561,6 @@ function Library.new(selfOrOpts, options)
             frames = 0
             fpsClock = now
         end
-        if islandMascot and islandMascot.Parent then
-            islandMascot.Rotation = math.sin(now * 3.5) * 8
-            islandMascot.Position = UDim2.new(0, 0, 0.5, math.sin(now * 6) * 1.5)
-        end
-
     end)
 
     task.spawn(function()
@@ -3564,11 +3584,6 @@ function Library.new(selfOrOpts, options)
                 if okStat and sVal then ping = sVal end
             end
 
-            local activeCount = 0
-            for _, val in pairs(Library.Flags) do
-                if val == true then activeCount += 1 end
-            end
-
             local playerCount = #Players:GetPlayers()
 
             if islandStats then
@@ -3577,26 +3592,13 @@ function Library.new(selfOrOpts, options)
             islandFpsVal.Text = string.format("<font color=\"#8e92a4\">FPS</font>  <font color=\"#ffffff\"><b>%d</b></font>", currentFps)
             islandPingVal.Text = string.format("<font color=\"#8e92a4\">Ping</font>  <font color=\"#ffffff\"><b>%d</b><font color=\"#8e92a4\"> ms</font></font>", ping)
             islandPlrVal.Text = string.format("<font color=\"#8e92a4\">Plrs</font>  <font color=\"#ffffff\"><b>%d</b></font>", playerCount)
-            islandActiveVal.Text = string.format("<font color=\"#8e92a4\">Active</font>  <font color=\"#ffffff\"><b>%d</b></font>", activeCount)
+            islandActiveVal.Text = string.format("<font color=\"#8e92a4\">Active</font>  <font color=\"#ffffff\"><b>%d</b></font>", scriptActiveUsers)
 
             wmPingText.Text = string.format("<font color=\"#ffffff\"><b>%d</b></font> <font color=\"#8e92a4\">ms</font>", ping)
 
-            local pingLevel = 4
-            if ping > 200 then pingLevel = 1
-            elseif ping > 140 then pingLevel = 2
-            elseif ping > 80 then pingLevel = 3
-            else pingLevel = 4 end
-            local cAcc = genv.accent or Color3.fromRGB(168, 85, 247)
-            local cDim = Color3.fromRGB(60, 64, 76)
-            if bar1 and bar1.Parent then
-                bar1.BackgroundColor3 = pingLevel >= 1 and cAcc or cDim
-                bar2.BackgroundColor3 = pingLevel >= 2 and cAcc or cDim
-                bar3.BackgroundColor3 = pingLevel >= 3 and cAcc or cDim
-                bar4.BackgroundColor3 = pingLevel >= 4 and cAcc or cDim
-                bar1.BackgroundTransparency = pingLevel >= 1 and 0 or 0.6
-                bar2.BackgroundTransparency = pingLevel >= 2 and 0 or 0.6
-                bar3.BackgroundTransparency = pingLevel >= 3 and 0 or 0.6
-                bar4.BackgroundTransparency = pingLevel >= 4 and 0 or 0.6
+            if islandWifiIcon and islandWifiIcon.Parent then
+                local wifiCol = (ping <= 100) and (genv.accent or Color3.fromRGB(168, 85, 247)) or ((ping <= 180) and WARNING_COLOR or ERROR_COLOR)
+                islandWifiIcon.ImageColor3 = wifiCol
             end
             wmFpsText.Text = string.format("<font color=\"#ffffff\"><b>%d</b></font> <font color=\"#8e92a4\">fps</font>", currentFps)
             wmPlrText.Text = string.format("<font color=\"#ffffff\"><b>%d</b></font> <font color=\"#8e92a4\">players</font>", playerCount)
@@ -4528,7 +4530,7 @@ function Library.new(selfOrOpts, options)
                 BackgroundTransparency = 1,
                 AnchorPoint = Vector2.new(0, 0.5),
                 Position = UDim2.new(0, 18, 0.5, 0),
-                Size = UDim2.new(1, -165, 1, 0),
+                Size = UDim2.new(1, -195, 1, 0),
                 FontFace = font(Enum.FontWeight.Bold),
                 TextColor3 = WHITE,
                 TextSize = 11,
@@ -4540,7 +4542,7 @@ function Library.new(selfOrOpts, options)
             local scriptUsersPill = new("Frame", {
                 AnchorPoint = Vector2.new(1, 0.5),
                 Position = UDim2.new(1, 0, 0.5, 0),
-                Size = UDim2.new(0, 140, 0, 22),
+                Size = UDim2.new(0, 185, 0, 22),
                 BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(WHITE, 0.06),
                 BorderSizePixel = 0,
                 ZIndex = 894,
@@ -4569,13 +4571,13 @@ function Library.new(selfOrOpts, options)
                 TextSize = 10,
                 RichText = true,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                Text = string.format("<font color=\"#a855f7\"><b>%d</b></font> Script Users", scriptActiveUsers),
+                Text = string.format("<font color=\"#a855f7\"><b>%d</b></font> Active Script Users Rn", scriptActiveUsers),
                 ZIndex = 895,
             }, scriptUsersPill)
 
             table.insert(scriptUserListeners, function(count)
                 if scriptUsersLabel and scriptUsersLabel.Parent then
-                    scriptUsersLabel.Text = string.format("<font color=\"#a855f7\"><b>%d</b></font> Script Users", count)
+                    scriptUsersLabel.Text = string.format("<font color=\"#a855f7\"><b>%d</b></font> Active Script Users Rn", count)
                 end
             end)
 
@@ -4604,14 +4606,16 @@ function Library.new(selfOrOpts, options)
                 corner(gRow, 7)
                 local gRowStrk = stroke(gRow, isCurrent and (genv.accent or Color3.fromRGB(168, 85, 247)) or (genv.uiline or Color3.fromRGB(38, 40, 50)), 1, isCurrent and 0.3 or 0.6)
 
-                local thumbId = gInfo.PlaceId or gInfo.UniverseId
+                local thumbUri = (gInfo.UniverseId and gInfo.UniverseId > 0)
+                    and ("rbxthumb://type=GameIcon&id=" .. tostring(gInfo.UniverseId) .. "&w=150&h=150")
+                    or ("rbxthumb://type=AutoGameIcon&id=" .. tostring(gInfo.PlaceId) .. "&w=150&h=150")
                 local gThumb = new("ImageLabel", {
                     AnchorPoint = Vector2.new(0, 0.5),
                     Position = UDim2.new(0, 6, 0.5, 0),
                     Size = UDim2.new(0, 26, 0, 26),
                     BackgroundColor3 = Color3.fromRGB(15, 16, 22),
                     BorderSizePixel = 0,
-                    Image = "rbxthumb://type=GameIcon&id=" .. tostring(thumbId) .. "&w=150&h=150",
+                    Image = thumbUri,
                     ZIndex = 895,
                 }, gRow)
                 corner(gThumb, 6)
@@ -5182,7 +5186,7 @@ function Library.new(selfOrOpts, options)
             Position = UDim2.new(0.245, 0, 0.127, 0),
             Size = UDim2.new(0.74, 0, 0.87, 0),
             ScrollBarThickness = 3,
-            ScrollBarImageTransparency = 0.35,
+            ScrollBarImageTransparency = 0.5,
             ScrollBarImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
             VerticalScrollBarInset = Enum.ScrollBarInset.None,
             VerticalScrollBarPosition = Enum.VerticalScrollBarPosition.Right,
@@ -5192,6 +5196,37 @@ function Library.new(selfOrOpts, options)
             Visible = false,
         }, Container)
         table.insert(allItemSections, itemsSection)
+
+        local scrollFadeThread
+        local function triggerScrollAnim()
+            if scrollFadeThread then task.cancel(scrollFadeThread); scrollFadeThread = nil end
+            TweenService:Create(itemsSection, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                ScrollBarThickness = 6,
+                ScrollBarImageTransparency = 0.1,
+            }):Play()
+            scrollFadeThread = task.delay(1.2, function()
+                TweenService:Create(itemsSection, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    ScrollBarThickness = 3,
+                    ScrollBarImageTransparency = 0.5,
+                }):Play()
+            end)
+        end
+        itemsSection:GetPropertyChangedSignal("CanvasPosition"):Connect(triggerScrollAnim)
+        itemsSection.MouseEnter:Connect(function()
+            if scrollFadeThread then task.cancel(scrollFadeThread); scrollFadeThread = nil end
+            TweenService:Create(itemsSection, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                ScrollBarThickness = 6,
+                ScrollBarImageTransparency = 0.1,
+            }):Play()
+        end)
+        itemsSection.MouseLeave:Connect(function()
+            scrollFadeThread = task.delay(0.4, function()
+                TweenService:Create(itemsSection, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    ScrollBarThickness = 3,
+                    ScrollBarImageTransparency = 0.5,
+                }):Play()
+            end)
+        end)
 
         local GAP = 6
         local LEFT_W = 0.48993
@@ -6879,6 +6914,7 @@ function Library.new(selfOrOpts, options)
             end
             table.insert(genv.UIElements, Box)
             corner(Box, 6)
+            local boxStroke = stroke(Box, genv.uiline or Color3.fromRGB(40, 42, 54), 1, 0.5)
 
             local Options
             if sideStyle then
@@ -6958,6 +6994,50 @@ function Library.new(selfOrOpts, options)
                 Image = "rbxassetid://17400678941",
             }, Box)
 
+            Box.MouseEnter:Connect(function()
+                local baseCol = genv[keys.boxKey] or Color3.fromRGB(22, 23, 27)
+                TweenService:Create(Box, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    BackgroundColor3 = baseCol:lerp(WHITE, 0.08)
+                }):Play()
+                if boxStroke then
+                    TweenService:Create(boxStroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        Color = genv.accent or Color3.fromRGB(168, 85, 247),
+                        Transparency = 0.25,
+                    }):Play()
+                end
+                TweenService:Create(Arrow, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    ImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247)
+                }):Play()
+            end)
+            Box.MouseLeave:Connect(function()
+                if not open then
+                    local baseCol = genv[keys.boxKey] or Color3.fromRGB(22, 23, 27)
+                    TweenService:Create(Box, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        BackgroundColor3 = baseCol
+                    }):Play()
+                    if boxStroke then
+                        TweenService:Create(boxStroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                            Color = genv.uiline or Color3.fromRGB(40, 42, 54),
+                            Transparency = 0.5,
+                        }):Play()
+                    end
+                    TweenService:Create(Arrow, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        ImageColor3 = WHITE
+                    }):Play()
+                end
+            end)
+
+            dropdownRow.MouseEnter:Connect(function()
+                TweenService:Create(dropdownRow, TweenInfo.new(0.2), {
+                    BackgroundColor3 = (genv[keys.rowKey] or Color3.fromRGB(27, 28, 33)):lerp(WHITE, 0.03)
+                }):Play()
+            end)
+            dropdownRow.MouseLeave:Connect(function()
+                TweenService:Create(dropdownRow, TweenInfo.new(0.3), {
+                    BackgroundColor3 = genv[keys.rowKey] or Color3.fromRGB(27, 28, 33)
+                }):Play()
+            end)
+
             attachTooltip(dropdownRow, cfg.tooltip or cfg.desc)
             registerItem(dropdownRow, side, ELEMENT_HEIGHT, cfg.name)
 
@@ -7019,7 +7099,10 @@ function Library.new(selfOrOpts, options)
                 Options.Visible = true
                 setBump(true)
                 applyOpenSize()
-                TweenService:Create(Arrow, TweenInfo.new(0.4), {Rotation = 180}):Play()
+                TweenService:Create(Arrow, TweenInfo.new(0.4), {Rotation = 180, ImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247)}):Play()
+                if boxStroke then
+                    TweenService:Create(boxStroke, TweenInfo.new(0.25), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.15}):Play()
+                end
             end
 
             function D:close()
@@ -7032,7 +7115,12 @@ function Library.new(selfOrOpts, options)
                 if not sideStyle then
                     updateItemHeight(dropdownRow, ELEMENT_HEIGHT)
                 end
-                TweenService:Create(Arrow, TweenInfo.new(0.4), {Rotation = 0}):Play()
+                TweenService:Create(Arrow, TweenInfo.new(0.4), {Rotation = 0, ImageColor3 = WHITE}):Play()
+                local baseCol = genv[keys.boxKey] or Color3.fromRGB(22, 23, 27)
+                TweenService:Create(Box, TweenInfo.new(0.3), {BackgroundColor3 = baseCol}):Play()
+                if boxStroke then
+                    TweenService:Create(boxStroke, TweenInfo.new(0.3), {Color = genv.uiline or Color3.fromRGB(40, 42, 54), Transparency = 0.5}):Play()
+                end
                 tweenClose.Completed:Once(function()
                     if token ~= animToken then return end
                     Options.Visible = false
