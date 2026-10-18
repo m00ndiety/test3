@@ -31,6 +31,9 @@ local httpRequest = (syn and syn.request) or (http and http.request) or request
 local genv = getgenv()
 genv.UIElements = {}
 
+local allRegisteredDropdowns = {}
+local allCustomScrollbars = {}
+
 local IsMobile = UserInputService.TouchEnabled and (not UserInputService.KeyboardEnabled or not UserInputService.MouseEnabled)
 
 local detectedGameName = "Roblox Experience"
@@ -1512,7 +1515,7 @@ local function buildTheme(p)
         inputButton = p.base,
         InputBox = p.second,
         Keybind = p.base,
-        KeybindBox = Color3.fromRGB(24, 25, 30),
+        KeybindBox = p.second,
         blockedoverlay = p.overlay,
         blockedtext = p.btext,
         accent = p.accent or p.on,
@@ -1675,6 +1678,10 @@ local ColorMap = {
     Tab = "tabcolor",
     ColorPalette = "dropdownoptionscolor",
     BlockedOverlay = "blockedoverlay",
+    SearchBox = "uicontainer",
+    ScrollThumb = "accent",
+    ScrollBtn = "uicontainer",
+    ScrollTrack = "uicontainer",
 }
 
 local function ApplyTheme(name, customAccent)
@@ -1729,6 +1736,19 @@ local function ApplyTheme(name, customAccent)
                 end
             end
         end
+    end
+    for _, drop in ipairs(allRegisteredDropdowns) do
+        pcall(function()
+            if drop and drop.update then
+                drop:update()
+            end
+        end)
+    end
+    for _, sb in ipairs(allCustomScrollbars) do
+        if sb.thumb and sb.thumb.Parent then sb.thumb.BackgroundColor3 = genv.accent end
+        if sb.track and sb.track.Parent then sb.track.BackgroundColor3 = genv.uicontainer end
+        if sb.up and sb.up.Parent then sb.up.BackgroundColor3 = genv.uicontainer end
+        if sb.down and sb.down.Parent then sb.down.BackgroundColor3 = genv.uicontainer end
     end
     if Library.OnThemeChanged then
         Library.OnThemeChanged()
@@ -3833,9 +3853,19 @@ function Library.new(selfOrOpts, options)
         if ok and url then playerHead.Image = url end
     end)
 
+    local function getExecName()
+        local ok, res = pcall(function()
+            return (identifyexecutor and identifyexecutor()) or (getexecutorname and getexecutorname())
+        end)
+        if ok and type(res) == "string" and #res > 0 then
+            return res
+        end
+        return execName or "Unknown"
+    end
+
     local islandPlayerName = new("TextLabel", {
         Position = UDim2.new(0, 44, 0, 0),
-        Size = UDim2.new(1, -125, 0, 15),
+        Size = UDim2.new(1, -78, 0, 15),
         BackgroundTransparency = 1,
         FontFace = font(Enum.FontWeight.Bold),
         TextColor3 = WHITE,
@@ -3848,14 +3878,14 @@ function Library.new(selfOrOpts, options)
 
     local islandUsername = new("TextLabel", {
         Position = UDim2.new(0, 44, 0, 15),
-        Size = UDim2.new(1, -125, 0, 13),
+        Size = UDim2.new(1, -78, 0, 13),
         BackgroundTransparency = 1,
         FontFace = font(Enum.FontWeight.Medium),
         TextColor3 = MUTED,
         TextSize = 10,
         TextTruncate = Enum.TextTruncate.AtEnd,
         TextXAlignment = Enum.TextXAlignment.Left,
-        Text = "@" .. LocalPlayer.Name .. "  •  " .. execName,
+        Text = "@" .. LocalPlayer.Name .. "  •  " .. getExecName(),
         ZIndex = 853,
     }, expHeader)
 
@@ -4107,6 +4137,9 @@ function Library.new(selfOrOpts, options)
         if state then
             islandCompact.Visible = false
             islandExpanded.Visible = true
+            if islandUsername and islandUsername.Parent then
+                islandUsername.Text = "@" .. LocalPlayer.Name .. "  •  " .. getExecName()
+            end
         else
             islandExpanded.Visible = false
             islandCompact.Visible = true
@@ -4126,7 +4159,16 @@ function Library.new(selfOrOpts, options)
     end)
     island.MouseLeave:Connect(function()
         if Library.IslandStyle == "Show on Hover" and not islandDragging then
-            setIslandExpanded(false)
+            task.delay(0.08, function()
+                if not islandExpandedState or islandDragging then return end
+                local mPos = UserInputService:GetMouseLocation()
+                local aPos = island.AbsolutePosition
+                local aSize = island.AbsoluteSize
+                if mPos.X >= aPos.X and mPos.X <= aPos.X + aSize.X and mPos.Y >= aPos.Y and mPos.Y <= aPos.Y + aSize.Y then
+                    return
+                end
+                setIslandExpanded(false)
+            end)
         end
     end)
 
@@ -4489,11 +4531,26 @@ function Library.new(selfOrOpts, options)
             if modalData.perfStroke then modalData.perfStroke.Color = cLine end
             if modalData.perfHeaderIcon then modalData.perfHeaderIcon.ImageColor3 = cAccent end
         end
+        local copyBtnBg = cContainer:lerp(WHITE, 0.08)
         for _, lr in ipairs(modalData.linkRows) do
             if lr.row then lr.row.BackgroundColor3 = rowBg end
             if lr.rowStrk then lr.rowStrk.Color = cLine end
             if lr.icon then lr.icon.ImageColor3 = cAccent end
-            if lr.copyBtn and lr.copyStrk then lr.copyStrk.Color = cLine end
+            if lr.copyBtn then lr.copyBtn.BackgroundColor3 = copyBtnBg end
+            if lr.copyStrk then lr.copyStrk.Color = cLine end
+        end
+        if modalData.modalClose then
+            modalData.modalClose.BackgroundColor3 = copyBtnBg
+            if modalData.modalCloseStroke then modalData.modalCloseStroke.Color = cLine end
+        end
+        if modalData.scriptUsersLabel and modalData.scriptUsersLabel.Parent then
+            modalData.scriptUsersLabel.Text = string.format("<font color=\"#%s\"><b>%d</b></font> Active Script Users Rn", colorToHex(cAccent), scriptActiveUsers)
+        end
+        for _, sb in ipairs(allCustomScrollbars) do
+            if sb.thumb and sb.thumb.Parent then sb.thumb.BackgroundColor3 = cAccent end
+            if sb.track and sb.track.Parent then sb.track.BackgroundColor3 = cContainer end
+            if sb.up and sb.up.Parent then sb.up.BackgroundColor3 = cContainer end
+            if sb.down and sb.down.Parent then sb.down.BackgroundColor3 = cContainer end
         end
         for _, ab in ipairs(modalData.actionButtons) do
             if ab.btn then ab.btn.BackgroundColor3 = rowBg end
@@ -4753,8 +4810,8 @@ function Library.new(selfOrOpts, options)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ClipsDescendants = true,
-        Position = UDim2.new(0, 10, 0.0915492922, 0),
-        Size = UDim2.new(0.21, -10, 0.72, 0),
+        Position = UDim2.new(0, 10, 0, 58),
+        Size = UDim2.new(0.21, -10, 1, -138),
         ScrollBarThickness = 0,
         ScrollBarImageTransparency = 1,
         CanvasSize = UDim2.new(0, 0, 0, 0),
@@ -4764,15 +4821,15 @@ function Library.new(selfOrOpts, options)
     }, Container)
 
     local tabsLayout = new("UIListLayout", {
-        Padding = UDim.new(0, 9),
+        Padding = UDim.new(0, 8),
         SortOrder = Enum.SortOrder.LayoutOrder,
         HorizontalAlignment = Enum.HorizontalAlignment.Center,
     }, tabs)
-    new("UIPadding", {PaddingTop = UDim.new(0, 15)}, tabs)
+    new("UIPadding", {PaddingTop = UDim.new(0, 4), PaddingBottom = UDim.new(0, 8)}, tabs)
     corner(tabs, 8)
 
     tabsLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        local need = tabsLayout.AbsoluteContentSize.Y + 20
+        local need = tabsLayout.AbsoluteContentSize.Y + 16
         tabs.CanvasSize = UDim2.new(0, 0, 0, math.max(need, tabs.AbsoluteSize.Y))
         tabs.ScrollingEnabled = need > tabs.AbsoluteSize.Y
     end)
@@ -4785,7 +4842,7 @@ function Library.new(selfOrOpts, options)
         Text = "",
         Position = UDim2.new(0, 10, 1, -68),
         Size = UDim2.new(0.21, -10, 0, 56),
-        ZIndex = 2,
+        ZIndex = 20,
     }, Container)
     table.insert(genv.UIElements, userCard)
     corner(userCard, 9)
@@ -4799,7 +4856,7 @@ function Library.new(selfOrOpts, options)
         BackgroundColor3 = Color3.fromRGB(18, 19, 24),
         BackgroundTransparency = 0,
         BorderSizePixel = 0,
-        ZIndex = 3,
+        ZIndex = 21,
     }, userCard)
     corner(avatar, 8)
     stroke(avatar, Color3.fromRGB(44, 46, 58), 1, 0.6)
@@ -4815,7 +4872,7 @@ function Library.new(selfOrOpts, options)
         TextTruncate = Enum.TextTruncate.AtEnd,
         TextXAlignment = Enum.TextXAlignment.Left,
         Text = LocalPlayer.DisplayName,
-        ZIndex = 3,
+        ZIndex = 21,
     }, userCard)
     nickLabel:SetAttribute("ThemeText", true)
     table.insert(genv.UIElements, nickLabel)
@@ -4831,7 +4888,7 @@ function Library.new(selfOrOpts, options)
         TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
         Text = "@" .. LocalPlayer.Name,
-        ZIndex = 3,
+        ZIndex = 21,
     }, userCard)
 
     local userChevron = new("ImageLabel", {
@@ -4842,7 +4899,7 @@ function Library.new(selfOrOpts, options)
         BackgroundTransparency = 1,
         Image = "rbxassetid://92473583511724",
         ImageColor3 = Color3.fromRGB(120, 124, 138),
-        ZIndex = 3,
+        ZIndex = 21,
     }, userCard)
 
     userCard.MouseEnter:Connect(function()
@@ -5043,7 +5100,7 @@ function Library.new(selfOrOpts, options)
             AnchorPoint = Vector2.new(1, 0.5),
             Position = UDim2.new(1, 0, 0.5, 0),
             Size = UDim2.new(0, 26, 0, 26),
-            BackgroundColor3 = Color3.fromRGB(27, 28, 36),
+            BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(WHITE, 0.08),
             BorderSizePixel = 0,
             AutoButtonColor = false,
             FontFace = font(Enum.FontWeight.Bold),
@@ -5053,12 +5110,14 @@ function Library.new(selfOrOpts, options)
             ZIndex = 893,
         }, modalHeader)
         corner(modalClose, 7)
-        stroke(modalClose, Color3.fromRGB(45, 47, 60), 1, 0.5)
+        local modalCloseStroke = stroke(modalClose, genv.uiline or Color3.fromRGB(45, 47, 60), 1, 0.5)
+        modalData.modalClose = modalClose
+        modalData.modalCloseStroke = modalCloseStroke
         modalClose.MouseEnter:Connect(function()
             TweenService:Create(modalClose, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(220, 38, 38), TextColor3 = WHITE}):Play()
         end)
         modalClose.MouseLeave:Connect(function()
-            local baseCol = (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(WHITE, 0.05)
+            local baseCol = (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(WHITE, 0.08)
             TweenService:Create(modalClose, TweenInfo.new(0.2), {BackgroundColor3 = baseCol, TextColor3 = Color3.fromRGB(170, 172, 185)}):Play()
         end)
         bindTap(modalClose, closeInfoModal)
@@ -5234,7 +5293,7 @@ function Library.new(selfOrOpts, options)
             local dDot = new("Frame", {
                 AnchorPoint = Vector2.new(0, 0.5),
                 Position = UDim2.new(0, 0, 0.5, 0),
-                Size = UDim2.new(0, 5, 0, 5),
+                Size = UDim2.new(0, 6, 0, 6),
                 BackgroundColor3 = Color3.fromRGB(34, 197, 94),
                 BorderSizePixel = 0,
                 ZIndex = 896,
@@ -5243,11 +5302,13 @@ function Library.new(selfOrOpts, options)
 
             local dStatsLabel = new("TextLabel", {
                 BackgroundTransparency = 1,
-                Position = UDim2.new(0, 9, 0, 0),
-                Size = UDim2.new(1, -9, 1, 0),
+                AnchorPoint = Vector2.new(0, 0.5),
+                Position = UDim2.new(0, 11, 0.5, 0),
+                Size = UDim2.new(1, -11, 1, 0),
                 FontFace = font(Enum.FontWeight.Medium),
                 TextSize = 10,
                 TextXAlignment = Enum.TextXAlignment.Left,
+                TextYAlignment = Enum.TextYAlignment.Center,
                 RichText = true,
                 Text = discordFetched and string.format("<font color=\"#4ade80\"><b>%s</b></font>  <font color=\"#64748b\">•</font>  <font color=\"#cbd5e1\">%s</font>", discordOnlineCountStr, discordMemberCountStr) or "<font color=\"#4ade80\"><b>Join</b></font>  <font color=\"#64748b\">•</font>  <font color=\"#cbd5e1\">Official Community</font>",
                 ZIndex = 896,
@@ -5265,7 +5326,7 @@ function Library.new(selfOrOpts, options)
                 AnchorPoint = Vector2.new(1, 0.5),
                 Position = UDim2.new(1, -8, 0.5, 0),
                 Size = UDim2.new(0, 78, 0, 26),
-                BackgroundColor3 = Color3.fromRGB(34, 36, 48),
+                BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(WHITE, 0.08),
                 BorderSizePixel = 0,
                 AutoButtonColor = false,
                 Text = "",
@@ -5315,7 +5376,7 @@ function Library.new(selfOrOpts, options)
             end)
             dCopyBtn.MouseLeave:Connect(function()
                 if dCopyLabel.Text == "Copy" then
-                    local baseCol = (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(WHITE, 0.09)
+                    local baseCol = (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(WHITE, 0.08)
                     TweenService:Create(dCopyBtn, TweenInfo.new(0.2), {BackgroundColor3 = baseCol}):Play()
                 end
             end)
@@ -5416,7 +5477,7 @@ function Library.new(selfOrOpts, options)
                 AnchorPoint = Vector2.new(1, 0.5),
                 Position = UDim2.new(1, -8, 0.5, 0),
                 Size = UDim2.new(0, 78, 0, 26),
-                BackgroundColor3 = Color3.fromRGB(34, 36, 48),
+                BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(WHITE, 0.08),
                 BorderSizePixel = 0,
                 AutoButtonColor = false,
                 Text = "",
@@ -5466,7 +5527,7 @@ function Library.new(selfOrOpts, options)
             end)
             wCopyBtn.MouseLeave:Connect(function()
                 if wCopyLabel.Text == "Copy" then
-                    local baseCol = (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(WHITE, 0.09)
+                    local baseCol = (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(WHITE, 0.08)
                     TweenService:Create(wCopyBtn, TweenInfo.new(0.2), {BackgroundColor3 = baseCol}):Play()
                 end
             end)
@@ -5570,8 +5631,8 @@ function Library.new(selfOrOpts, options)
 
             local userDot = new("Frame", {
                 AnchorPoint = Vector2.new(0, 0.5),
-                Position = UDim2.new(0, 7, 0.5, 0),
-                Size = UDim2.new(0, 5, 0, 5),
+                Position = UDim2.new(0, 8, 0.5, 0),
+                Size = UDim2.new(0, 6, 0, 6),
                 BackgroundColor3 = Color3.fromRGB(34, 197, 94),
                 BorderSizePixel = 0,
                 ZIndex = 895,
@@ -5580,20 +5641,23 @@ function Library.new(selfOrOpts, options)
 
             local scriptUsersLabel = new("TextLabel", {
                 BackgroundTransparency = 1,
-                Position = UDim2.new(0, 16, 0, 0),
-                Size = UDim2.new(1, -18, 1, 0),
+                AnchorPoint = Vector2.new(0, 0.5),
+                Position = UDim2.new(0, 19, 0.5, 0),
+                Size = UDim2.new(1, -21, 1, 0),
                 FontFace = font(Enum.FontWeight.Medium),
                 TextColor3 = WHITE,
                 TextSize = 10,
                 RichText = true,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                Text = string.format("<font color=\"#a855f7\"><b>%d</b></font> Active Script Users Rn", scriptActiveUsers),
+                TextYAlignment = Enum.TextYAlignment.Center,
+                Text = string.format("<font color=\"#%s\"><b>%d</b></font> Active Script Users Rn", colorToHex(genv.accent or Color3.fromRGB(168, 85, 247)), scriptActiveUsers),
                 ZIndex = 895,
             }, scriptUsersPill)
+            modalData.scriptUsersLabel = scriptUsersLabel
 
             table.insert(scriptUserListeners, function(count)
                 if scriptUsersLabel and scriptUsersLabel.Parent then
-                    scriptUsersLabel.Text = string.format("<font color=\"#a855f7\"><b>%d</b></font> Active Script Users Rn", count)
+                    scriptUsersLabel.Text = string.format("<font color=\"#%s\"><b>%d</b></font> Active Script Users Rn", colorToHex(genv.accent or Color3.fromRGB(168, 85, 247)), count)
                 end
             end)
 
@@ -6224,16 +6288,17 @@ function Library.new(selfOrOpts, options)
         }, Container)
 
         local upArrowBtn = new("TextButton", {
-            Name = "UpArrow",
+            Name = "ScrollBtn",
             Position = UDim2.new(0, 0, 0, 0),
             Size = UDim2.new(1, 0, 0, 14),
-            BackgroundColor3 = Color3.fromRGB(24, 25, 30),
+            BackgroundColor3 = genv.uicontainer or Color3.fromRGB(24, 25, 30),
             BorderSizePixel = 0,
             AutoButtonColor = false,
             Text = "",
             ZIndex = 81,
         }, customScrollBar)
         corner(upArrowBtn, 3)
+        table.insert(genv.UIElements, upArrowBtn)
 
         local upArrowIcon = new("ImageLabel", {
             AnchorPoint = Vector2.new(0.5, 0.5),
@@ -6247,17 +6312,18 @@ function Library.new(selfOrOpts, options)
         }, upArrowBtn)
 
         local downArrowBtn = new("TextButton", {
-            Name = "DownArrow",
+            Name = "ScrollBtn",
             AnchorPoint = Vector2.new(0, 1),
             Position = UDim2.new(0, 0, 1, 0),
             Size = UDim2.new(1, 0, 0, 14),
-            BackgroundColor3 = Color3.fromRGB(24, 25, 30),
+            BackgroundColor3 = genv.uicontainer or Color3.fromRGB(24, 25, 30),
             BorderSizePixel = 0,
             AutoButtonColor = false,
             Text = "",
             ZIndex = 81,
         }, customScrollBar)
         corner(downArrowBtn, 3)
+        table.insert(genv.UIElements, downArrowBtn)
 
         local downArrowIcon = new("ImageLabel", {
             AnchorPoint = Vector2.new(0.5, 0.5),
@@ -6271,11 +6337,11 @@ function Library.new(selfOrOpts, options)
         }, downArrowBtn)
 
         local scrollTrack = new("TextButton", {
-            Name = "Track",
+            Name = "ScrollTrack",
             AnchorPoint = Vector2.new(0.5, 0),
             Position = UDim2.new(0.5, 0, 0, 17),
             Size = UDim2.new(0, 4, 1, -34),
-            BackgroundColor3 = Color3.fromRGB(26, 27, 34),
+            BackgroundColor3 = genv.uicontainer or Color3.fromRGB(26, 27, 34),
             BackgroundTransparency = 0.3,
             BorderSizePixel = 0,
             AutoButtonColor = false,
@@ -6283,9 +6349,10 @@ function Library.new(selfOrOpts, options)
             ZIndex = 81,
         }, customScrollBar)
         corner(scrollTrack, 2)
+        table.insert(genv.UIElements, scrollTrack)
 
         local scrollThumb = new("Frame", {
-            Name = "Thumb",
+            Name = "ScrollThumb",
             AnchorPoint = Vector2.new(0.5, 0),
             Position = UDim2.new(0.5, 0, 0, 17),
             Size = UDim2.new(0, 6, 0, 30),
@@ -6295,6 +6362,8 @@ function Library.new(selfOrOpts, options)
             ZIndex = 82,
         }, customScrollBar)
         corner(scrollThumb, 3)
+        table.insert(genv.UIElements, scrollThumb)
+        table.insert(allCustomScrollbars, {thumb = scrollThumb, track = scrollTrack, up = upArrowBtn, down = downArrowBtn})
 
         local function updateCustomScroll()
             local winH = itemsSection.AbsoluteWindowSize.Y
@@ -8157,7 +8226,7 @@ function Library.new(selfOrOpts, options)
                 searchBox = new("TextBox", {
                     Name = "SearchBox",
                     Size = UDim2.new(1, -10, 0, 20),
-                    BackgroundColor3 = Color3.fromRGB(18, 19, 23),
+                    BackgroundColor3 = genv.uicontainer or Color3.fromRGB(18, 19, 23),
                     BorderSizePixel = 0,
                     Text = "",
                     PlaceholderText = "Search...",
@@ -8170,6 +8239,7 @@ function Library.new(selfOrOpts, options)
                     ClipsDescendants = true,
                 }, Options)
                 corner(searchBox, 4)
+                table.insert(genv.UIElements, searchBox)
             end
 
             local Selected = new("TextLabel", {
@@ -8340,6 +8410,9 @@ function Library.new(selfOrOpts, options)
 
             function D:update()
                 self:clear()
+                if searchBox and searchBox.Parent then
+                    searchBox.BackgroundColor3 = genv.uicontainer or Color3.fromRGB(18, 19, 23)
+                end
                 local count = 0
                 for index, value in ipairs(self.options) do
                     local strVal = tostring(value)
@@ -8387,18 +8460,18 @@ function Library.new(selfOrOpts, options)
                                     table.insert(D.selectedOptions, value)
                                 end
                                 Library.Flags[D.flag] = D.selectedOptions
+                                if D.callback then D.callback(D.selectedOptions) end
                                 setText()
                                 D:update()
                                 Library.save_flags()
-                                if D.callback then D.callback(D.selectedOptions) end
                             else
                                 D.selectedOption = value
                                 Library.Flags[D.flag] = value
+                                if D.callback then D.callback(value) end
                                 setText()
                                 D:update()
                                 D:close()
                                 Library.save_flags()
-                                if D.callback then D.callback(value) end
                             end
                         end)
                     end
@@ -8446,6 +8519,8 @@ function Library.new(selfOrOpts, options)
                 setText()
                 self:update()
             end
+
+            table.insert(allRegisteredDropdowns, D)
 
             local saved = Library.savedFlags and Library.savedFlags[cfg.flag]
             if multi then
