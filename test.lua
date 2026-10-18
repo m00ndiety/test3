@@ -245,6 +245,34 @@ local function joinDiscord(code)
 end
 
 local Library
+local function new(class, props, parent)
+    local obj = Instance.new(class)
+    for key, value in pairs(props) do
+        obj[key] = value
+    end
+    if parent then
+        obj.Parent = parent
+    end
+    return obj
+end
+
+local function corner(parent, radius)
+    return new("UICorner", {CornerRadius = (typeof(radius) == "UDim") and radius or UDim.new(0, radius)}, parent)
+end
+
+local function pill(parent)
+    return new("UICorner", {CornerRadius = UDim.new(1, 0)}, parent)
+end
+
+local function stroke(parent, color, thickness, transparency)
+    return new("UIStroke", {
+        Color = color or Color3.fromRGB(255, 255, 255),
+        Thickness = thickness or 1,
+        Transparency = transparency or 0.8,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    }, parent)
+end
+
 local function getSafeGuiParent()
     local hidden
     pcall(function()
@@ -304,89 +332,107 @@ local function applyAtmosphere(selfOrName, nameOrNil)
     local width = (vp.X > 50) and vp.X or 1280
     local height = (vp.Y > 50) and vp.Y or 720
 
+    local screenTint = new("Frame", {
+        Name = "ScreenTint",
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+        BackgroundTransparency = 1 - 0.45 * atmosphereOpacity,
+        BorderSizePixel = 0,
+        ZIndex = 1,
+    }, holder)
+    new("UIGradient", {
+        Rotation = 90,
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0),
+            NumberSequenceKeypoint.new(0.5, 0.35),
+            NumberSequenceKeypoint.new(1, 0),
+        }),
+    }, screenTint)
+    table.insert(atmosphereItems, screenTint)
+
+    local atmoGlowColors = {
+        ["Spooky Halloween"] = Color3.fromRGB(255, 75, 15),
+        ["Celestial Stardust"] = Color3.fromRGB(130, 70, 240),
+        ["Cyber Grid Sparks"] = Color3.fromRGB(0, 210, 255),
+        ["Autumn Breeze"] = Color3.fromRGB(235, 120, 30),
+        ["Frost Snowfall"] = Color3.fromRGB(140, 210, 255),
+    }
+
+    local bottomGlow = new("Frame", {
+        Name = "BottomGlow",
+        AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.fromScale(0, 1),
+        Size = UDim2.fromScale(1, 0.45),
+        BackgroundColor3 = atmoGlowColors[currentAtmosphere] or Color3.fromRGB(255, 80, 20),
+        BackgroundTransparency = 1 - 0.28 * atmosphereOpacity,
+        BorderSizePixel = 0,
+        ZIndex = 2,
+    }, holder)
+    new("UIGradient", {
+        Rotation = 90,
+        Transparency = NumberSequence.new(1, 0),
+    }, bottomGlow)
+    table.insert(atmosphereItems, bottomGlow)
+
     if currentAtmosphere == "Spooky Halloween" then
-        local webLeft = Instance.new("ImageLabel")
-        webLeft.Name = "WebTopLeft"
-        webLeft.AnchorPoint = Vector2.new(0, 0)
-        webLeft.Position = UDim2.new(0, 0, 0, 0)
-        webLeft.Size = UDim2.new(0, 180, 0, 180)
-        webLeft.BackgroundTransparency = 1
-        webLeft.Image = "rbxassetid://491303937"
-        webLeft.ImageColor3 = Color3.fromRGB(240, 235, 255)
-        webLeft.ImageTransparency = 0.25 + (1 - atmosphereOpacity) * 0.4
-        webLeft.Active = false
-        webLeft.Selectable = false
-        webLeft.ZIndex = 2
-        webLeft.Parent = holder
-        table.insert(atmosphereItems, webLeft)
-
-        local webRight = Instance.new("ImageLabel")
-        webRight.Name = "WebTopRight"
-        webRight.AnchorPoint = Vector2.new(1, 0)
-        webRight.Position = UDim2.new(1, 0, 0, 0)
-        webRight.Size = UDim2.new(0, 180, 0, 180)
-        webRight.BackgroundTransparency = 1
-        webRight.Image = "rbxassetid://491303937"
-        webRight.ImageColor3 = Color3.fromRGB(240, 235, 255)
-        webRight.ImageTransparency = 0.25 + (1 - atmosphereOpacity) * 0.4
-        webRight.Rotation = 90
-        webRight.Active = false
-        webRight.Selectable = false
-        webRight.ZIndex = 2
-        webRight.Parent = holder
-        table.insert(atmosphereItems, webRight)
-
-        local embers = {}
-        for i = 1, 24 do
-            local sz = math.random(8, 14)
-            local isOrange = (i % 2 == 1)
-            local col = isOrange and Color3.fromRGB(255, 140, 40) or Color3.fromRGB(168, 85, 247)
+        local particles = {}
+        for i = 1, 48 do
+            local s = math.random(6, 15)
+            local isOrange = (i % 3 ~= 0)
+            local isPurple = (i % 3 == 0)
+            local col = isPurple and Color3.fromRGB(190, 80, 255) or (isOrange and Color3.fromRGB(255, 85, 20):lerp(Color3.fromRGB(255, 185, 40), math.random()) or Color3.fromRGB(255, 50, 15))
             local p = Instance.new("ImageLabel")
             p.AnchorPoint = Vector2.new(0.5, 0.5)
-            p.Position = UDim2.new(math.random(), 0, math.random(), 0)
-            p.Size = UDim2.new(0, sz, 0, sz)
+            p.Size = UDim2.new(0, s, 0, s)
             p.BackgroundTransparency = 1
             p.Image = "rbxassetid://242205518"
             p.ImageColor3 = col
-            p.ImageTransparency = 0.2 + (1 - atmosphereOpacity) * 0.5
+            p.ImageTransparency = 0.2
             p.Active = false
             p.Selectable = false
-            p.ZIndex = 2
+            p.ZIndex = 3
             p.Parent = holder
             table.insert(atmosphereItems, p)
-            table.insert(embers, {
+            table.insert(particles, {
                 obj = p,
-                baseX = math.random() * width,
+                x = math.random() * width,
                 y = math.random() * height,
-                speed = math.random(30, 65),
-                swayFreq = math.random(10, 25) / 10,
-                swayAmp = math.random(15, 35),
+                size = s,
+                vy = -math.random(65, 160),
+                vx = math.random(-14, 14),
+                sway = math.random(12, 32),
+                freq = math.random(10, 24) / 10,
+                spin = math.random(-120, 120),
+                rot = math.random(0, 360),
                 phase = math.random() * 6.28,
+                time = math.random() * 10,
             })
         end
 
-        local bats = {}
-        for i = 1, 3 do
-            local bat = Instance.new("Frame")
-            bat.AnchorPoint = Vector2.new(0.5, 0.5)
-            bat.Position = UDim2.new(math.random(), 0, math.random(5, 30) / 100, 0)
-            bat.Size = UDim2.new(0, 14, 0, 6)
-            bat.BackgroundColor3 = Color3.fromRGB(30, 24, 40)
-            bat.BorderSizePixel = 0
-            bat.BackgroundTransparency = 0.35
-            bat.Active = false
-            bat.Selectable = false
-            bat.ZIndex = 2
-            local c = Instance.new("UICorner", bat)
-            c.CornerRadius = UDim.new(0, 3)
-            bat.Parent = holder
-            table.insert(atmosphereItems, bat)
-            table.insert(bats, {
-                obj = bat,
+        local wisps = {}
+        for i = 1, 10 do
+            local s = math.random(16, 32)
+            local w = Instance.new("Frame")
+            w.AnchorPoint = Vector2.new(0.5, 0.5)
+            w.Size = UDim2.new(0, s, 0, s)
+            w.BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(255, 130, 30) or Color3.fromRGB(168, 85, 247)
+            w.BackgroundTransparency = 0.65
+            w.BorderSizePixel = 0
+            w.ZIndex = 2
+            corner(w, UDim.new(1, 0))
+            w.Parent = holder
+            table.insert(atmosphereItems, w)
+            table.insert(wisps, {
+                obj = w,
                 x = math.random() * width,
-                y = math.random(20, height * 0.35),
-                speed = math.random(45, 80),
-                flapPhase = math.random() * 6.28,
+                y = math.random(height * 0.2, height * 0.95),
+                vx = math.random(-16, 16),
+                vy = math.random(-18, 12),
+                sway = math.random(14, 30),
+                freq = math.random(4, 9) / 10,
+                pulse = math.random(12, 28) / 10,
+                phase = math.random() * 6.28,
+                time = math.random() * 10,
             })
         end
 
@@ -397,115 +443,133 @@ local function applyAtmosphere(selfOrName, nameOrNil)
             local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
             local curW = (curVp.X > 50) and curVp.X or 1280
             local curH = (curVp.Y > 50) and curVp.Y or 720
-            local webAlpha = (0.25 + (1 - atmosphereOpacity) * 0.4) + math.sin(t * 1.5) * 0.05
-            webLeft.ImageTransparency = math.clamp(webAlpha, 0, 1)
-            webRight.ImageTransparency = math.clamp(webAlpha, 0, 1)
-            for _, e in ipairs(embers) do
-                e.y = e.y - e.speed * dt
-                if e.y < -15 then
-                    e.y = curH + 10
-                    e.baseX = math.random() * curW
+
+            bottomGlow.BackgroundTransparency = 1 - (0.24 + math.sin(t * 2.2) * 0.06) * atmosphereOpacity
+
+            for _, e in ipairs(particles) do
+                e.time = e.time + dt
+                e.x = e.x + e.vx * dt
+                e.y = e.y + e.vy * dt
+                e.rot = e.rot + e.spin * dt
+                if e.y < -20 then
+                    e.y = curH + math.random(10, 40)
+                    e.x = math.random() * curW
                 end
-                local currentX = e.baseX + math.sin(t * e.swayFreq + e.phase) * e.swayAmp
-                e.obj.Position = UDim2.new(0, currentX, 0, e.y)
+                if e.x > curW + 20 then e.x = -20 elseif e.x < -20 then e.x = curW + 20 end
+                local swayX = e.x + math.sin(e.time * e.freq + e.phase) * e.sway
+                local flicker = 0.75 + math.sin(e.time * 9 + e.phase) * 0.25
+                local burnout = math.clamp(e.y / (curH * 0.82), 0, 1) ^ 0.55
+                local alpha = (1 - 0.25 * atmosphereOpacity) * flicker * burnout
+                e.obj.Position = UDim2.new(0, swayX, 0, e.y)
+                e.obj.Rotation = e.rot
+                e.obj.ImageTransparency = 1 - math.clamp(alpha, 0, 1)
             end
-            for _, b in ipairs(bats) do
-                b.x = b.x + b.speed * dt
-                if b.x > curW + 20 then
-                    b.x = -20
-                    b.y = math.random(20, curH * 0.35)
-                end
-                local flap = 4 + math.sin(t * 12 + b.flapPhase) * 3
-                b.obj.Size = UDim2.new(0, 14, 0, flap)
-                b.obj.Position = UDim2.new(0, b.x, 0, b.y + math.sin(t * 2 + b.flapPhase) * 6)
+
+            for _, w in ipairs(wisps) do
+                w.time = w.time + dt
+                w.x = w.x + w.vx * dt
+                w.y = w.y + w.vy * dt
+                if w.y > curH + 20 then w.y = curH * 0.2 elseif w.y < curH * 0.1 then w.y = curH * 0.9 end
+                if w.x > curW + 30 then w.x = -30 elseif w.x < -30 then w.x = curW + 30 end
+                local posX = w.x + math.sin(w.time * w.freq + w.phase) * w.sway
+                local pulseAlpha = 0.35 + math.sin(w.time * w.pulse + w.phase) * 0.25
+                w.obj.Position = UDim2.new(0, posX, 0, w.y)
+                w.obj.BackgroundTransparency = 1 - math.clamp(pulseAlpha * atmosphereOpacity, 0, 0.85)
             end
         end)
 
     elseif currentAtmosphere == "Celestial Stardust" then
         local stars = {}
-        for i = 1, 16 do
-            local sz = math.random(3, 6)
-            local col = (i % 2 == 0) and Color3.fromRGB(195, 225, 255) or Color3.fromRGB(220, 180, 255)
+        for i = 1, 40 do
+            local sz = math.random(4, 9)
+            local col = (i % 2 == 0) and Color3.fromRGB(195, 225, 255) or Color3.fromRGB(225, 175, 255)
             local p = Instance.new("Frame")
             p.AnchorPoint = Vector2.new(0.5, 0.5)
             p.Position = UDim2.new(math.random(), 0, math.random(), 0)
             p.Size = UDim2.new(0, sz, 0, sz)
-            p.BackgroundColor3 = col
-            p.BorderSizePixel = 0
-            p.BackgroundTransparency = 0.4
-            p.Active = false
-            p.Selectable = false
-            p.ZIndex = 2
-            local c = Instance.new("UICorner", p)
-            c.CornerRadius = UDim.new(1, 0)
-            p.Parent = holder
-            table.insert(atmosphereItems, p)
-            table.insert(stars, {
-                obj = p,
-                baseX = math.random() * width,
-                y = math.random() * height,
-                speed = math.random(8, 22),
-                pulseFreq = math.random(15, 35) / 10,
-                phase = math.random() * 6.28,
-            })
-        end
-
-        local t = 0
-        atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
-            t = t + dt
-            local curCam = workspace.CurrentCamera
-            local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
-            local curW = (curVp.X > 50) and curVp.X or 1280
-            local curH = (curVp.Y > 50) and curVp.Y or 720
-            for _, s in ipairs(stars) do
-                s.y = s.y - s.speed * dt
-                if s.y < -10 then
-                    s.y = curH + 10
-                    s.baseX = math.random() * curW
-                end
-                local pulse = 0.3 + 0.45 * math.abs(math.sin(t * s.pulseFreq + s.phase))
-                s.obj.BackgroundTransparency = pulse
-                s.obj.Position = UDim2.new(0, s.baseX + math.sin(t + s.phase) * 8, 0, s.y)
-            end
-        end)
-
-    elseif currentAtmosphere == "Cyber Grid Sparks" then
-        local sparks = {}
-        for i = 1, 14 do
-            local szW = math.random(2, 4)
-            local szH = math.random(6, 12)
-            local col = (i % 2 == 0) and Color3.fromRGB(0, 235, 255) or Color3.fromRGB(255, 60, 160)
-            local p = Instance.new("Frame")
-            p.AnchorPoint = Vector2.new(0.5, 0.5)
-            p.Position = UDim2.new(math.random(), 0, math.random(), 0)
-            p.Size = UDim2.new(0, szW, 0, szH)
             p.BackgroundColor3 = col
             p.BorderSizePixel = 0
             p.BackgroundTransparency = 0.3
             p.Active = false
             p.Selectable = false
             p.ZIndex = 2
-            local c = Instance.new("UICorner", p)
-            c.CornerRadius = UDim.new(0, 2)
+            corner(p, UDim.new(1, 0))
+            p.Parent = holder
+            table.insert(atmosphereItems, p)
+            table.insert(stars, {
+                obj = p,
+                baseX = math.random() * width,
+                y = math.random() * height,
+                speed = math.random(10, 26),
+                sway = math.random(6, 16),
+                pulseFreq = math.random(15, 35) / 10,
+                phase = math.random() * 6.28,
+                time = math.random() * 10,
+            })
+        end
+
+        local t = 0
+        atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
+            t = t + dt
+            local curCam = workspace.CurrentCamera
+            local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
+            local curW = (curVp.X > 50) and curVp.X or 1280
+            local curH = (curVp.Y > 50) and curVp.Y or 720
+            bottomGlow.BackgroundTransparency = 1 - (0.2 + math.sin(t * 1.5) * 0.05) * atmosphereOpacity
+            for _, s in ipairs(stars) do
+                s.time = s.time + dt
+                s.y = s.y - s.speed * dt
+                if s.y < -15 then
+                    s.y = curH + 15
+                    s.baseX = math.random() * curW
+                end
+                local pulse = 0.3 + 0.45 * math.abs(math.sin(s.time * s.pulseFreq + s.phase))
+                s.obj.BackgroundTransparency = 1 - math.clamp(pulse * atmosphereOpacity, 0, 1)
+                s.obj.Position = UDim2.new(0, s.baseX + math.sin(s.time + s.phase) * s.sway, 0, s.y)
+            end
+        end)
+
+    elseif currentAtmosphere == "Cyber Grid Sparks" then
+        local sparks = {}
+        for i = 1, 36 do
+            local szW = math.random(2, 3)
+            local szH = math.random(8, 20)
+            local col = (i % 2 == 0) and Color3.fromRGB(0, 240, 255) or Color3.fromRGB(255, 50, 160)
+            local p = Instance.new("Frame")
+            p.AnchorPoint = Vector2.new(0.5, 0.5)
+            p.Position = UDim2.new(math.random(), 0, math.random(), 0)
+            p.Size = UDim2.new(0, szW, 0, szH)
+            p.BackgroundColor3 = col
+            p.BorderSizePixel = 0
+            p.BackgroundTransparency = 0.25
+            p.Active = false
+            p.Selectable = false
+            p.ZIndex = 2
+            corner(p, 2)
             p.Parent = holder
             table.insert(atmosphereItems, p)
             table.insert(sparks, {
                 obj = p,
                 x = math.random() * width,
                 y = math.random() * height,
-                speed = math.random(60, 120),
+                speed = math.random(90, 180),
+                driftX = math.random(-15, 15),
             })
         end
 
+        local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
+            t = t + dt
             local curCam = workspace.CurrentCamera
             local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
             local curW = (curVp.X > 50) and curVp.X or 1280
             local curH = (curVp.Y > 50) and curVp.Y or 720
+            bottomGlow.BackgroundTransparency = 1 - (0.22 + math.sin(t * 3.5) * 0.08) * atmosphereOpacity
             for _, sp in ipairs(sparks) do
                 sp.y = sp.y - sp.speed * dt
-                if sp.y < -15 then
-                    sp.y = curH + 10
+                sp.x = sp.x + sp.driftX * dt
+                if sp.y < -25 then
+                    sp.y = curH + 15
                     sp.x = math.random() * curW
                 end
                 sp.obj.Position = UDim2.new(0, sp.x, 0, sp.y)
@@ -514,30 +578,29 @@ local function applyAtmosphere(selfOrName, nameOrNil)
 
     elseif currentAtmosphere == "Autumn Breeze" then
         local leaves = {}
-        for i = 1, 12 do
-            local sz = math.random(6, 10)
-            local col = (i % 2 == 0) and Color3.fromRGB(240, 160, 45) or Color3.fromRGB(205, 75, 45)
+        for i = 1, 32 do
+            local sz = math.random(7, 13)
+            local col = (i % 3 == 0) and Color3.fromRGB(245, 165, 45) or ((i % 3 == 1) and Color3.fromRGB(215, 80, 40) or Color3.fromRGB(180, 45, 25))
             local p = Instance.new("Frame")
             p.AnchorPoint = Vector2.new(0.5, 0.5)
             p.Position = UDim2.new(math.random(), 0, math.random(), 0)
-            p.Size = UDim2.new(0, sz, 0, sz)
+            p.Size = UDim2.new(0, sz, 0, sz * 0.65)
             p.BackgroundColor3 = col
             p.BorderSizePixel = 0
-            p.BackgroundTransparency = 0.35
+            p.BackgroundTransparency = 0.25
             p.Active = false
             p.Selectable = false
             p.ZIndex = 2
-            local c = Instance.new("UICorner", p)
-            c.CornerRadius = UDim.new(0, 4)
+            corner(p, 4)
             p.Parent = holder
             table.insert(atmosphereItems, p)
             table.insert(leaves, {
                 obj = p,
                 baseX = math.random() * width,
                 y = math.random() * height,
-                speedY = math.random(30, 60),
-                driftX = math.random(15, 35),
-                rotSpeed = math.random(40, 90) * (math.random() > 0.5 and 1 or -1),
+                speedY = math.random(35, 75),
+                driftX = math.random(25, 55),
+                rotSpeed = math.random(50, 110) * (math.random() > 0.5 and 1 or -1),
                 phase = math.random() * 6.28,
             })
         end
@@ -549,14 +612,15 @@ local function applyAtmosphere(selfOrName, nameOrNil)
             local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
             local curW = (curVp.X > 50) and curVp.X or 1280
             local curH = (curVp.Y > 50) and curVp.Y or 720
+            bottomGlow.BackgroundTransparency = 1 - (0.2 + math.sin(t * 1.8) * 0.05) * atmosphereOpacity
             for _, l in ipairs(leaves) do
                 l.y = l.y + l.speedY * dt
                 l.baseX = l.baseX + l.driftX * dt
-                if l.y > curH + 15 or l.baseX > curW + 20 then
-                    l.y = -15
-                    l.baseX = math.random(-20, curW * 0.8)
+                if l.y > curH + 20 or l.baseX > curW + 30 then
+                    l.y = -20
+                    l.baseX = math.random(-30, curW * 0.8)
                 end
-                local currentX = l.baseX + math.sin(t * 2 + l.phase) * 20
+                local currentX = l.baseX + math.sin(t * 2 + l.phase) * 22
                 l.obj.Position = UDim2.new(0, currentX, 0, l.y)
                 l.obj.Rotation = l.obj.Rotation + l.rotSpeed * dt
             end
@@ -564,7 +628,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
 
     elseif currentAtmosphere == "Frost Snowfall" then
         local flakes = {}
-        for i = 1, 24 do
+        for i = 1, 45 do
             local sz = math.random(8, 16)
             local p = Instance.new("ImageLabel")
             p.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -573,7 +637,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
             p.BackgroundTransparency = 1
             p.Image = "rbxassetid://99851851"
             p.ImageColor3 = Color3.fromRGB(220, 240, 255)
-            p.ImageTransparency = 0.2 + (1 - atmosphereOpacity) * 0.5
+            p.ImageTransparency = 0.15 + (1 - atmosphereOpacity) * 0.5
             p.Active = false
             p.Selectable = false
             p.ZIndex = 2
@@ -583,8 +647,9 @@ local function applyAtmosphere(selfOrName, nameOrNil)
                 obj = p,
                 baseX = math.random() * width,
                 y = math.random() * height,
-                speed = math.random(30, 65),
-                driftAmp = math.random(10, 24),
+                speed = math.random(35, 70),
+                driftAmp = math.random(12, 28),
+                spin = math.random(-60, 60),
                 phase = math.random() * 6.28,
             })
         end
@@ -596,14 +661,16 @@ local function applyAtmosphere(selfOrName, nameOrNil)
             local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
             local curW = (curVp.X > 50) and curVp.X or 1280
             local curH = (curVp.Y > 50) and curVp.Y or 720
+            bottomGlow.BackgroundTransparency = 1 - (0.24 + math.sin(t * 1.5) * 0.05) * atmosphereOpacity
             for _, f in ipairs(flakes) do
                 f.y = f.y + f.speed * dt
-                if f.y > curH + 10 then
-                    f.y = -10
+                if f.y > curH + 15 then
+                    f.y = -15
                     f.baseX = math.random() * curW
                 end
                 local currentX = f.baseX + math.sin(t * 1.5 + f.phase) * f.driftAmp
                 f.obj.Position = UDim2.new(0, currentX, 0, f.y)
+                f.obj.Rotation = f.obj.Rotation + f.spin * dt
             end
         end)
     end
@@ -675,34 +742,6 @@ local SUCCESS_COLOR = Color3.fromRGB(52, 211, 153)
 local WARNING_COLOR = Color3.fromRGB(251, 191, 36)
 local ERROR_COLOR = Color3.fromRGB(248, 113, 113)
 local INFO_COLOR = Color3.fromRGB(96, 165, 250)
-
-local function new(class, props, parent)
-    local obj = Instance.new(class)
-    for key, value in pairs(props) do
-        obj[key] = value
-    end
-    if parent then
-        obj.Parent = parent
-    end
-    return obj
-end
-
-local function corner(parent, radius)
-    return new("UICorner", {CornerRadius = UDim.new(0, radius)}, parent)
-end
-
-local function pill(parent)
-    return new("UICorner", {CornerRadius = UDim.new(1, 0)}, parent)
-end
-
-local function stroke(parent, color, thickness, transparency)
-    return new("UIStroke", {
-        Color = color or WHITE,
-        Thickness = thickness or 1,
-        Transparency = transparency or 0.8,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-    }, parent)
-end
 
 local function font(weight)
     return Font.new("rbxasset://fonts/families/Montserrat.json", weight or Enum.FontWeight.SemiBold)
@@ -1726,11 +1765,15 @@ function Library.new(selfOrOpts, options)
         local onConfirm = options.OnConfirm or options.callback
         local onCancel = options.OnCancel
 
+        local themeAccent = genv.accent or Color3.fromRGB(168, 85, 247)
+        local statusColor = isDanger and Color3.fromRGB(239, 68, 68) or themeAccent
+        local glowColor = isDanger and Color3.fromRGB(220, 38, 38) or themeAccent
+
         local promptOverlay = new("TextButton", {
             Name = "PromptOverlay",
             Size = UDim2.fromScale(1, 1),
             Position = UDim2.new(0, 0, 0, 0),
-            BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+            BackgroundColor3 = Color3.fromRGB(8, 9, 12),
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             AutoButtonColor = false,
@@ -1742,118 +1785,211 @@ function Library.new(selfOrOpts, options)
             Name = "PromptCard",
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(0, 360, 0, 175),
-            BackgroundColor3 = genv.uicontainer or Color3.fromRGB(20, 21, 26),
+            Size = UDim2.new(0, 410, 0, 195),
+            BackgroundColor3 = Color3.fromRGB(18, 19, 25),
             BorderSizePixel = 0,
-            ClipsDescendants = true,
+            ClipsDescendants = false,
             ZIndex = 1201,
         }, promptOverlay)
-        corner(promptCard, 12)
-        local cardStroke = stroke(promptCard, isDanger and Color3.fromRGB(220, 38, 38) or (genv.accent or Color3.fromRGB(168, 85, 247)), 1, 0.3)
+        corner(promptCard, 14)
 
-        local topAccentBar = new("Frame", {
-            Position = UDim2.new(0, 0, 0, 0),
-            Size = UDim2.new(1, 0, 0, 3),
-            BackgroundColor3 = isDanger and Color3.fromRGB(220, 38, 38) or (genv.accent or Color3.fromRGB(168, 85, 247)),
-            BorderSizePixel = 0,
-            ZIndex = 1202,
+        local cardGrad = new("UIGradient", {
+            Color = ColorSequence.new(Color3.fromRGB(24, 26, 34), Color3.fromRGB(15, 16, 21)),
+            Rotation = 90,
+        }, promptCard)
+
+        local cardStroke = stroke(promptCard, statusColor, 1, 0.45)
+        new("UIGradient", {
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0.2),
+                NumberSequenceKeypoint.new(0.6, 0.6),
+                NumberSequenceKeypoint.new(1, 0.85),
+            }),
+            Rotation = 90,
+        }, cardStroke)
+
+        local cardShadow = new("ImageLabel", {
+            Name = "CardShadow",
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(1, 46, 1, 46),
+            BackgroundTransparency = 1,
+            Image = "rbxassetid://17290899982",
+            ImageColor3 = isDanger and Color3.fromRGB(220, 38, 38) or Color3.fromRGB(0, 0, 0),
+            ImageTransparency = isDanger and 0.72 or 0.5,
+            ZIndex = 1200,
         }, promptCard)
 
         local iconBadge = new("Frame", {
-            Position = UDim2.new(0, 18, 0, 16),
-            Size = UDim2.new(0, 32, 0, 32),
-            BackgroundColor3 = isDanger and Color3.fromRGB(45, 18, 22) or Color3.fromRGB(28, 30, 42),
+            Name = "IconBadge",
+            Position = UDim2.new(0, 20, 0, 18),
+            Size = UDim2.new(0, 42, 0, 42),
+            BackgroundColor3 = isDanger and Color3.fromRGB(42, 16, 22) or Color3.fromRGB(28, 22, 42),
             BorderSizePixel = 0,
             ZIndex = 1202,
         }, promptCard)
-        corner(iconBadge, 8)
+        corner(iconBadge, 11)
+        stroke(iconBadge, statusColor, 1, 0.45)
 
-        local warnIcon = new("ImageLabel", {
+        local fallbackGlyph = new("TextLabel", {
+            Name = "FallbackGlyph",
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(0, 18, 0, 18),
+            Size = UDim2.new(1, 0, 1, 0),
             BackgroundTransparency = 1,
-            Image = isDanger and "rbxassetid://10709751996" or "rbxassetid://10709752035",
-            ImageColor3 = isDanger and Color3.fromRGB(239, 68, 68) or (genv.accent or Color3.fromRGB(168, 85, 247)),
+            FontFace = font(Enum.FontWeight.Bold),
+            Text = "!",
+            TextColor3 = statusColor,
+            TextSize = 19,
+            ZIndex = 1202,
+        }, iconBadge)
+
+        local warnIcon = new("ImageLabel", {
+            Name = "WarnIcon",
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(0, 24, 0, 24),
+            BackgroundTransparency = 1,
+            Image = "rbxassetid://7733658504",
+            ImageColor3 = statusColor,
             ZIndex = 1203,
         }, iconBadge)
 
-        local titleLabel = new("TextLabel", {
-            Position = UDim2.new(0, 60, 0, 16),
-            Size = UDim2.new(1, -78, 0, 32),
+        local headerContainer = new("Frame", {
+            Name = "HeaderInfo",
+            Position = UDim2.new(0, 72, 0, 18),
+            Size = UDim2.new(1, -92, 0, 42),
             BackgroundTransparency = 1,
-            FontFace = font(Enum.FontWeight.SemiBold),
-            Text = promptTitle,
-            TextColor3 = WHITE,
-            TextSize = 15,
-            TextXAlignment = Enum.TextXAlignment.Left,
             ZIndex = 1202,
         }, promptCard)
 
-        local messageLabel = new("TextLabel", {
-            Position = UDim2.new(0, 18, 0, 56),
-            Size = UDim2.new(1, -36, 0, 52),
+        local tagLabel = new("TextLabel", {
+            Name = "Tag",
+            Position = UDim2.new(0, 0, 0, 2),
+            Size = UDim2.new(1, 0, 0, 13),
             BackgroundTransparency = 1,
-            FontFace = font(),
+            FontFace = font(Enum.FontWeight.Bold),
+            Text = isDanger and "ACTION CONFIRMATION" or "SYSTEM NOTICE",
+            TextColor3 = statusColor,
+            TextSize = 10,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 1202,
+        }, headerContainer)
+
+        local titleLabel = new("TextLabel", {
+            Name = "Title",
+            Position = UDim2.new(0, 0, 0, 17),
+            Size = UDim2.new(1, 0, 0, 22),
+            BackgroundTransparency = 1,
+            FontFace = font(Enum.FontWeight.Bold),
+            Text = promptTitle,
+            TextColor3 = WHITE,
+            TextSize = 16,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 1202,
+        }, headerContainer)
+
+        local divider = new("Frame", {
+            Name = "Divider",
+            Position = UDim2.new(0, 20, 0, 68),
+            Size = UDim2.new(1, -40, 0, 1),
+            BackgroundColor3 = Color3.fromRGB(36, 38, 48),
+            BorderSizePixel = 0,
+            ZIndex = 1202,
+        }, promptCard)
+        new("UIGradient", {
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0.7),
+                NumberSequenceKeypoint.new(0.5, 0.2),
+                NumberSequenceKeypoint.new(1, 0.7),
+            }),
+        }, divider)
+
+        local messageLabel = new("TextLabel", {
+            Name = "Message",
+            Position = UDim2.new(0, 20, 0, 78),
+            Size = UDim2.new(1, -40, 0, 52),
+            BackgroundTransparency = 1,
+            FontFace = font(Enum.FontWeight.Regular),
             Text = promptMsg,
-            TextColor3 = Color3.fromRGB(180, 184, 198),
-            TextSize = 12,
+            TextColor3 = Color3.fromRGB(180, 185, 200),
+            TextSize = 13,
             TextWrapped = true,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Top,
+            LineHeight = 1.15,
             ZIndex = 1202,
         }, promptCard)
 
         local footer = new("Frame", {
-            Position = UDim2.new(0, 18, 1, -48),
-            Size = UDim2.new(1, -36, 0, 34),
+            Name = "Footer",
+            Position = UDim2.new(0, 20, 1, -50),
+            Size = UDim2.new(1, -40, 0, 36),
             BackgroundTransparency = 1,
             ZIndex = 1202,
         }, promptCard)
 
         local cancelBtn = new("TextButton", {
+            Name = "CancelBtn",
             Position = UDim2.new(0, 0, 0, 0),
             Size = UDim2.new(0.48, -4, 1, 0),
-            BackgroundColor3 = Color3.fromRGB(28, 30, 38),
+            BackgroundColor3 = Color3.fromRGB(26, 28, 36),
             BorderSizePixel = 0,
             AutoButtonColor = false,
             Text = cancelText,
-            TextColor3 = WHITE,
-            TextSize = 12,
+            TextColor3 = Color3.fromRGB(200, 205, 225),
+            TextSize = 13,
             FontFace = font(Enum.FontWeight.Medium),
             ZIndex = 1203,
         }, footer)
-        corner(cancelBtn, 6)
-        stroke(cancelBtn, Color3.fromRGB(44, 46, 58), 1, 0.4)
+        corner(cancelBtn, 8)
+        local cancelStroke = stroke(cancelBtn, Color3.fromRGB(48, 52, 66), 1, 0.4)
 
         local confirmBtn = new("TextButton", {
+            Name = "ConfirmBtn",
             Position = UDim2.new(0.52, 4, 0, 0),
             Size = UDim2.new(0.48, -4, 1, 0),
-            BackgroundColor3 = isDanger and Color3.fromRGB(220, 38, 38) or (genv.accent or Color3.fromRGB(168, 85, 247)),
+            BackgroundColor3 = isDanger and Color3.fromRGB(225, 29, 72) or themeAccent,
             BorderSizePixel = 0,
             AutoButtonColor = false,
             Text = confirmText,
             TextColor3 = WHITE,
-            TextSize = 12,
-            FontFace = font(Enum.FontWeight.SemiBold),
+            TextSize = 13,
+            FontFace = font(Enum.FontWeight.Bold),
             ZIndex = 1203,
         }, footer)
-        corner(confirmBtn, 6)
+        corner(confirmBtn, 8)
+        new("UIGradient", {
+            Color = isDanger and ColorSequence.new(Color3.fromRGB(244, 63, 94), Color3.fromRGB(210, 20, 60)) or ColorSequence.new(themeAccent, themeAccent:lerp(Color3.fromRGB(0, 0, 0), 0.2)),
+            Rotation = 45,
+        }, confirmBtn)
 
         cancelBtn.MouseEnter:Connect(function()
-            TweenService:Create(cancelBtn, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(38, 41, 52)}):Play()
+            TweenService:Create(cancelBtn, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundColor3 = Color3.fromRGB(36, 40, 52),
+                TextColor3 = WHITE,
+            }):Play()
+            TweenService:Create(cancelStroke, TweenInfo.new(0.18), {Color = Color3.fromRGB(68, 74, 96)}):Play()
         end)
         cancelBtn.MouseLeave:Connect(function()
-            TweenService:Create(cancelBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(28, 30, 38)}):Play()
+            TweenService:Create(cancelBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundColor3 = Color3.fromRGB(26, 28, 36),
+                TextColor3 = Color3.fromRGB(200, 205, 225),
+            }):Play()
+            TweenService:Create(cancelStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(48, 52, 66)}):Play()
         end)
 
         confirmBtn.MouseEnter:Connect(function()
-            local base = isDanger and Color3.fromRGB(220, 38, 38) or (genv.accent or Color3.fromRGB(168, 85, 247))
-            TweenService:Create(confirmBtn, TweenInfo.new(0.18), {BackgroundColor3 = base:lerp(WHITE, 0.15)}):Play()
+            local base = isDanger and Color3.fromRGB(225, 29, 72) or themeAccent
+            TweenService:Create(confirmBtn, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundColor3 = base:lerp(WHITE, 0.15),
+            }):Play()
         end)
         confirmBtn.MouseLeave:Connect(function()
-            local base = isDanger and Color3.fromRGB(220, 38, 38) or (genv.accent or Color3.fromRGB(168, 85, 247))
-            TweenService:Create(confirmBtn, TweenInfo.new(0.2), {BackgroundColor3 = base}):Play()
+            local base = isDanger and Color3.fromRGB(225, 29, 72) or themeAccent
+            TweenService:Create(confirmBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundColor3 = base,
+            }):Play()
         end)
 
         local cardScale = new("UIScale", {
@@ -1861,10 +1997,10 @@ function Library.new(selfOrOpts, options)
         }, promptCard)
 
         TweenService:Create(promptOverlay, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            BackgroundTransparency = 0.55
+            BackgroundTransparency = 0.45,
         }):Play()
         TweenService:Create(cardScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Scale = 1
+            Scale = 1,
         }):Play()
 
         local closing = false
@@ -1872,10 +2008,10 @@ function Library.new(selfOrOpts, options)
             if closing then return end
             closing = true
             TweenService:Create(promptOverlay, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                BackgroundTransparency = 1
+                BackgroundTransparency = 1,
             }):Play()
-            local closeTween = TweenService:Create(cardScale, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                Scale = 0.85
+            local closeTween = TweenService:Create(cardScale, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Scale = 0.85,
             })
             closeTween:Play()
             closeTween.Completed:Once(function()
@@ -5405,7 +5541,7 @@ function Library.new(selfOrOpts, options)
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             Position = UDim2.new(0.245, 0, 0.127, 0),
-            Size = UDim2.new(0.74, 0, 0.87, 0),
+            Size = UDim2.new(0.715, 0, 0.87, 0),
             ScrollBarThickness = 0,
             ScrollBarImageTransparency = 1,
             VerticalScrollBarInset = Enum.ScrollBarInset.None,
@@ -5444,6 +5580,7 @@ function Library.new(selfOrOpts, options)
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0.5, 0, 0.5, 0),
             Size = UDim2.new(0, 8, 0, 8),
+            Rotation = 180,
             BackgroundTransparency = 1,
             Image = "rbxassetid://10709790948",
             ImageColor3 = Color3.fromRGB(150, 155, 175),
@@ -5467,7 +5604,7 @@ function Library.new(selfOrOpts, options)
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0.5, 0, 0.5, 0),
             Size = UDim2.new(0, 8, 0, 8),
-            Rotation = 180,
+            Rotation = 0,
             BackgroundTransparency = 1,
             Image = "rbxassetid://10709790948",
             ImageColor3 = Color3.fromRGB(150, 155, 175),
