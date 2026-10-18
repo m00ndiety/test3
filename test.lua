@@ -299,8 +299,8 @@ end
 local currentAtmosphere = "None"
 local atmosphereItems = {}
 local atmosphereStepConnection = nil
-local atmosphereOpacity = 0.85
-local atmosphereVisibleWithUI = false
+local atmosphereOpacity = 0.5
+local atmosphereVisibleWithUI = true
 local atmosphereEnabled = true
 local allItemSections = {}
 
@@ -330,7 +330,8 @@ local function applyAtmosphere(selfOrName, nameOrNil)
         holder.Visible = false
         return
     end
-    holder.Visible = atmosphereEnabled and ((not atmosphereVisibleWithUI) or (not Library.hidden))
+    local showAtmo = atmosphereEnabled and (currentAtmosphere ~= "None") and ((not atmosphereVisibleWithUI) or (not Library.hidden))
+    holder.Visible = showAtmo
 
     local cam = workspace.CurrentCamera
     local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
@@ -1347,8 +1348,8 @@ Library = {
     savedFlags = {},
     activeTaps = {},
     CurrentAtmosphere = "None",
-    AtmosphereOpacity = 0.85,
-    AtmosphereVisibleWithUI = false,
+    AtmosphereOpacity = 0.5,
+    AtmosphereVisibleWithUI = true,
     AtmosphereEnabled = true,
     Atmospheres = {"Spooky Halloween", "Celestial Stardust", "Cyber Grid Sparks", "Autumn Breeze", "Frost Snowfall", "None"},
     SupportedGames = SupportedGames,
@@ -1368,7 +1369,8 @@ Library = {
         atmosphereVisibleWithUI = (v == true)
         Library.AtmosphereVisibleWithUI = atmosphereVisibleWithUI
         if Library.AtmosphereHolder then
-            Library.AtmosphereHolder.Visible = atmosphereEnabled and ((not atmosphereVisibleWithUI) or (not Library.hidden))
+            local showAtmo = atmosphereEnabled and (currentAtmosphere ~= "None") and ((not atmosphereVisibleWithUI) or (not Library.hidden))
+            Library.AtmosphereHolder.Visible = showAtmo
         end
     end,
     SetAtmosphereEnabled = function(selfOrVal, val)
@@ -1376,7 +1378,8 @@ Library = {
         atmosphereEnabled = (v ~= false)
         Library.AtmosphereEnabled = atmosphereEnabled
         if Library.AtmosphereHolder then
-            Library.AtmosphereHolder.Visible = atmosphereEnabled and ((not atmosphereVisibleWithUI) or (not Library.hidden))
+            local showAtmo = atmosphereEnabled and (currentAtmosphere ~= "None") and ((not atmosphereVisibleWithUI) or (not Library.hidden))
+            Library.AtmosphereHolder.Visible = showAtmo
         end
     end,
 }
@@ -2414,19 +2417,21 @@ function Library.new(selfOrOpts, options)
         local promptMsg = options.Message or options.message or options.Content or options.Text or "Are you sure you want to proceed?"
         local confirmText = options.ConfirmText or options.confirmText or "Confirm"
         local cancelText = options.CancelText or options.cancelText or "Cancel"
-        local isDanger = (options.Danger ~= false)
+        local isDanger = (options.Danger == true)
         local onConfirm = options.OnConfirm or options.callback
         local onCancel = options.OnCancel
 
         local themeAccent = genv.accent or Color3.fromRGB(168, 85, 247)
-        local statusColor = isDanger and Color3.fromRGB(239, 68, 68) or themeAccent
-        local glowColor = isDanger and Color3.fromRGB(220, 38, 38) or themeAccent
+        local statusColor = isDanger and Color3.fromRGB(244, 63, 94) or themeAccent
+        local cardBg = genv.uicontainer or Color3.fromRGB(19, 20, 24)
+        local cardLine = genv.uiline or Color3.fromRGB(34, 35, 42)
+        local btnBg = genv.buttoncolor or Color3.fromRGB(27, 28, 33)
 
         local promptOverlay = new("TextButton", {
             Name = "PromptOverlay",
             Size = UDim2.fromScale(1, 1),
             Position = UDim2.new(0, 0, 0, 0),
-            BackgroundColor3 = Color3.fromRGB(8, 9, 12),
+            BackgroundColor3 = Color3.fromRGB(0, 0, 0),
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             AutoButtonColor = false,
@@ -2438,91 +2443,88 @@ function Library.new(selfOrOpts, options)
             Name = "PromptCard",
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(0, 410, 0, 195),
-            BackgroundColor3 = Color3.fromRGB(18, 19, 25),
+            Size = UDim2.new(0, 396, 0, 186),
+            BackgroundColor3 = cardBg,
             BorderSizePixel = 0,
             ClipsDescendants = false,
             ZIndex = 1201,
         }, promptOverlay)
-        corner(promptCard, 14)
+        corner(promptCard, 16)
+        stroke(promptCard, cardLine, 1, 0.5)
 
-        local cardGrad = new("UIGradient", {
-            Color = ColorSequence.new(Color3.fromRGB(24, 26, 34), Color3.fromRGB(15, 16, 21)),
-            Rotation = 90,
+        local cardGlowLine = new("Frame", {
+            Name = "CardGlowLine",
+            AnchorPoint = Vector2.new(0.5, 0),
+            Position = UDim2.new(0.5, 0, 0, 0),
+            Size = UDim2.new(0.7, 0, 0, 1),
+            BackgroundColor3 = WHITE,
+            BackgroundTransparency = 0.45,
+            BorderSizePixel = 0,
+            ZIndex = 1205,
         }, promptCard)
-
-        local cardStroke = stroke(promptCard, statusColor, 1, 0.45)
         new("UIGradient", {
-            Transparency = NumberSequence.new({
-                NumberSequenceKeypoint.new(0, 0.2),
-                NumberSequenceKeypoint.new(0.6, 0.6),
-                NumberSequenceKeypoint.new(1, 0.85),
-            }),
-            Rotation = 90,
-        }, cardStroke)
+            Color = ColorSequence.new{
+                ColorSequenceKeypoint.new(0, statusColor),
+                ColorSequenceKeypoint.new(0.5, WHITE),
+                ColorSequenceKeypoint.new(1, statusColor),
+            },
+            Transparency = NumberSequence.new{
+                NumberSequenceKeypoint.new(0, 1),
+                NumberSequenceKeypoint.new(0.5, 0.25),
+                NumberSequenceKeypoint.new(1, 1),
+            },
+        }, cardGlowLine)
 
         local cardShadow = new("ImageLabel", {
             Name = "CardShadow",
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(1, 46, 1, 46),
+            Size = UDim2.new(1, 48, 1, 48),
             BackgroundTransparency = 1,
             Image = "rbxassetid://17290899982",
-            ImageColor3 = isDanger and Color3.fromRGB(220, 38, 38) or Color3.fromRGB(0, 0, 0),
-            ImageTransparency = isDanger and 0.72 or 0.5,
+            ImageColor3 = genv.shadowcolor or Color3.fromRGB(0, 0, 0),
+            ImageTransparency = 0.5,
             ZIndex = 1200,
         }, promptCard)
 
+        local badgeBg = isDanger and Color3.fromRGB(42, 16, 22) or (themeAccent:lerp(Color3.fromRGB(15, 16, 20), 0.82))
         local iconBadge = new("Frame", {
             Name = "IconBadge",
             Position = UDim2.new(0, 20, 0, 18),
-            Size = UDim2.new(0, 42, 0, 42),
-            BackgroundColor3 = isDanger and Color3.fromRGB(42, 16, 22) or Color3.fromRGB(28, 22, 42),
+            Size = UDim2.new(0, 38, 0, 38),
+            BackgroundColor3 = badgeBg,
             BorderSizePixel = 0,
             ZIndex = 1202,
         }, promptCard)
-        corner(iconBadge, 11)
-        stroke(iconBadge, statusColor, 1, 0.45)
+        corner(iconBadge, 10)
+        stroke(iconBadge, statusColor, 1, 0.5)
 
-        local fallbackGlyph = new("TextLabel", {
-            Name = "FallbackGlyph",
+        local iconImg = new("ImageLabel", {
+            Name = "Icon",
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(1, 0, 1, 0),
+            Size = UDim2.new(0, 20, 0, 20),
             BackgroundTransparency = 1,
-            FontFace = font(Enum.FontWeight.Bold),
-            Text = "!",
-            TextColor3 = statusColor,
-            TextSize = 19,
-            ZIndex = 1202,
-        }, iconBadge)
-
-        local warnIcon = new("ImageLabel", {
-            Name = "WarnIcon",
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(0, 24, 0, 24),
-            BackgroundTransparency = 1,
-            Image = "rbxassetid://7733658504",
+            Image = isDanger and "rbxassetid://125920361880643" or (options.Icon or "rbxassetid://125920361880643"),
             ImageColor3 = statusColor,
-            ZIndex = 1203,
+            ZIndex = 1204,
         }, iconBadge)
 
         local headerContainer = new("Frame", {
             Name = "HeaderInfo",
-            Position = UDim2.new(0, 72, 0, 18),
-            Size = UDim2.new(1, -92, 0, 42),
+            Position = UDim2.new(0, 68, 0, 18),
+            Size = UDim2.new(1, -88, 0, 38),
             BackgroundTransparency = 1,
             ZIndex = 1202,
         }, promptCard)
 
         local tagLabel = new("TextLabel", {
             Name = "Tag",
-            Position = UDim2.new(0, 0, 0, 2),
-            Size = UDim2.new(1, 0, 0, 13),
+            Position = UDim2.new(0, 0, 0, 1),
+            Size = UDim2.new(1, 0, 0, 12),
             BackgroundTransparency = 1,
             FontFace = font(Enum.FontWeight.Bold),
-            Text = isDanger and "ACTION CONFIRMATION" or "SYSTEM NOTICE",
+            Text = isDanger and "ACTION CONFIRMATION" or "CONFIRMATION",
             TextColor3 = statusColor,
             TextSize = 10,
             TextXAlignment = Enum.TextXAlignment.Left,
@@ -2531,53 +2533,47 @@ function Library.new(selfOrOpts, options)
 
         local titleLabel = new("TextLabel", {
             Name = "Title",
-            Position = UDim2.new(0, 0, 0, 17),
+            Position = UDim2.new(0, 0, 0, 15),
             Size = UDim2.new(1, 0, 0, 22),
             BackgroundTransparency = 1,
-            FontFace = font(Enum.FontWeight.Bold),
+            FontFace = font(Enum.FontWeight.SemiBold),
             Text = promptTitle,
             TextColor3 = WHITE,
-            TextSize = 16,
+            TextSize = 15,
             TextXAlignment = Enum.TextXAlignment.Left,
             ZIndex = 1202,
         }, headerContainer)
 
         local divider = new("Frame", {
             Name = "Divider",
-            Position = UDim2.new(0, 20, 0, 68),
+            Position = UDim2.new(0, 20, 0, 66),
             Size = UDim2.new(1, -40, 0, 1),
-            BackgroundColor3 = Color3.fromRGB(36, 38, 48),
+            BackgroundColor3 = cardLine,
+            BackgroundTransparency = 0.3,
             BorderSizePixel = 0,
             ZIndex = 1202,
         }, promptCard)
-        new("UIGradient", {
-            Transparency = NumberSequence.new({
-                NumberSequenceKeypoint.new(0, 0.7),
-                NumberSequenceKeypoint.new(0.5, 0.2),
-                NumberSequenceKeypoint.new(1, 0.7),
-            }),
-        }, divider)
 
         local messageLabel = new("TextLabel", {
             Name = "Message",
-            Position = UDim2.new(0, 20, 0, 78),
-            Size = UDim2.new(1, -40, 0, 52),
+            Position = UDim2.new(0, 20, 0, 76),
+            Size = UDim2.new(1, -40, 0, 50),
             BackgroundTransparency = 1,
             FontFace = font(Enum.FontWeight.Regular),
             Text = promptMsg,
-            TextColor3 = Color3.fromRGB(180, 185, 200),
+            TextColor3 = Color3.fromRGB(175, 180, 195),
             TextSize = 13,
             TextWrapped = true,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Top,
-            LineHeight = 1.15,
+            LineHeight = 1.18,
             ZIndex = 1202,
         }, promptCard)
 
         local footer = new("Frame", {
             Name = "Footer",
-            Position = UDim2.new(0, 20, 1, -50),
-            Size = UDim2.new(1, -40, 0, 36),
+            Position = UDim2.new(0, 20, 1, -46),
+            Size = UDim2.new(1, -40, 0, 32),
             BackgroundTransparency = 1,
             ZIndex = 1202,
         }, promptCard)
@@ -2586,17 +2582,17 @@ function Library.new(selfOrOpts, options)
             Name = "CancelBtn",
             Position = UDim2.new(0, 0, 0, 0),
             Size = UDim2.new(0.48, -4, 1, 0),
-            BackgroundColor3 = Color3.fromRGB(26, 28, 36),
+            BackgroundColor3 = btnBg,
             BorderSizePixel = 0,
             AutoButtonColor = false,
             Text = cancelText,
-            TextColor3 = Color3.fromRGB(200, 205, 225),
+            TextColor3 = Color3.fromRGB(200, 205, 220),
             TextSize = 13,
             FontFace = font(Enum.FontWeight.Medium),
             ZIndex = 1203,
         }, footer)
         corner(cancelBtn, 8)
-        local cancelStroke = stroke(cancelBtn, Color3.fromRGB(48, 52, 66), 1, 0.4)
+        local cancelStroke = stroke(cancelBtn, cardLine, 1, 0.5)
 
         local confirmBtn = new("TextButton", {
             Name = "ConfirmBtn",
@@ -2612,24 +2608,33 @@ function Library.new(selfOrOpts, options)
             ZIndex = 1203,
         }, footer)
         corner(confirmBtn, 8)
-        new("UIGradient", {
-            Color = isDanger and ColorSequence.new(Color3.fromRGB(244, 63, 94), Color3.fromRGB(210, 20, 60)) or ColorSequence.new(themeAccent, themeAccent:lerp(Color3.fromRGB(0, 0, 0), 0.2)),
-            Rotation = 45,
-        }, confirmBtn)
+        if isDanger then
+            new("UIGradient", {
+                Color = ColorSequence.new(Color3.fromRGB(244, 63, 94), Color3.fromRGB(205, 20, 60)),
+                Rotation = 45,
+            }, confirmBtn)
+            stroke(confirmBtn, Color3.fromRGB(255, 90, 120), 1, 0.4)
+        else
+            new("UIGradient", {
+                Color = ColorSequence.new(themeAccent, themeAccent:lerp(Color3.fromRGB(0, 0, 0), 0.25)),
+                Rotation = 45,
+            }, confirmBtn)
+            stroke(confirmBtn, WHITE, 1, 0.65)
+        end
 
         cancelBtn.MouseEnter:Connect(function()
             TweenService:Create(cancelBtn, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                BackgroundColor3 = Color3.fromRGB(36, 40, 52),
+                BackgroundColor3 = btnBg:lerp(WHITE, 0.08),
                 TextColor3 = WHITE,
             }):Play()
-            TweenService:Create(cancelStroke, TweenInfo.new(0.18), {Color = Color3.fromRGB(68, 74, 96)}):Play()
+            TweenService:Create(cancelStroke, TweenInfo.new(0.18), {Color = statusColor, Transparency = 0.4}):Play()
         end)
         cancelBtn.MouseLeave:Connect(function()
             TweenService:Create(cancelBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                BackgroundColor3 = Color3.fromRGB(26, 28, 36),
-                TextColor3 = Color3.fromRGB(200, 205, 225),
+                BackgroundColor3 = btnBg,
+                TextColor3 = Color3.fromRGB(200, 205, 220),
             }):Play()
-            TweenService:Create(cancelStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(48, 52, 66)}):Play()
+            TweenService:Create(cancelStroke, TweenInfo.new(0.2), {Color = cardLine, Transparency = 0.5}):Play()
         end)
 
         confirmBtn.MouseEnter:Connect(function()
@@ -2646,13 +2651,13 @@ function Library.new(selfOrOpts, options)
         end)
 
         local cardScale = new("UIScale", {
-            Scale = 0.85,
+            Scale = 0.92,
         }, promptCard)
 
         TweenService:Create(promptOverlay, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            BackgroundTransparency = 0.45,
+            BackgroundTransparency = 0.55,
         }):Play()
-        TweenService:Create(cardScale, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        TweenService:Create(cardScale, TweenInfo.new(0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
             Scale = 1,
         }):Play()
 
@@ -2660,11 +2665,11 @@ function Library.new(selfOrOpts, options)
         local function dismiss(confirmed)
             if closing then return end
             closing = true
-            TweenService:Create(promptOverlay, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            TweenService:Create(promptOverlay, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 BackgroundTransparency = 1,
             }):Play()
-            local closeTween = TweenService:Create(cardScale, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                Scale = 0.85,
+            local closeTween = TweenService:Create(cardScale, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Scale = 0.92,
             })
             closeTween:Play()
             closeTween.Completed:Once(function()
@@ -4657,7 +4662,8 @@ function Library.new(selfOrOpts, options)
             island.Visible = false
         end
         if Library.AtmosphereHolder then
-            Library.AtmosphereHolder.Visible = atmosphereEnabled and ((not Library.AtmosphereVisibleWithUI) or (not state))
+            local showAtmo = atmosphereEnabled and (currentAtmosphere ~= "None") and ((not Library.AtmosphereVisibleWithUI) or (not state))
+            Library.AtmosphereHolder.Visible = showAtmo
         end
         if Library.UpdateKeybindList then
             Library:UpdateKeybindList()
