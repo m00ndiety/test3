@@ -1699,6 +1699,81 @@ local function ApplyTheme(name, customAccent)
     end
 end
 
+Library.Icons = {
+    Home = "10723407389",
+    User = "10747373176",
+    Users = "10747373426",
+    Settings = "10734950309",
+    Sliders = "10734963400",
+    Folder = "10723387563",
+    Search = "10734943674",
+    Globe = "10723404337",
+    Layers = "10723424505",
+    Compass = "10709811445",
+    MapPin = "10734886004",
+    Navigation = "10734906744",
+    Swords = "10734975692",
+    Sword = "10734975486",
+    Crosshair = "10709818534",
+    Target = "10734977012",
+    Shield = "10734951847",
+    Axe = "10709769508",
+    Bomb = "10709781460",
+    Skull = "10734962068",
+    Flame = "10723376114",
+    Car = "10709789810",
+    Truck = "10747364031",
+    Plane = "10734922971",
+    Rocket = "10734934585",
+    Bike = "10709775894",
+    Eye = "10723346959",
+    EyeOff = "10723346871",
+    Palette = "10734910430",
+    Ghost = "10723396107",
+    Sun = "10734974297",
+    Moon = "10734897102",
+    Shirt = "10734952036",
+    Heart = "10723406885",
+    Activity = "10709752035",
+    Crown = "10709818626",
+    Award = "10709769406",
+    Star = "10734966248",
+    Terminal = "10734982144",
+    Code = "10709810463",
+    Server = "10734949856",
+    Wrench = "10747383470",
+    Key = "10723416652",
+    Lock = "10723434711",
+    Bell = "10709775704",
+    Gamepad = "10723395215",
+    Player = "10747373176",
+    Visuals = "10723346959",
+    Vehicles = "10709789810",
+    Combat = "10734975692",
+    House = "10723407389",
+    Avatar = "10734952036",
+    Teleports = "10734886004",
+    Elements = "10723424505",
+    Layout = "10734963400"
+}
+
+local SystemSettings = {
+    themeselector = true,
+    custom_accent_color = true,
+    island_toggle = true,
+    island_style_dropdown = true,
+    watermark_toggle = true,
+    keybind_hud_toggle = true,
+    mobile_toggle_button = true,
+    mobile_toggle_style = true,
+    window_scale_slider = true,
+    toggleui = true,
+    setting_ambience_enabled = true,
+    setting_ambience = true,
+    setting_ambience_opacity = true,
+    setting_ambience_hide = true
+}
+
 ApplyTheme("Eclipse")
 
 function Library:SetTheme(name)
@@ -1709,6 +1784,7 @@ function Library:SetTheme(name)
     local accent = isCustom and Library.CustomAccent or nil
     ApplyTheme(name, accent)
     pcall(writefile, "Moondiety/theme.txt", name)
+    self:SaveSettings()
 end
 
 function Library:SetCustomAccent(color)
@@ -1719,6 +1795,7 @@ function Library:SetCustomAccent(color)
     else
         if isfile("Moondiety/accent.txt") then pcall(delfile, "Moondiety/accent.txt") end
     end
+    self:SaveSettings()
 end
 
 function Library:RegisterObject(flag, object)
@@ -1734,7 +1811,7 @@ function Library:RegisterKeybind(flag, name, key, getState, onToggle, callback, 
         getState = getState or function() return nil end,
         toggle = onToggle,
         callback = callback or onToggle,
-        isButton = isButton or false,
+        isButton = isButton or false
     }
     if self.UpdateKeybindList then
         self:UpdateKeybindList()
@@ -1748,6 +1825,52 @@ function Library:UpdateKeybind(flag, key)
             self:UpdateKeybindList()
         end
     end
+end
+
+function Library:GetConfigFolder()
+    local id = tostring(game.GameId ~= 0 and game.GameId or game.PlaceId)
+    return "Moondiety/Configs/" .. id
+end
+
+function Library:SaveSettings()
+    local data = {}
+    for flag, obj in pairs(self.Objects) do
+        if SystemSettings[flag] and obj.GetValue then
+            local ok, val = pcall(function() return obj:GetValue() end)
+            if ok and val ~= nil then
+                data[flag] = val
+            end
+        end
+    end
+    for flag, _ in pairs(SystemSettings) do
+        if data[flag] == nil and self.Flags[flag] ~= nil then
+            data[flag] = self.Flags[flag]
+        end
+    end
+    if not isfolder("Moondiety") then makefolder("Moondiety") end
+    local ok, encoded = pcall(function() return HttpService:JSONEncode(data) end)
+    if ok then
+        pcall(writefile, "Moondiety/settings.json", encoded)
+    end
+    return ok
+end
+
+function Library:LoadSettings()
+    local path = "Moondiety/settings.json"
+    if not isfile(path) then return false end
+    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
+    if not ok or type(data) ~= "table" then return false end
+    self.SavedSettings = data
+    for flag, value in pairs(data) do
+        if SystemSettings[flag] then
+            self.Flags[flag] = value
+            local obj = self.Objects[flag]
+            if obj and obj.SetValue then
+                pcall(function() obj:SetValue(value) end)
+            end
+        end
+    end
+    return true
 end
 
 function Library:RefreshConfigs()
@@ -1766,87 +1889,133 @@ end
 function Library:SaveConfig(name)
     name = name or "default"
     local data = {}
-    for flag, obj in pairs(Library.Objects) do
-        if obj.GetValue then
+    for flag, obj in pairs(self.Objects) do
+        if not SystemSettings[flag] and flag ~= "configname_input" and flag ~= "savedconfigs" and flag ~= "autoload_config_toggle" and obj.GetValue then
             local ok, value = pcall(function() return obj:GetValue() end)
             if ok and value ~= nil then data[flag] = value end
         end
     end
+    local folder = self:GetConfigFolder()
     if not isfolder("Moondiety") then makefolder("Moondiety") end
     if not isfolder("Moondiety/Configs") then makefolder("Moondiety/Configs") end
+    if not isfolder(folder) then makefolder(folder) end
     local ok, encoded = pcall(function() return HttpService:JSONEncode(data) end)
-    if ok then writefile("Moondiety/Configs/" .. name .. ".json", encoded) end
+    if ok then writefile(folder .. "/" .. name .. ".json", encoded) end
     self:RefreshConfigs()
+    if self.Flags.autoload_config_toggle then
+        self:SetAutoload(name)
+    end
     Library:Notify({
         Title = "Config Saved",
         Content = "Saved config: " .. name,
         Duration = 3,
-        Type = "Success",
+        Type = "Success"
     })
     return ok
 end
 
 function Library:LoadConfig(name)
     name = name or "default"
-    local path = "Moondiety/Configs/" .. name .. ".json"
+    local folder = self:GetConfigFolder()
+    local path = folder .. "/" .. name .. ".json"
+    if not isfile(path) then
+        path = "Moondiety/Configs/" .. name .. ".json"
+    end
     if not isfile(path) then
         Library:Notify({
             Title = "Config Not Found",
             Content = "No config file for: " .. name,
             Duration = 3,
-            Type = "Error",
+            Type = "Error"
         })
         return false
     end
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
     if not ok or type(data) ~= "table" then return false end
     for flag, value in pairs(data) do
-        local obj = Library.Objects[flag]
-        if obj then
-            if obj.SetValue then pcall(function() obj:SetValue(value) end) end
-            if obj.callback then pcall(function() obj.callback(value) end) end
+        if not SystemSettings[flag] then
+            self.Flags[flag] = value
+            local obj = self.Objects[flag]
+            if obj and obj.SetValue then
+                pcall(function() obj:SetValue(value) end)
+            end
         end
     end
     Library:Notify({
         Title = "Config Loaded",
         Content = "Loaded config: " .. name,
         Duration = 3,
-        Type = "Success",
+        Type = "Success"
     })
     return true
 end
 
 function Library:ListConfigs()
-    if not isfolder("Moondiety/Configs") then return {} end
+    local folder = self:GetConfigFolder()
     local list = {}
-    for _, file in ipairs(listfiles("Moondiety/Configs")) do
-        local fileName = file:match("([^/\\]+)%.json$")
-        if fileName then table.insert(list, fileName) end
+    local seen = {}
+    if isfolder(folder) then
+        for _, file in ipairs(listfiles(folder)) do
+            local fileName = file:match("([^/\\]+)%.json$")
+            if fileName and not seen[fileName] then
+                seen[fileName] = true
+                table.insert(list, fileName)
+            end
+        end
     end
+    if isfolder("Moondiety/Configs") then
+        for _, file in ipairs(listfiles("Moondiety/Configs")) do
+            local fileName = file:match("([^/\\]+)%.json$")
+            if fileName and not seen[fileName] then
+                seen[fileName] = true
+                table.insert(list, fileName)
+            end
+        end
+    end
+    table.sort(list)
     return list
 end
 
 function Library:DeleteConfig(name)
     name = name or "default"
-    local path = "Moondiety/Configs/" .. name .. ".json"
+    local folder = self:GetConfigFolder()
+    local path = folder .. "/" .. name .. ".json"
     if isfile(path) then delfile(path) end
+    local legacyPath = "Moondiety/Configs/" .. name .. ".json"
+    if isfile(legacyPath) then delfile(legacyPath) end
+    if self:GetAutoload() == name then
+        self:SetAutoload("")
+        local autoToggle = self.Objects.autoload_config_toggle
+        if autoToggle and autoToggle.SetValue then
+            autoToggle:SetValue(false)
+        end
+    end
     self:RefreshConfigs()
     Library:Notify({
         Title = "Config Deleted",
         Content = "Deleted config: " .. name,
         Duration = 3,
-        Type = "Info",
+        Type = "Info"
     })
 end
 
 function Library:SetAutoload(name)
+    local folder = self:GetConfigFolder()
     if not isfolder("Moondiety") then makefolder("Moondiety") end
+    if not isfolder("Moondiety/Configs") then makefolder("Moondiety/Configs") end
+    if not isfolder(folder) then makefolder(folder) end
+    pcall(writefile, folder .. "/autoload.txt", name or "")
     pcall(writefile, "Moondiety/autoload.txt", name or "")
 end
 
 function Library:GetAutoload()
-    if not isfile("Moondiety/autoload.txt") then return "" end
-    local ok, name = pcall(readfile, "Moondiety/autoload.txt")
+    local folder = self:GetConfigFolder()
+    local path = folder .. "/autoload.txt"
+    if not isfile(path) then
+        path = "Moondiety/autoload.txt"
+    end
+    if not isfile(path) then return "" end
+    local ok, name = pcall(readfile, path)
     return ok and name or ""
 end
 
@@ -1858,17 +2027,36 @@ function Library:LoadAutoload()
 end
 
 if not isfolder("Moondiety") then makefolder("Moondiety") end
-if isfile("Moondiety/theme.txt") then
-    local ok, themeName = pcall(readfile, "Moondiety/theme.txt")
-    if ok and themeName and Themes[themeName] then
-        Library.Theme = themeName
+Library.SavedSettings = {}
+if isfile("Moondiety/settings.json") then
+    local ok, decoded = pcall(function() return HttpService:JSONDecode(readfile("Moondiety/settings.json")) end)
+    if ok and type(decoded) == "table" then
+        Library.SavedSettings = decoded
+        if decoded.themeselector and Themes[decoded.themeselector] then
+            Library.Theme = decoded.themeselector
+        end
+        if decoded.custom_accent_color and type(decoded.custom_accent_color) == "table" then
+            local c = decoded.custom_accent_color
+            if #c >= 3 then
+                Library.CustomAccent = Color3.fromRGB(c[1], c[2], c[3])
+                genv.accent = Library.CustomAccent
+            end
+        end
+    end
+end
+if not Library.Theme then
+    if isfile("Moondiety/theme.txt") then
+        local ok, themeName = pcall(readfile, "Moondiety/theme.txt")
+        if ok and themeName and Themes[themeName] then
+            Library.Theme = themeName
+        else
+            Library.Theme = "Eclipse"
+        end
     else
         Library.Theme = "Eclipse"
     end
-else
-    Library.Theme = "Eclipse"
 end
-if isfile("Moondiety/accent.txt") then
+if not Library.CustomAccent and isfile("Moondiety/accent.txt") then
     local ok, hex = pcall(readfile, "Moondiety/accent.txt")
     if ok and hex and #hex >= 6 then
         Library.CustomAccent = hexToColor(hex, nil)
@@ -2057,6 +2245,8 @@ function Library:SetToggleBarPlatform(platform)
 end
 
 function Library:FinishLoading()
+    self:LoadSettings()
+    self:LoadAutoload()
 end
 
 function Library.new(selfOrOpts, options)
@@ -6181,7 +6371,21 @@ function Library.new(selfOrOpts, options)
 
     function Tab.create_tab(selfOrName, nameOrIcon, iconId)
         local name = (type(selfOrName) == "string") and selfOrName or nameOrIcon
-        local resolvedIcon = (type(selfOrName) == "string") and nameOrIcon or iconId
+        local rawIcon = (type(selfOrName) == "string") and nameOrIcon or iconId
+        local resolvedIcon = rawIcon
+        if resolvedIcon and Library.Icons and Library.Icons[resolvedIcon] then
+            resolvedIcon = Library.Icons[resolvedIcon]
+        end
+        local hasIcon = resolvedIcon and tostring(resolvedIcon) ~= "" and tostring(resolvedIcon) ~= "0"
+        local iconImage = ""
+        if hasIcon then
+            local raw = tostring(resolvedIcon)
+            if raw:find("rbxassetid://") or raw:find("rbxasset://") or raw:find("http://") or raw:find("https://") then
+                iconImage = raw
+            else
+                iconImage = "rbxassetid://" .. raw
+            end
+        end
         local tabBtn = new("TextButton", {
             Name = "Tab",
             BackgroundColor3 = genv.tabcolor or Color3.fromRGB(27, 28, 33),
@@ -6202,17 +6406,18 @@ function Library.new(selfOrOpts, options)
             Position = UDim2.new(0, 8, 0.5, 0),
             Size = UDim2.new(0, 16, 0, 16),
             BackgroundTransparency = 1,
-            Image = "rbxassetid://" .. tostring(resolvedIcon or iconId or ""),
+            Image = iconImage,
             ImageColor3 = Color3.fromRGB(150, 155, 170),
             ImageTransparency = 0.55,
+            Visible = hasIcon,
             ZIndex = 4,
         }, tabBtn)
 
         local TabText = new("TextLabel", {
             Name = "TextLabel",
             AnchorPoint = Vector2.new(0, 0.5),
-            Position = UDim2.new(0, 32, 0.5, 0),
-            Size = UDim2.new(1, -40, 0, 14),
+            Position = hasIcon and UDim2.new(0, 32, 0.5, 0) or UDim2.new(0, 12, 0.5, 0),
+            Size = hasIcon and UDim2.new(1, -40, 0, 14) or UDim2.new(1, -24, 0, 14),
             BackgroundTransparency = 1,
             FontFace = font(Enum.FontWeight.Medium),
             Text = name,
@@ -6850,7 +7055,7 @@ function Library.new(selfOrOpts, options)
             end
 
             function obj:GetValue() return self.state end
-            function obj:SetValue(v) self:UpdateToggle(v, true) end
+            function obj:SetValue(v) self:UpdateToggle(v, false) end
             obj.Set = obj.SetValue
 
             Library.Flags[cfg.flag] = obj.state
@@ -7067,7 +7272,8 @@ function Library.new(selfOrOpts, options)
             end
 
             function obj:GetValue() return self.state end
-            function obj:SetValue(v) self:UpdateToggle(v, true) end
+            function obj:SetValue(v) self:UpdateToggle(v, false) end
+            obj.Set = obj.SetValue
 
             Library.Flags[cfg.flag] = obj.state
             Library:RegisterObject(cfg.flag, obj)
@@ -7990,6 +8196,7 @@ function Library.new(selfOrOpts, options)
                 box.Text = text
                 Library.Flags[self.flag] = text
                 Library.save_flags()
+                if self.callback then pcall(self.callback, text) end
             end
             function obj:ClearInput() self:UpdateInput("") end
             function obj:GetInput() return box.Text end
@@ -8525,9 +8732,11 @@ function Library.new(selfOrOpts, options)
                     if type(value) ~= "table" then return end
                     self.selectedOptions = value
                     Library.Flags[self.flag] = value
+                    if self.callback then pcall(self.callback, value) end
                 else
                     self.selectedOption = value
                     Library.Flags[self.flag] = value
+                    if self.callback then pcall(self.callback, value) end
                 end
                 setText()
                 self:update()
@@ -8608,6 +8817,7 @@ function Library.new(selfOrOpts, options)
 
 
     task.defer(function()
+        Library:LoadSettings()
         Library:LoadAutoload()
     end)
 
