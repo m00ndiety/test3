@@ -1774,6 +1774,24 @@ local SystemSettings = {
     setting_ambience_hide = true
 }
 
+local ROOT_FOLDER = "Moondiety/V2"
+local SETTINGS_FILE = ROOT_FOLDER .. "/settings.json"
+local THEME_FILE = ROOT_FOLDER .. "/theme.txt"
+local ACCENT_FILE = ROOT_FOLDER .. "/accent.txt"
+
+local function ensureFolder(path)
+    local parts = path:split("/")
+    local current = ""
+    for _, part in ipairs(parts) do
+        current = (current == "") and part or (current .. "/" .. part)
+        if not isfolder(current) then
+            pcall(makefolder, current)
+        end
+    end
+end
+
+Library.ActiveConfig = "None"
+
 ApplyTheme("Eclipse")
 
 function Library:SetTheme(name)
@@ -1783,17 +1801,19 @@ function Library:SetTheme(name)
     end
     local accent = isCustom and Library.CustomAccent or nil
     ApplyTheme(name, accent)
-    pcall(writefile, "Moondiety/theme.txt", name)
+    ensureFolder(ROOT_FOLDER)
+    pcall(writefile, THEME_FILE, name)
     self:SaveSettings()
 end
 
 function Library:SetCustomAccent(color)
     Library.CustomAccent = color
     ApplyTheme(Library.Theme, color)
+    ensureFolder(ROOT_FOLDER)
     if color then
-        pcall(writefile, "Moondiety/accent.txt", colorToHex(color))
+        pcall(writefile, ACCENT_FILE, colorToHex(color))
     else
-        if isfile("Moondiety/accent.txt") then pcall(delfile, "Moondiety/accent.txt") end
+        if isfile(ACCENT_FILE) then pcall(delfile, ACCENT_FILE) end
     end
     self:SaveSettings()
 end
@@ -1829,7 +1849,26 @@ end
 
 function Library:GetConfigFolder()
     local id = tostring(game.GameId ~= 0 and game.GameId or game.PlaceId)
-    return "Moondiety/Configs/" .. id
+    return ROOT_FOLDER .. "/Configs/" .. id
+end
+
+function Library:SetActiveConfig(name)
+    self.ActiveConfig = name or "None"
+    self.Flags.savedconfigs = self.ActiveConfig
+    local obj = self.Objects.savedconfigs
+    if obj then
+        if obj.SetValue then
+            pcall(function() obj:SetValue(self.ActiveConfig, true) end)
+        else
+            obj.selectedOption = self.ActiveConfig
+            if obj.setText then obj:setText() end
+            if obj.update then obj:update() end
+        end
+    end
+    local inObj = self.Objects.configname_input
+    if inObj and inObj.SetValue and name and name ~= "None" then
+        pcall(function() inObj:SetValue(name) end)
+    end
 end
 
 function Library:SaveSettings()
@@ -1847,18 +1886,17 @@ function Library:SaveSettings()
             data[flag] = self.Flags[flag]
         end
     end
-    if not isfolder("Moondiety") then makefolder("Moondiety") end
+    ensureFolder(ROOT_FOLDER)
     local ok, encoded = pcall(function() return HttpService:JSONEncode(data) end)
     if ok then
-        pcall(writefile, "Moondiety/settings.json", encoded)
+        pcall(writefile, SETTINGS_FILE, encoded)
     end
     return ok
 end
 
 function Library:LoadSettings()
-    local path = "Moondiety/settings.json"
-    if not isfile(path) then return false end
-    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
+    if not isfile(SETTINGS_FILE) then return false end
+    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(SETTINGS_FILE)) end)
     if not ok or type(data) ~= "table" then return false end
     self.SavedSettings = data
     for flag, value in pairs(data) do
@@ -1875,14 +1913,18 @@ end
 
 function Library:RefreshConfigs()
     local list = self:ListConfigs()
-    if #list == 0 then list = {'None'} end
+    local opts = {"None"}
+    for _, item in ipairs(list) do
+        if item ~= "None" then table.insert(opts, item) end
+    end
     local obj = self.Objects.savedconfigs
     if obj and obj.UpdateOptions then
-        pcall(function() obj:UpdateOptions(list) end)
-    end
-    local autoObj = self.Objects.autoloadconfig
-    if autoObj and autoObj.UpdateOptions then
-        pcall(function() autoObj:UpdateOptions(list) end)
+        pcall(function()
+            obj:UpdateOptions(opts)
+            obj.selectedOption = self.ActiveConfig or "None"
+            if obj.setText then obj:setText() end
+            if obj.update then obj:update() end
+        end)
     end
 end
 
@@ -1896,14 +1938,13 @@ function Library:SaveConfig(name)
         end
     end
     local folder = self:GetConfigFolder()
-    if not isfolder("Moondiety") then makefolder("Moondiety") end
-    if not isfolder("Moondiety/Configs") then makefolder("Moondiety/Configs") end
-    if not isfolder(folder) then makefolder(folder) end
+    ensureFolder(folder)
     local ok, encoded = pcall(function() return HttpService:JSONEncode(data) end)
     if ok then writefile(folder .. "/" .. name .. ".json", encoded) end
+    self:SetActiveConfig(name)
     self:RefreshConfigs()
     if self.Flags.autoload_config_toggle then
-        self:SetAutoload(name)
+        self:SetAutoload(name, true)
     end
     Library:Notify({
         Title = "Config Saved",
@@ -1919,9 +1960,6 @@ function Library:LoadConfig(name)
     local folder = self:GetConfigFolder()
     local path = folder .. "/" .. name .. ".json"
     if not isfile(path) then
-        path = "Moondiety/Configs/" .. name .. ".json"
-    end
-    if not isfile(path) then
         Library:Notify({
             Title = "Config Not Found",
             Content = "No config file for: " .. name,
@@ -1933,7 +1971,7 @@ function Library:LoadConfig(name)
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
     if not ok or type(data) ~= "table" then return false end
     for flag, value in pairs(data) do
-        if not SystemSettings[flag] then
+        if not SystemSettings[flag] and flag ~= "autoload_config_toggle" then
             self.Flags[flag] = value
             local obj = self.Objects[flag]
             if obj and obj.SetValue then
@@ -1941,6 +1979,7 @@ function Library:LoadConfig(name)
             end
         end
     end
+    self:SetActiveConfig(name)
     Library:Notify({
         Title = "Config Loaded",
         Content = "Loaded config: " .. name,
@@ -1957,16 +1996,7 @@ function Library:ListConfigs()
     if isfolder(folder) then
         for _, file in ipairs(listfiles(folder)) do
             local fileName = file:match("([^/\\]+)%.json$")
-            if fileName and not seen[fileName] then
-                seen[fileName] = true
-                table.insert(list, fileName)
-            end
-        end
-    end
-    if isfolder("Moondiety/Configs") then
-        for _, file in ipairs(listfiles("Moondiety/Configs")) do
-            local fileName = file:match("([^/\\]+)%.json$")
-            if fileName and not seen[fileName] then
+            if fileName and fileName ~= "autoload" and not seen[fileName] then
                 seen[fileName] = true
                 table.insert(list, fileName)
             end
@@ -1981,14 +2011,12 @@ function Library:DeleteConfig(name)
     local folder = self:GetConfigFolder()
     local path = folder .. "/" .. name .. ".json"
     if isfile(path) then delfile(path) end
-    local legacyPath = "Moondiety/Configs/" .. name .. ".json"
-    if isfile(legacyPath) then delfile(legacyPath) end
-    if self:GetAutoload() == name then
-        self:SetAutoload("")
-        local autoToggle = self.Objects.autoload_config_toggle
-        if autoToggle and autoToggle.SetValue then
-            autoToggle:SetValue(false)
-        end
+    if self.ActiveConfig == name then
+        self:SetActiveConfig("None")
+    end
+    local autoCfg, autoEnabled = self:GetAutoload()
+    if autoCfg == name then
+        self:SetAutoload("", false)
     end
     self:RefreshConfigs()
     Library:Notify({
@@ -1999,37 +2027,64 @@ function Library:DeleteConfig(name)
     })
 end
 
-function Library:SetAutoload(name)
+function Library:SetAutoload(name, enabled)
     local folder = self:GetConfigFolder()
-    if not isfolder("Moondiety") then makefolder("Moondiety") end
-    if not isfolder("Moondiety/Configs") then makefolder("Moondiety/Configs") end
-    if not isfolder(folder) then makefolder(folder) end
-    pcall(writefile, folder .. "/autoload.txt", name or "")
-    pcall(writefile, "Moondiety/autoload.txt", name or "")
+    ensureFolder(folder)
+    if enabled == nil then
+        enabled = (name ~= nil and name ~= "" and name ~= "None")
+    end
+    local payload = {
+        enabled = enabled and true or false,
+        config = name or ""
+    }
+    local ok, encoded = pcall(function() return HttpService:JSONEncode(payload) end)
+    if ok then
+        pcall(writefile, folder .. "/autoload.json", encoded)
+    end
+    self.Flags.autoload_config_toggle = payload.enabled
+    local toggleObj = self.Objects.autoload_config_toggle
+    if toggleObj and toggleObj.SetValue then
+        pcall(function() toggleObj:SetValue(payload.enabled) end)
+    end
 end
 
 function Library:GetAutoload()
     local folder = self:GetConfigFolder()
-    local path = folder .. "/autoload.txt"
+    local path = folder .. "/autoload.json"
     if not isfile(path) then
-        path = "Moondiety/autoload.txt"
+        return "", false
     end
-    if not isfile(path) then return "" end
-    local ok, name = pcall(readfile, path)
-    return ok and name or ""
+    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
+    if ok and type(data) == "table" then
+        local cfg = tostring(data.config or "")
+        local isEnabled = (data.enabled == true) and (cfg ~= "" and cfg ~= "None")
+        return cfg, isEnabled
+    end
+    return "", false
 end
 
 function Library:LoadAutoload()
-    local name = self:GetAutoload()
-    if name ~= "" and name ~= "None" then
-        self:LoadConfig(name)
+    local cfg, isEnabled = self:GetAutoload()
+    if isEnabled and cfg ~= "" and cfg ~= "None" then
+        local loaded = self:LoadConfig(cfg)
+        if loaded then
+            self:SetActiveConfig(cfg)
+        else
+            self:SetActiveConfig("None")
+        end
+    else
+        self:SetActiveConfig("None")
+    end
+    local toggleObj = self.Objects.autoload_config_toggle
+    if toggleObj and toggleObj.SetValue then
+        pcall(function() toggleObj:SetValue(isEnabled) end)
     end
 end
 
-if not isfolder("Moondiety") then makefolder("Moondiety") end
+ensureFolder(ROOT_FOLDER)
 Library.SavedSettings = {}
-if isfile("Moondiety/settings.json") then
-    local ok, decoded = pcall(function() return HttpService:JSONDecode(readfile("Moondiety/settings.json")) end)
+if isfile(SETTINGS_FILE) then
+    local ok, decoded = pcall(function() return HttpService:JSONDecode(readfile(SETTINGS_FILE)) end)
     if ok and type(decoded) == "table" then
         Library.SavedSettings = decoded
         if decoded.themeselector and Themes[decoded.themeselector] then
@@ -2045,8 +2100,8 @@ if isfile("Moondiety/settings.json") then
     end
 end
 if not Library.Theme then
-    if isfile("Moondiety/theme.txt") then
-        local ok, themeName = pcall(readfile, "Moondiety/theme.txt")
+    if isfile(THEME_FILE) then
+        local ok, themeName = pcall(readfile, THEME_FILE)
         if ok and themeName and Themes[themeName] then
             Library.Theme = themeName
         else
@@ -2056,8 +2111,8 @@ if not Library.Theme then
         Library.Theme = "Eclipse"
     end
 end
-if not Library.CustomAccent and isfile("Moondiety/accent.txt") then
-    local ok, hex = pcall(readfile, "Moondiety/accent.txt")
+if not Library.CustomAccent and isfile(ACCENT_FILE) then
+    local ok, hex = pcall(readfile, ACCENT_FILE)
     if ok and hex and #hex >= 6 then
         Library.CustomAccent = hexToColor(hex, nil)
     end
@@ -2076,7 +2131,7 @@ function Library:clear()
     Library.Keybinds = {}
     local parentGui = getSafeGuiParent()
     for _, object in ipairs(parentGui:GetChildren()) do
-        if object.Name == "Moondiety" or object.Name == "cac" then
+        if object.Name == "Moondiety" then
             pcall(function() object:Destroy() end)
         end
     end
@@ -2092,21 +2147,17 @@ local savePending = false
 local function doSave()
     if not Library.exist() then return end
     local data = {}
-    if Library.savedFlags then
-        for key, value in pairs(Library.savedFlags) do
-            data[key] = value
-        end
-    end
     for flag, obj in pairs(Library.Objects) do
-        if obj.GetValue then
+        if flag ~= "savedconfigs" and flag ~= "configname_input" and flag ~= "autoload_config_toggle" and not SystemSettings[flag] and obj.GetValue then
             local ok, value = pcall(function() return obj:GetValue() end)
             if ok and value ~= nil then data[flag] = value end
         end
     end
     local ok, encoded = pcall(function() return HttpService:JSONEncode(data) end)
     if not ok then return end
-    if not isfolder("Moondiety/Data") then makefolder("Moondiety/Data") end
-    writefile("Moondiety/Data/" .. game.GameId .. ".json", encoded)
+    local dataFolder = ROOT_FOLDER .. "/Data"
+    ensureFolder(dataFolder)
+    writefile(dataFolder .. "/" .. game.GameId .. ".json", encoded)
 end
 
 function Library:save_flags()
@@ -2119,13 +2170,14 @@ function Library:save_flags()
 end
 
 function Library:load_flags()
-    local path = "Moondiety/Data/" .. game.GameId .. ".json"
-    if not isfile(path) then
-        path = "cac hub/" .. game.GameId .. ".lua"
-    end
+    local dataFolder = ROOT_FOLDER .. "/Data"
+    local path = dataFolder .. "/" .. game.GameId .. ".json"
     if not isfile(path) then return end
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
     if not ok or type(data) ~= "table" then return end
+    data["savedconfigs"] = nil
+    data["configname_input"] = nil
+    data["autoload_config_toggle"] = nil
     Library.savedFlags = data
 end
 
@@ -8718,6 +8770,9 @@ function Library.new(selfOrOpts, options)
             function D:UpdateOptions(newOptions)
                 self.options = newOptions or {}
                 if multi then self.selectedOptions = {} end
+                if self.flag == "savedconfigs" then
+                    self.selectedOption = Library.ActiveConfig or "None"
+                end
                 setText()
                 self:update()
             end
@@ -8727,16 +8782,16 @@ function Library.new(selfOrOpts, options)
                 return self.selectedOption
             end
 
-            function D:SetValue(value)
+            function D:SetValue(value, ignoreCallback)
                 if multi then
                     if type(value) ~= "table" then return end
                     self.selectedOptions = value
                     Library.Flags[self.flag] = value
-                    if self.callback then pcall(self.callback, value) end
+                    if not ignoreCallback and self.callback then pcall(self.callback, value) end
                 else
                     self.selectedOption = value
                     Library.Flags[self.flag] = value
-                    if self.callback then pcall(self.callback, value) end
+                    if not ignoreCallback and self.callback then pcall(self.callback, value) end
                 end
                 setText()
                 self:update()
@@ -8745,11 +8800,15 @@ function Library.new(selfOrOpts, options)
 
             table.insert(allRegisteredDropdowns, D)
 
-            local saved = Library.savedFlags and Library.savedFlags[cfg.flag]
-            if multi then
-                if type(saved) == "table" then D.selectedOptions = saved end
+            if cfg.flag == "savedconfigs" then
+                D.selectedOption = Library.ActiveConfig or "None"
             else
-                if saved ~= nil then D.selectedOption = saved end
+                local saved = Library.savedFlags and Library.savedFlags[cfg.flag]
+                if multi then
+                    if type(saved) == "table" then D.selectedOptions = saved end
+                else
+                    if saved ~= nil then D.selectedOption = saved end
+                end
             end
 
             setText()
