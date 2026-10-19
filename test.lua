@@ -1758,6 +1758,7 @@ local function ensureFolder(path)
 end
 
 Library.ActiveConfig = "None"
+Library.DefaultAutoSave = false
 
 ApplyTheme("Eclipse")
 
@@ -1899,7 +1900,7 @@ function Library:SaveConfig(name)
     name = name or "default"
     local data = {}
     for flag, obj in pairs(self.Objects) do
-        if not SystemSettings[flag] and flag ~= "configname_input" and flag ~= "savedconfigs" and flag ~= "autoload_config_toggle" and obj.GetValue then
+        if not SystemSettings[flag] and flag ~= "configname_input" and flag ~= "savedconfigs" and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" and obj.GetValue then
             local ok, value = pcall(function() return obj:GetValue() end)
             if ok and value ~= nil then data[flag] = value end
         end
@@ -1938,7 +1939,7 @@ function Library:LoadConfig(name)
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
     if not ok or type(data) ~= "table" then return false end
     for flag, value in pairs(data) do
-        if not SystemSettings[flag] and flag ~= "autoload_config_toggle" then
+        if not SystemSettings[flag] and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" then
             self.Flags[flag] = value
             local obj = self.Objects[flag]
             if obj and obj.SetValue then
@@ -2048,6 +2049,40 @@ function Library:LoadAutoload()
     end
 end
 
+function Library:GetAutosave()
+    local folder = self:GetConfigFolder()
+    local path = folder .. "/autosave.json"
+    if not isfile(path) then
+        return self.DefaultAutoSave == true
+    end
+    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
+    if ok and type(data) == "table" and data.enabled ~= nil then
+        return data.enabled == true
+    end
+    return self.DefaultAutoSave == true
+end
+
+function Library:SetAutosave(enabled)
+    local folder = self:GetConfigFolder()
+    ensureFolder(folder)
+    local state = enabled and true or false
+    local payload = {
+        enabled = state
+    }
+    local ok, encoded = pcall(function() return HttpService:JSONEncode(payload) end)
+    if ok then
+        pcall(writefile, folder .. "/autosave.json", encoded)
+    end
+    self.Flags.autosave_config_toggle = state
+    local toggleObj = self.Objects.autosave_config_toggle
+    if toggleObj and toggleObj.GetValue and toggleObj:GetValue() ~= state then
+        pcall(function() toggleObj:SetValue(state, true) end)
+    end
+    if state then
+        self:save_flags()
+    end
+end
+
 ensureFolder(ROOT_FOLDER)
 Library.SavedSettings = {}
 if isfile(SETTINGS_FILE) then
@@ -2110,12 +2145,23 @@ function Library:exist()
     return true
 end
 
+local saveSettingsPending = false
+function Library:save_settings_auto()
+    if saveSettingsPending then return end
+    saveSettingsPending = true
+    task.delay(0.25, function()
+        saveSettingsPending = false
+        Library:SaveSettings()
+    end)
+end
+
 local savePending = false
 local function doSave()
     if not Library.exist() then return end
+    if not Library:GetAutosave() then return end
     local data = {}
     for flag, obj in pairs(Library.Objects) do
-        if flag ~= "savedconfigs" and flag ~= "configname_input" and flag ~= "autoload_config_toggle" and not SystemSettings[flag] and obj.GetValue then
+        if flag ~= "savedconfigs" and flag ~= "configname_input" and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" and not SystemSettings[flag] and obj.GetValue then
             local ok, value = pcall(function() return obj:GetValue() end)
             if ok and value ~= nil then data[flag] = value end
         end
@@ -2125,9 +2171,19 @@ local function doSave()
     local dataFolder = ROOT_FOLDER .. "/Data"
     ensureFolder(dataFolder)
     writefile(dataFolder .. "/" .. game.GameId .. ".json", encoded)
+    if Library.ActiveConfig and Library.ActiveConfig ~= "None" and Library.ActiveConfig ~= "" then
+        local cfgFolder = Library:GetConfigFolder()
+        ensureFolder(cfgFolder)
+        pcall(writefile, cfgFolder .. "/" .. Library.ActiveConfig .. ".json", encoded)
+    end
 end
 
-function Library:save_flags()
+function Library:save_flags(flag)
+    if flag and SystemSettings[flag] then
+        self:save_settings_auto()
+        return
+    end
+    if not self:GetAutosave() then return end
     if savePending then return end
     savePending = true
     task.delay(0.25, function()
@@ -2135,17 +2191,32 @@ function Library:save_flags()
         doSave()
     end)
 end
+Library.save_flags = function(selfOrFlag, flagOrNil)
+    local flag = (type(selfOrFlag) == "string") and selfOrFlag or flagOrNil
+    Library:save_flags(flag)
+end
 
 function Library:load_flags()
+    if not self:GetAutosave() then
+        self.savedFlags = {}
+        return
+    end
     local dataFolder = ROOT_FOLDER .. "/Data"
     local path = dataFolder .. "/" .. game.GameId .. ".json"
-    if not isfile(path) then return end
+    if not isfile(path) then
+        self.savedFlags = {}
+        return
+    end
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
-    if not ok or type(data) ~= "table" then return end
+    if not ok or type(data) ~= "table" then
+        self.savedFlags = {}
+        return
+    end
     data["savedconfigs"] = nil
     data["configname_input"] = nil
     data["autoload_config_toggle"] = nil
-    Library.savedFlags = data
+    data["autosave_config_toggle"] = nil
+    self.savedFlags = data
 end
 
 Library.load_flags()
@@ -2163,6 +2234,7 @@ function Library:SetScale(scale)
     if Library.ContainerScale and not Library.hidden then
         TweenService:Create(Library.ContainerScale, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = scale}):Play()
     end
+    self:save_settings_auto()
 end
 
 function Library:SetIslandVisible(state)
@@ -2276,6 +2348,10 @@ function Library.new(selfOrOpts, options)
     Library:disconnect()
     local opts = (type(selfOrOpts) == "table" and selfOrOpts ~= Library) and selfOrOpts or (type(options) == "table" and options or {})
     options = opts
+    if opts.AutoSave ~= nil then
+        Library.DefaultAutoSave = (opts.AutoSave == true)
+    end
+    Library:load_flags()
     local openInfoModal, closeInfoModal
     local screen = new("ScreenGui", {
         Name = "Moondiety",
@@ -7068,7 +7144,7 @@ function Library.new(selfOrOpts, options)
                     end)
                 end
                 if not skipCallback then
-                    Library.save_flags()
+                    Library.save_flags(self.flag)
                 end
                 if Library.UpdateKeybindHudStates then
                     Library:UpdateKeybindHudStates()
@@ -7295,7 +7371,7 @@ function Library.new(selfOrOpts, options)
                     end)
                 end
                 if not skipCallback then
-                    Library.save_flags()
+                    Library.save_flags(self.flag)
                 end
                 if not skipCallback and self.callback then self.callback(self.state) end
             end
@@ -8100,7 +8176,7 @@ function Library.new(selfOrOpts, options)
                 animate(UDim2.new(0, 15, 0, 15))
                 TweenService:Create(fill, TweenInfo.new(0.2), {BackgroundColor3 = genv.sliderfill or genv.accent or Color3.fromRGB(90, 90, 90)}):Play()
                 TweenService:Create(number, TweenInfo.new(0.2), {TextColor3 = WHITE}):Play()
-                Library.save_flags()
+                Library.save_flags(cfg.flag)
             end
 
             track.InputBegan:Connect(beginDrag)
@@ -8128,7 +8204,7 @@ function Library.new(selfOrOpts, options)
                 if type(value) ~= "number" then return end
                 setFromPercent(math.clamp((value - self.min) / (self.max - self.min), 0, 1), skipCallback == true)
                 if not skipCallback then
-                    Library.save_flags()
+                    Library.save_flags(cfg.flag)
                 end
             end
             obj.Set = obj.SetValue
@@ -8717,7 +8793,7 @@ function Library.new(selfOrOpts, options)
                                 if D.callback then D.callback(D.selectedOptions) end
                                 setText()
                                 D:update()
-                                Library.save_flags()
+                                Library.save_flags(D.flag)
                             else
                                 D.selectedOption = value
                                 Library.Flags[D.flag] = value
@@ -8725,7 +8801,7 @@ function Library.new(selfOrOpts, options)
                                 setText()
                                 D:update()
                                 D:close()
-                                Library.save_flags()
+                                Library.save_flags(D.flag)
                             end
                         end)
                     end
