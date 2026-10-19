@@ -7257,7 +7257,8 @@ function Library.new(selfOrOpts, options)
             local function addInlineKeybind(kbOpts)
                 kbOpts = kbOpts or {}
                 local kbFlag = kbOpts.flag or ((cfg.flag or "toggle") .. "_bind")
-                local defaultKey = kbOpts.default or (kbOpts.keycode and kbOpts.keycode.Name) or "None"
+                local rawKey = kbOpts.default or kbOpts.keycode or "None"
+                local defaultKey = (typeof(rawKey) == "EnumItem" and rawKey.Name) or tostring(rawKey)
 
                 local Box = new("TextButton", {
                     Name = "InlineKeybindBox",
@@ -7912,7 +7913,8 @@ function Library.new(selfOrOpts, options)
             local function addInlineKeybind(kbOpts)
                 kbOpts = kbOpts or {}
                 local kbFlag = kbOpts.flag or ((cfg.flag or cfg.name or "button") .. "_bind")
-                local defaultKey = kbOpts.default or (kbOpts.keycode and kbOpts.keycode.Name) or "None"
+                local rawKey = kbOpts.default or kbOpts.keycode or "None"
+                local defaultKey = (typeof(rawKey) == "EnumItem" and rawKey.Name) or tostring(rawKey)
 
                 local Box = new("TextButton", {
                     Name = "InlineKeybindBox",
@@ -8419,8 +8421,8 @@ function Library.new(selfOrOpts, options)
                 if n:match("^MouseButton%d+$") then return n end
                 return nil
             end
-
-            local defaultKey = cfg.keycode and cfg.keycode.Name or cfg.default or "H"
+            local rawDefault = cfg.keycode or cfg.default or "H"
+            local defaultKey = (typeof(rawDefault) == "EnumItem" and rawDefault.Name) or tostring(rawDefault)
             Library.Flags[cfg.flag] = Library.Flags[cfg.flag] or defaultKey
             if Library.savedFlags and Library.savedFlags[cfg.flag] then
                 Library.Flags[cfg.flag] = Library.savedFlags[cfg.flag]
