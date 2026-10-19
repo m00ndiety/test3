@@ -2204,13 +2204,13 @@ local function doSave()
     end
 end
 
-function Library:save_flags(flag)
-    local selfObj = (self and type(self) == "table") and self or Library
+function Library.save_flags(selfOrFlag, flagOrNil)
+    local flag = (type(selfOrFlag) == "string") and selfOrFlag or ((type(flagOrNil) == "string") and flagOrNil or nil)
     if flag and SystemSettings[flag] then
-        selfObj:save_settings_auto()
+        Library:save_settings_auto()
         return
     end
-    if not selfObj:GetAutosave() then return end
+    if not Library:GetAutosave() then return end
     if savePending then return end
     savePending = true
     task.delay(0.25, function()
@@ -2218,40 +2218,34 @@ function Library:save_flags(flag)
         doSave()
     end)
 end
-Library.save_flags = function(selfOrFlag, flagOrNil)
-    local flag = (type(selfOrFlag) == "string") and selfOrFlag or flagOrNil
-    Library:save_flags(flag)
-end
+Library.SaveFlags = Library.save_flags
 
-function Library:load_flags()
-    local selfObj = (self and type(self) == "table") and self or Library
-    if not selfObj:GetAutosave() then
-        selfObj.savedFlags = {}
+function Library.load_flags(selfOrNil)
+    if not Library:GetAutosave() then
+        Library.savedFlags = {}
         return
     end
     local dataFolder = ROOT_FOLDER .. "/Data"
     local path = dataFolder .. "/" .. game.GameId .. ".json"
     if not isfile(path) then
-        selfObj.savedFlags = {}
+        Library.savedFlags = {}
         return
     end
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
     if not ok or type(data) ~= "table" then
-        selfObj.savedFlags = {}
+        Library.savedFlags = {}
         return
     end
     data["savedconfigs"] = nil
     data["configname_input"] = nil
     data["autoload_config_toggle"] = nil
     data["autosave_config_toggle"] = nil
-    selfObj.savedFlags = data
+    Library.savedFlags = data
 end
-Library.load_flags = function(selfOrNil)
-    Library:load_flags()
-end
+Library.LoadFlags = Library.load_flags
 
-Library:load_flags()
-Library:clear()
+Library.load_flags()
+Library.clear()
 
 function Library:visible()
     if Library.setHidden then
@@ -2382,7 +2376,7 @@ function Library.new(selfOrOpts, options)
     if opts.AutoSave ~= nil then
         Library.DefaultAutoSave = (opts.AutoSave == true)
     end
-    Library:load_flags()
+    Library.load_flags()
     local openInfoModal, closeInfoModal
     local screen = new("ScreenGui", {
         Name = "Moondiety",
