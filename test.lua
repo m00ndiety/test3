@@ -8896,6 +8896,14 @@ function Library.new(selfOrOpts, options)
             end
             D.Set = D.SetValue
 
+            function D:SetOption(newOptions, default)
+                self:UpdateOptions(newOptions)
+                if default ~= nil then
+                    self:SetValue(default)
+                end
+            end
+            D.SetOptions = D.SetOption
+
             table.insert(allRegisteredDropdowns, D)
 
             if cfg.flag == "savedconfigs" then
