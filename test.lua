@@ -1794,12 +1794,14 @@ end
 
 function Library:RegisterKeybind(flag, name, key, getState, onToggle, callback, isButton)
     self.Keybinds[flag] = {
+        flag = flag,
         name = name or flag,
         key = key or "None",
         getState = getState or function() return nil end,
         toggle = onToggle,
         callback = callback or onToggle,
-        isButton = isButton or false
+        isButton = isButton or false,
+        order = (flag == "toggleui" or string.lower(tostring(name)):find("toggle ui") ~= nil) and 0 or tick()
     }
     if self.UpdateKeybindList then
         self:UpdateKeybindList()
@@ -3632,7 +3634,7 @@ function Library.new(selfOrOpts, options)
 
     local keybindList = new("Frame", {
         Name = "KeybindList",
-        Position = UDim2.new(0, 20, 0, 140),
+        Position = UDim2.new(1, -224, 0.45, -100),
         Size = UDim2.new(0, 204, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundColor3 = genv.uicontainer or Color3.fromRGB(18, 19, 24),
@@ -3795,19 +3797,33 @@ function Library.new(selfOrOpts, options)
             if child:IsA("Frame") or child:IsA("TextButton") then child:Destroy() end
         end
         local count = 0
+        local sortedKeybinds = {}
         local seenKeybinds = {}
         for _, kb in pairs(Library.Keybinds) do
             if kb.key and kb.key ~= "None" and not seenKeybinds[kb.name] then
                 seenKeybinds[kb.name] = true
-                count += 1
-                local row = new("TextButton", {
-                    Size = UDim2.new(1, 0, 0, 26),
-                    BackgroundColor3 = Color3.fromRGB(24, 26, 33),
-                    BorderSizePixel = 0,
-                    AutoButtonColor = false,
-                    Text = "",
-                    ZIndex = 852,
-                }, kbHolder)
+                table.insert(sortedKeybinds, kb)
+            end
+        end
+        table.sort(sortedKeybinds, function(a, b)
+            local aIsToggleUI = (a.flag == "toggleui") or (string.lower(tostring(a.name)):find("toggle ui") ~= nil)
+            local bIsToggleUI = (b.flag == "toggleui") or (string.lower(tostring(b.name)):find("toggle ui") ~= nil)
+            if aIsToggleUI ~= bIsToggleUI then
+                return aIsToggleUI
+            end
+            return (a.order or 1000) < (b.order or 1000)
+        end)
+        for idx, kb in ipairs(sortedKeybinds) do
+            count += 1
+            local row = new("TextButton", {
+                LayoutOrder = idx,
+                Size = UDim2.new(1, 0, 0, 26),
+                BackgroundColor3 = Color3.fromRGB(24, 26, 33),
+                BorderSizePixel = 0,
+                AutoButtonColor = false,
+                Text = "",
+                ZIndex = 852,
+            }, kbHolder)
                 corner(row, 6)
                 local rowStrk = stroke(row, Color3.fromRGB(38, 40, 52), 1, 0.4)
                 new("UIPadding", {PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 6)}, row)
@@ -3972,7 +3988,6 @@ function Library.new(selfOrOpts, options)
                     TweenService:Create(row, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(24, 26, 33)}):Play()
                 end)
             end
-        end
         kbCountText.Text = tostring(count)
         if count == 0 then
             local emptyRow = new("Frame", {
