@@ -2017,7 +2017,8 @@ function Library:SetAutoload(name, enabled)
 end
 
 function Library:GetAutoload()
-    local folder = self:GetConfigFolder()
+    local selfObj = (self and type(self) == "table") and self or Library
+    local folder = selfObj:GetConfigFolder()
     local path = folder .. "/autoload.json"
     if not isfile(path) then
         return "", false
@@ -2031,39 +2032,64 @@ function Library:GetAutoload()
     return "", false
 end
 
+function Library:SetAutoload(name, enabled)
+    local selfObj = (self and type(self) == "table") and self or Library
+    local folder = selfObj:GetConfigFolder()
+    ensureFolder(folder)
+    if enabled == nil then
+        enabled = (name ~= nil and name ~= "" and name ~= "None")
+    end
+    local payload = {
+        enabled = enabled and true or false,
+        config = name or ""
+    }
+    local ok, encoded = pcall(function() return HttpService:JSONEncode(payload) end)
+    if ok then
+        pcall(writefile, folder .. "/autoload.json", encoded)
+    end
+    selfObj.Flags.autoload_config_toggle = payload.enabled
+    local toggleObj = selfObj.Objects.autoload_config_toggle
+    if toggleObj and toggleObj.GetValue and toggleObj:GetValue() ~= payload.enabled then
+        pcall(function() toggleObj:SetValue(payload.enabled, true) end)
+    end
+end
+
 function Library:LoadAutoload()
-    local cfg, isEnabled = self:GetAutoload()
+    local selfObj = (self and type(self) == "table") and self or Library
+    local cfg, isEnabled = selfObj:GetAutoload()
     if isEnabled and cfg ~= "" and cfg ~= "None" then
-        local loaded = self:LoadConfig(cfg)
+        local loaded = selfObj:LoadConfig(cfg)
         if loaded then
-            self:SetActiveConfig(cfg)
+            selfObj:SetActiveConfig(cfg)
         else
-            self:SetActiveConfig("None")
+            selfObj:SetActiveConfig("None")
         end
     else
-        self:SetActiveConfig("None")
+        selfObj:SetActiveConfig("None")
     end
-    local toggleObj = self.Objects.autoload_config_toggle
+    local toggleObj = selfObj.Objects.autoload_config_toggle
     if toggleObj and toggleObj.SetValue then
         pcall(function() toggleObj:SetValue(isEnabled, true) end)
     end
 end
 
 function Library:GetAutosave()
-    local folder = self:GetConfigFolder()
+    local selfObj = (self and type(self) == "table") and self or Library
+    local folder = selfObj:GetConfigFolder()
     local path = folder .. "/autosave.json"
     if not isfile(path) then
-        return self.DefaultAutoSave == true
+        return selfObj.DefaultAutoSave == true
     end
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
     if ok and type(data) == "table" and data.enabled ~= nil then
         return data.enabled == true
     end
-    return self.DefaultAutoSave == true
+    return selfObj.DefaultAutoSave == true
 end
 
 function Library:SetAutosave(enabled)
-    local folder = self:GetConfigFolder()
+    local selfObj = (self and type(self) == "table") and self or Library
+    local folder = selfObj:GetConfigFolder()
     ensureFolder(folder)
     local state = enabled and true or false
     local payload = {
@@ -2073,13 +2099,13 @@ function Library:SetAutosave(enabled)
     if ok then
         pcall(writefile, folder .. "/autosave.json", encoded)
     end
-    self.Flags.autosave_config_toggle = state
-    local toggleObj = self.Objects.autosave_config_toggle
+    selfObj.Flags.autosave_config_toggle = state
+    local toggleObj = selfObj.Objects.autosave_config_toggle
     if toggleObj and toggleObj.GetValue and toggleObj:GetValue() ~= state then
         pcall(function() toggleObj:SetValue(state, true) end)
     end
     if state then
-        self:save_flags()
+        selfObj:save_flags()
     end
 end
 
@@ -2179,11 +2205,12 @@ local function doSave()
 end
 
 function Library:save_flags(flag)
+    local selfObj = (self and type(self) == "table") and self or Library
     if flag and SystemSettings[flag] then
-        self:save_settings_auto()
+        selfObj:save_settings_auto()
         return
     end
-    if not self:GetAutosave() then return end
+    if not selfObj:GetAutosave() then return end
     if savePending then return end
     savePending = true
     task.delay(0.25, function()
@@ -2197,30 +2224,34 @@ Library.save_flags = function(selfOrFlag, flagOrNil)
 end
 
 function Library:load_flags()
-    if not self:GetAutosave() then
-        self.savedFlags = {}
+    local selfObj = (self and type(self) == "table") and self or Library
+    if not selfObj:GetAutosave() then
+        selfObj.savedFlags = {}
         return
     end
     local dataFolder = ROOT_FOLDER .. "/Data"
     local path = dataFolder .. "/" .. game.GameId .. ".json"
     if not isfile(path) then
-        self.savedFlags = {}
+        selfObj.savedFlags = {}
         return
     end
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
     if not ok or type(data) ~= "table" then
-        self.savedFlags = {}
+        selfObj.savedFlags = {}
         return
     end
     data["savedconfigs"] = nil
     data["configname_input"] = nil
     data["autoload_config_toggle"] = nil
     data["autosave_config_toggle"] = nil
-    self.savedFlags = data
+    selfObj.savedFlags = data
+end
+Library.load_flags = function(selfOrNil)
+    Library:load_flags()
 end
 
-Library.load_flags()
-Library.clear()
+Library:load_flags()
+Library:clear()
 
 function Library:visible()
     if Library.setHidden then
