@@ -1284,7 +1284,7 @@ Library = {
     IslandStyle = "Show on Hover",
     IslandDraggable = true,
     WatermarkEnabled = true,
-    KeybindListEnabled = false,
+    KeybindListEnabled = not IsMobile,
     ToggleBarEnabled = true,
     ToggleBarPlatform = "Both",
     ToggleBarStyle = "Floating Button",
@@ -2091,6 +2091,11 @@ function Library.new(selfOrOpts, options)
     applyAtmosphere(defaultAtmo)
 
     local isMobileUser = (Library.IsMobile ~= nil) and Library.IsMobile or IsMobile
+    if opts.KeybindListEnabled ~= nil then
+        Library.KeybindListEnabled = opts.KeybindListEnabled
+    else
+        Library.KeybindListEnabled = not isMobileUser
+    end
     local fullSize = isMobileUser and CONTAINER_SIZE_TOUCH or CONTAINER_SIZE
 
     local MainHolder = new("Frame", {
@@ -6673,11 +6678,20 @@ function Library.new(selfOrOpts, options)
             return arg1 or {}
         end
 
+        local currentSide = "left"
         local function getSide(obj)
             local s = obj and obj.section
-            if s == "right" then return "right" end
-            if s == "middle" then return "middle" end
-            return "left"
+            if s == "right" then
+                currentSide = "right"
+                return "right"
+            elseif s == "middle" then
+                currentSide = "middle"
+                return "middle"
+            elseif s == "left" then
+                currentSide = "left"
+                return "left"
+            end
+            return currentSide or "left"
         end
 
         local function row(rowName, themeKey, fallback)
@@ -6837,6 +6851,7 @@ function Library.new(selfOrOpts, options)
 
             function obj:GetValue() return self.state end
             function obj:SetValue(v) self:UpdateToggle(v, true) end
+            obj.Set = obj.SetValue
 
             Library.Flags[cfg.flag] = obj.state
             Library:RegisterObject(cfg.flag, obj)
@@ -7876,6 +7891,7 @@ function Library.new(selfOrOpts, options)
                 setFromPercent(math.clamp((value - self.min) / (self.max - self.min), 0, 1))
                 Library.save_flags()
             end
+            obj.Set = obj.SetValue
 
             Library:RegisterObject(cfg.flag, obj)
             return obj
@@ -7979,6 +7995,7 @@ function Library.new(selfOrOpts, options)
             function obj:GetInput() return box.Text end
             function obj:GetValue() return box.Text end
             function obj:SetValue(value) self:UpdateInput(value) end
+            obj.Set = obj.SetValue
 
             Library.Flags[cfg.flag] = box.Text
             Library:RegisterObject(cfg.flag, obj)
@@ -8515,6 +8532,7 @@ function Library.new(selfOrOpts, options)
                 setText()
                 self:update()
             end
+            D.Set = D.SetValue
 
             table.insert(allRegisteredDropdowns, D)
 
