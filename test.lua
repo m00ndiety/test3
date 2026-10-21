@@ -7867,17 +7867,23 @@ function Library.new(selfOrOpts, options)
             local obj = {flag = cfg.flag}
             function obj:GetValue() return descLabel.Text end
             function obj:SetValue(value)
-                descLabel.Text = tostring(value or "")
-                descLabel.Visible = descLabel.Text ~= ""
-                task.defer(applyHeight)
+                task.spawn(function()
+                    descLabel.Text = tostring(value or "")
+                    descLabel.Visible = descLabel.Text ~= ""
+                    task.defer(applyHeight)
+                end)
             end
             function obj:SetTitle(value)
-                titleLabel.Text = tostring(value or "")
-                titleLabel.Visible = titleLabel.Text ~= ""
-                task.defer(applyHeight)
+                task.spawn(function()
+                    titleLabel.Text = tostring(value or "")
+                    titleLabel.Visible = titleLabel.Text ~= ""
+                    task.defer(applyHeight)
+                end)
             end
             function obj:SetColor(hex)
-                stripe.BackgroundColor3 = hexToColor(hex, accent)
+                task.spawn(function()
+                    stripe.BackgroundColor3 = hexToColor(hex, accent)
+                end)
             end
 
             if cfg.flag then Library:RegisterObject(cfg.flag, obj) end
