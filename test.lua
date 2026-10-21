@@ -6508,8 +6508,17 @@ function Library.new(selfOrOpts, options)
     end
 
     function Tab.create_tab(selfOrName, nameOrIcon, iconId)
-        local name = (type(selfOrName) == "string") and selfOrName or nameOrIcon
-        local rawIcon = (type(selfOrName) == "string") and nameOrIcon or iconId
+        local name, rawIcon
+        if type(selfOrName) == "table" and type(selfOrName.name) == "string" then
+            name = selfOrName.name
+            rawIcon = selfOrName.icon
+        elseif type(nameOrIcon) == "table" and type(nameOrIcon.name) == "string" then
+            name = nameOrIcon.name
+            rawIcon = nameOrIcon.icon
+        else
+            name = (type(selfOrName) == "string") and selfOrName or nameOrIcon
+            rawIcon = (type(selfOrName) == "string") and nameOrIcon or iconId
+        end
         local resolvedIcon = rawIcon
         if resolvedIcon and Library.Icons and Library.Icons[resolvedIcon] then
             resolvedIcon = Library.Icons[resolvedIcon]
@@ -8944,7 +8953,8 @@ function Library.new(selfOrOpts, options)
         end
 
         function Module:create_dropdown(arg)
-            return buildDropdown(resolve(self, arg), false, false)
+            local cfg = resolve(self, arg)
+            return buildDropdown(cfg, cfg and cfg.multi == true, false)
         end
 
         function Module:create_multidropdown(arg)
@@ -8992,8 +9002,17 @@ function Library.new(selfOrOpts, options)
     end)
 
     WindowController.create_tab = function(selfOrName, nameOrIcon, iconId)
-        local tabName = (type(selfOrName) == "string") and selfOrName or nameOrIcon
-        local tabIcon = (type(selfOrName) == "string") and nameOrIcon or iconId
+        local tabName, tabIcon
+        if type(selfOrName) == "table" and type(selfOrName.name) == "string" then
+            tabName = selfOrName.name
+            tabIcon = selfOrName.icon
+        elseif type(nameOrIcon) == "table" and type(nameOrIcon.name) == "string" then
+            tabName = nameOrIcon.name
+            tabIcon = nameOrIcon.icon
+        else
+            tabName = (type(selfOrName) == "string") and selfOrName or nameOrIcon
+            tabIcon = (type(selfOrName) == "string") and nameOrIcon or iconId
+        end
         return Tab.create_tab(Tab, tabName, tabIcon)
     end
     WindowController.Tab = WindowController.create_tab
