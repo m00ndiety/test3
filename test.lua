@@ -7869,10 +7869,12 @@ function Library.new(selfOrOpts, options)
             function obj:SetValue(value)
                 descLabel.Text = tostring(value or "")
                 descLabel.Visible = descLabel.Text ~= ""
+                task.defer(applyHeight)
             end
             function obj:SetTitle(value)
                 titleLabel.Text = tostring(value or "")
                 titleLabel.Visible = titleLabel.Text ~= ""
+                task.defer(applyHeight)
             end
             function obj:SetColor(hex)
                 stripe.BackgroundColor3 = hexToColor(hex, accent)
