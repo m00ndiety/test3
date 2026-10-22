@@ -6718,7 +6718,8 @@ function Library.new(selfOrOpts, options)
             scrollTrack.BackgroundTransparency = 0.3
             upArrowIcon.ImageTransparency = 0
             downArrowIcon.ImageTransparency = 0
-            local thumbH = math.clamp((winH / canH) * trackH, 20, trackH)
+            local minThumb = math.min(20, trackH)
+            local thumbH = math.clamp((winH / canH) * trackH, minThumb, math.max(minThumb, trackH))
             local maxScroll = canH - winH
             local progress = math.clamp(itemsSection.CanvasPosition.Y / maxScroll, 0, 1)
             local thumbY = 17 + progress * (trackH - thumbH)
