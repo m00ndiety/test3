@@ -1729,7 +1729,23 @@ local SystemSettings = {
     setting_ambience_enabled = true,
     setting_ambience = true,
     setting_ambience_opacity = true,
-    setting_ambience_hide = true
+    setting_ambience_hide = true,
+    universal_autoload_script = true,
+    multi_language_toggle = true,
+    language_selector = true,
+    custom_cursor_toggle = true,
+    cursor_style = true,
+    cursor_size = true,
+    cursor_color = true,
+    custom_cursor_url = true,
+    window_bg_image_toggle = true,
+    window_bg_image_url = true,
+    window_bg_transparency = true,
+    hud_display_mode = true,
+    hud_button_size = true,
+    hud_button_rounding = true,
+    hud_button_transparency = true,
+    hud_lock_positions = true
 }
 
 local ROOT_FOLDER = "Moondiety/V2"
@@ -1898,13 +1914,604 @@ function Library:RefreshConfigs()
     end
 end
 
+local LanguageDictionary = {
+    ["Spanish"] = {
+        ["Main"] = "Principal",
+        ["Settings"] = "Ajustes",
+        ["Server"] = "Servidor",
+        ["Player"] = "Jugador",
+        ["Visual"] = "Visuales",
+        ["Aimbot"] = "Apuntado",
+        ["Teleport"] = "Teletransporte",
+        ["Sheriff"] = "Alguacil",
+        ["Murderer"] = "Asesino",
+        ["Innocent"] = "Inocente",
+        ["Configuration Manager"] = "Gestor de Configuracion",
+        ["Save Config"] = "Guardar Config",
+        ["Load Config"] = "Cargar Config",
+        ["Delete Config"] = "Eliminar Config",
+        ["Auto Prestige"] = "Auto Prestigio",
+        ["Enable Smart ServerHop"] = "Activar Salto Inteligente",
+        ["Discord Webhook URL"] = "URL de Webhook Discord",
+        ["Live Event Alerts"] = "Alertas en Vivo",
+        ["Autoload Selected Config"] = "Cargar Config Seleccionada",
+        ["Autosave Config"] = "Guardado Automatico",
+        ["Keybinds & HUD"] = "Atajos y HUD",
+        ["Display Mode"] = "Modo de Visualizacion",
+        ["Lock HUD Positions"] = "Bloquear Posiciones HUD"
+    },
+    ["Portuguese"] = {
+        ["Main"] = "Principal",
+        ["Settings"] = "Configuracoes",
+        ["Server"] = "Servidor",
+        ["Player"] = "Jogador",
+        ["Visual"] = "Visuais",
+        ["Aimbot"] = "Mira Automatica",
+        ["Teleport"] = "Teleporte",
+        ["Sheriff"] = "Xerife",
+        ["Murderer"] = "Assassino",
+        ["Innocent"] = "Inocente",
+        ["Configuration Manager"] = "Gerenciador de Configuracao",
+        ["Save Config"] = "Salvar Config",
+        ["Load Config"] = "Carregar Config",
+        ["Delete Config"] = "Excluir Config",
+        ["Auto Prestige"] = "Auto Prestigio",
+        ["Enable Smart ServerHop"] = "Ativar Troca Inteligente",
+        ["Discord Webhook URL"] = "URL do Webhook Discord",
+        ["Live Event Alerts"] = "Alertas em Tempo Real",
+        ["Autoload Selected Config"] = "Carregar Config Selecionada",
+        ["Autosave Config"] = "Salvamento Automatico",
+        ["Keybinds & HUD"] = "Teclas e HUD",
+        ["Display Mode"] = "Modo de Exibicao",
+        ["Lock HUD Positions"] = "Travar Posicoes HUD"
+    },
+    ["Russian"] = {
+        ["Main"] = "Главная",
+        ["Settings"] = "Настройки",
+        ["Server"] = "Сервер",
+        ["Player"] = "Игрок",
+        ["Visual"] = "Визуалы",
+        ["Aimbot"] = "Аимбот",
+        ["Teleport"] = "Телепорт",
+        ["Sheriff"] = "Шериф",
+        ["Murderer"] = "Убийца",
+        ["Innocent"] = "Невинный",
+        ["Configuration Manager"] = "Менеджер конфигураций",
+        ["Save Config"] = "Сохранить конфиг",
+        ["Load Config"] = "Загрузить конфиг",
+        ["Delete Config"] = "Удалить конфиг",
+        ["Auto Prestige"] = "Авто престиж",
+        ["Enable Smart ServerHop"] = "Включить умный серверхоп",
+        ["Discord Webhook URL"] = "Discord Webhook URL",
+        ["Live Event Alerts"] = "Оповещения событий",
+        ["Autoload Selected Config"] = "Автозагрузка конфига",
+        ["Autosave Config"] = "Автосохранение",
+        ["Keybinds & HUD"] = "Клавиши и HUD",
+        ["Display Mode"] = "Режим отображения",
+        ["Lock HUD Positions"] = "Закрепить позиции HUD"
+    },
+    ["Turkish"] = {
+        ["Main"] = "Ana Menu",
+        ["Settings"] = "Ayarlar",
+        ["Server"] = "Sunucu",
+        ["Player"] = "Oyuncu",
+        ["Visual"] = "Gorseller",
+        ["Aimbot"] = "Nisan Alma",
+        ["Teleport"] = "Isinlanma",
+        ["Sheriff"] = "Serif",
+        ["Murderer"] = "Katil",
+        ["Innocent"] = "Masum",
+        ["Configuration Manager"] = "Yapilandirma Yoneticisi",
+        ["Save Config"] = "Yapilandirmayi Kaydet",
+        ["Load Config"] = "Yapilandirmayi Yukle",
+        ["Delete Config"] = "Yapilandirmayi Sil",
+        ["Auto Prestige"] = "Otomatik Prestij",
+        ["Enable Smart ServerHop"] = "Akilli Sunucu Gecisi",
+        ["Discord Webhook URL"] = "Discord Webhook Baglantisi",
+        ["Live Event Alerts"] = "Canli Etkinlik Uyarilari",
+        ["Autoload Selected Config"] = "Secilen Ayari Otomatik Yukle",
+        ["Autosave Config"] = "Otomatik Kaydet",
+        ["Keybinds & HUD"] = "Tuslar ve HUD",
+        ["Display Mode"] = "Gorunum Modu",
+        ["Lock HUD Positions"] = "HUD Konumlarini Kilitle"
+    },
+    ["Vietnamese"] = {
+        ["Main"] = "Chinh",
+        ["Settings"] = "Cai dat",
+        ["Server"] = "May chu",
+        ["Player"] = "Nguoi choi",
+        ["Visual"] = "Hinh anh",
+        ["Aimbot"] = "Tu ngam",
+        ["Teleport"] = "Dich chuyen",
+        ["Sheriff"] = "Canh sat",
+        ["Murderer"] = "Sat thu",
+        ["Innocent"] = "Dan thuong",
+        ["Configuration Manager"] = "Quan ly cau hinh",
+        ["Save Config"] = "Luu cau hinh",
+        ["Load Config"] = "Tai cau hinh",
+        ["Delete Config"] = "Xoa cau hinh",
+        ["Auto Prestige"] = "Tu dong len cap",
+        ["Enable Smart ServerHop"] = "Doi may chu thong minh",
+        ["Discord Webhook URL"] = "Lien ket Discord Webhook",
+        ["Live Event Alerts"] = "Canh bao su kien truc tiep",
+        ["Autoload Selected Config"] = "Tu dong tai cau hinh",
+        ["Autosave Config"] = "Tu dong luu",
+        ["Keybinds & HUD"] = "Phim tat va HUD",
+        ["Display Mode"] = "Che do hien thi",
+        ["Lock HUD Positions"] = "Khoa vi tri HUD"
+    }
+}
+
+local LocalizationService = game:GetService("LocalizationService")
+local cachedTranslators = {}
+
+function Library:TranslateText(text, targetLang)
+    if not text or type(text) ~= "string" or text == "" then return text end
+    targetLang = targetLang or Library.Flags.language_selector or "Spanish"
+    if targetLang == "English" then return text end
+
+    local dict = LanguageDictionary[targetLang]
+    if dict and dict[text] then return dict[text] end
+
+    local localeMap = {
+        Spanish = "es-es",
+        Portuguese = "pt-br",
+        Russian = "ru-ru",
+        Turkish = "tr-tr",
+        Vietnamese = "vi-vn",
+        Indonesian = "id-id",
+        German = "de-de",
+        French = "fr-fr",
+        Chinese = "zh-cn",
+        Japanese = "ja-jp",
+        Korean = "ko-kr"
+    }
+    local loc = localeMap[targetLang]
+    if loc then
+        if not cachedTranslators[loc] then
+            pcall(function()
+                cachedTranslators[loc] = LocalizationService:GetTranslatorForLocaleAsync(loc)
+            end)
+        end
+        local trans = cachedTranslators[loc]
+        if trans then
+            local ok, res = pcall(function() return trans:Translate(game, text) end)
+            if ok and res and res ~= "" and res ~= text then return res end
+        end
+    end
+    return text
+end
+
+function Library:SetMultiLanguage(enabled, targetLang)
+    targetLang = targetLang or Library.Flags.language_selector or "Spanish"
+    for _, elem in ipairs(genv.UIElements) do
+        if elem and elem.Parent and (elem:IsA("TextLabel") or elem:IsA("TextButton")) then
+            local src = elem:GetAttribute("SourceText")
+            if not src then
+                src = elem.Text
+                elem:SetAttribute("SourceText", src)
+            end
+            if enabled then
+                elem.Text = Library:TranslateText(src, targetLang)
+            else
+                elem.Text = src
+            end
+        end
+    end
+end
+
+local CursorGui = nil
+local CursorDot = nil
+local CursorConn = nil
+
+function Library:SetCustomCursor(enabled, style, size, color, assetUrl)
+    if not enabled then
+        if CursorGui then CursorGui.Enabled = false end
+        if CursorConn then CursorConn:Disconnect(); CursorConn = nil end
+        UserInputService.MouseIconEnabled = true
+        return
+    end
+    UserInputService.MouseIconEnabled = false
+    if not CursorGui then
+        CursorGui = Instance.new("ScreenGui")
+        CursorGui.Name = "MoondietyCursor"
+        CursorGui.ResetOnSpawn = false
+        CursorGui.IgnoreGuiInset = true
+        CursorGui.DisplayOrder = 1000000
+        CursorGui.Parent = (gethui and gethui()) or CoreGui
+        CursorDot = Instance.new("ImageLabel")
+        CursorDot.Name = "CursorIcon"
+        CursorDot.AnchorPoint = Vector2.new(0.5, 0.5)
+        CursorDot.BackgroundTransparency = 1
+        CursorDot.Parent = CursorGui
+    end
+    CursorGui.Enabled = true
+    size = tonumber(size) or 20
+    CursorDot.Size = UDim2.new(0, size, 0, size)
+    CursorDot.ImageColor3 = color or Color3.fromRGB(255, 255, 255)
+    if style == "Crosshair" then
+        CursorDot.Image = "rbxassetid://13321880274"
+    elseif style == "Classic Arrow" then
+        CursorDot.Image = "rbxassetid://12941020168"
+    elseif style == "Custom Image" and assetUrl and assetUrl ~= "" then
+        CursorDot.Image = assetUrl
+    else
+        CursorDot.Image = "rbxassetid://17290798394"
+    end
+    if CursorConn then CursorConn:Disconnect() end
+    CursorConn = RunService.RenderStepped:Connect(function()
+        local mousePos = UserInputService:GetMouseLocation()
+        CursorDot.Position = UDim2.new(0, mousePos.X, 0, mousePos.Y)
+    end)
+end
+
+function Library:SetWindowBg(enabled, assetIdOrUrl, transparency)
+    if not Library.WindowBgImage then return end
+    Library.WindowBgImage.Visible = enabled and true or false
+    Library.WindowBgImage.ImageTransparency = tonumber(transparency) or 0.3
+    if not enabled or not assetIdOrUrl or assetIdOrUrl == "" then return end
+    if assetIdOrUrl:find("^https?://") then
+        pcall(function()
+            local getAsset = getsynasset or getcustomasset
+            if getAsset and writefile then
+                local res = game:HttpGet(assetIdOrUrl)
+                writefile("Moondiety/custom_bg.png", res)
+                Library.WindowBgImage.Image = getAsset("Moondiety/custom_bg.png")
+            end
+        end)
+    else
+        Library.WindowBgImage.Image = assetIdOrUrl
+    end
+end
+
+Library.OnlineCount = 0
+task.spawn(function()
+    while true do
+        pcall(function()
+            local req = (syn and syn.request) or request or (http and http.request) or http_request
+            if req then
+                local res = req({
+                    Url = "http://c-pl-1.apexnodes.xyz:10002/online",
+                    Method = "GET"
+                })
+                if res and (res.StatusCode == 200 or res.Status == 200) then
+                    local body = res.Body or res.body
+                    local data = HttpService:JSONDecode(body)
+                    if data and data.online then
+                        Library.OnlineCount = tonumber(data.online) or Library.OnlineCount
+                    end
+                end
+            end
+        end)
+        task.wait(20)
+    end
+end)
+
+function Library:SetAutoLoadScript(enabled)
+    Library.SavedSettings.universal_autoload_script = enabled and true or false
+    Library:SaveSettings()
+end
+
+pcall(function()
+    LocalPlayer.OnTeleport:Connect(function(state)
+        if Library.SavedSettings.universal_autoload_script ~= false then
+            local q = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
+            if q then
+                pcall(q, 'loadstring(game:HttpGet("https://moondiety.com/loader"))()')
+            end
+        end
+    end)
+end)
+
+Library.ActionButtons = {}
+Library.HudPositions = {}
+Library.HudPositionsFile = "Moondiety/hud_positions.json"
+Library.HudMode = "Both"
+Library.HudButtonSize = 58
+Library.HudButtonRounding = 16
+Library.HudButtonTransparency = 0.2
+Library.HudPositionsLocked = false
+
+function Library:SaveHudPositions()
+    pcall(function()
+        if not isfolder("Moondiety") and makefolder then makefolder("Moondiety") end
+        if writefile then
+            writefile(Library.HudPositionsFile, HttpService:JSONEncode(Library.HudPositions))
+        end
+    end)
+end
+
+function Library:LoadHudPositions()
+    pcall(function()
+        if isfile and isfile(Library.HudPositionsFile) and readfile then
+            local data = HttpService:JSONDecode(readfile(Library.HudPositionsFile))
+            if type(data) == "table" then
+                Library.HudPositions = data
+            end
+        end
+    end)
+end
+Library:LoadHudPositions()
+
+function Library:UpdateHudVisibility()
+    local mode = Library.HudMode or "Both"
+    local showButtons = (mode == "Both" or mode == "Floating Buttons Only")
+    local showKeybinds = (mode == "Both" or mode == "Keybind HUD Only")
+    if Library.HudGui then
+        Library.HudGui.Enabled = showButtons
+    end
+    if Library.KeybindListFrame then
+        Library.KeybindListFrame.Visible = showKeybinds
+    end
+end
+
+function Library:SetHudButtonSize(newSize)
+    newSize = tonumber(newSize) or 58
+    Library.HudButtonSize = newSize
+    for _, item in pairs(Library.ActionButtons) do
+        if item.btn then item.btn.Size = UDim2.new(0, newSize, 0, newSize) end
+    end
+end
+
+function Library:SetHudButtonRounding(radius)
+    radius = tonumber(radius) or 16
+    Library.HudButtonRounding = radius
+    for _, item in pairs(Library.ActionButtons) do
+        if item.corner then item.corner.CornerRadius = UDim.new(0, radius) end
+    end
+end
+
+function Library:SetHudButtonTransparency(trans)
+    trans = tonumber(trans) or 0.2
+    Library.HudButtonTransparency = trans
+    for _, item in pairs(Library.ActionButtons) do
+        if item.btn then item.btn.BackgroundTransparency = trans end
+    end
+end
+
+function Library:ResetHudPositions()
+    table.clear(Library.HudPositions)
+    pcall(function()
+        if isfile and isfile(Library.HudPositionsFile) and delfile then
+            delfile(Library.HudPositionsFile)
+        end
+    end)
+    for id, item in pairs(Library.ActionButtons) do
+        local def = item.cfg.defaultPos or UDim2.new(0.85, 0, 0.5, 0)
+        item.btn.Position = def
+    end
+end
+
+function Library:RegisterActionButton(cfg)
+    local id = cfg.id or cfg.name
+    if not id then return end
+    local saved = Library.HudPositions[id]
+    local pos = cfg.defaultPos or UDim2.new(0.85, 0, 0.5, 0)
+    if saved and type(saved) == "table" and #saved == 4 then
+        pos = UDim2.new(saved[1], saved[2], saved[3], saved[4])
+    end
+
+    local btnGui = Library.HudGui
+    if not btnGui then
+        btnGui = Instance.new("ScreenGui")
+        btnGui.Name = "MoondietyHUD"
+        btnGui.ResetOnSpawn = false
+        btnGui.IgnoreGuiInset = true
+        btnGui.DisplayOrder = 99999
+        btnGui.Parent = (gethui and gethui()) or CoreGui
+        Library.HudGui = btnGui
+    end
+
+    local size = Library.HudButtonSize or 58
+    local btn = Instance.new("TextButton")
+    btn.Name = id .. "Btn"
+    btn.Size = UDim2.new(0, size, 0, size)
+    btn.Position = pos
+    btn.AnchorPoint = Vector2.new(0.5, 0.5)
+    btn.BackgroundColor3 = Color3.fromRGB(15, 16, 20)
+    btn.BackgroundTransparency = Library.HudButtonTransparency or 0.2
+    btn.Text = ""
+    btn.AutoButtonColor = false
+    btn.Parent = btnGui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, Library.HudButtonRounding or 16)
+    corner.Parent = btn
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 1.4
+    stroke.Color = cfg.color or Color3.fromRGB(168, 85, 247)
+    stroke.Transparency = 0.35
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Parent = btn
+
+    local icon = Instance.new("ImageLabel")
+    icon.Name = "Icon"
+    icon.Size = UDim2.new(0, 24, 0, 24)
+    icon.Position = UDim2.new(0.5, 0, 0.38, 0)
+    icon.AnchorPoint = Vector2.new(0.5, 0.5)
+    icon.BackgroundTransparency = 1
+    icon.Image = cfg.icon or ""
+    icon.ImageColor3 = cfg.color or Color3.fromRGB(240, 240, 245)
+    icon.Parent = btn
+
+    local label = Instance.new("TextLabel")
+    label.Name = "Label"
+    label.Size = UDim2.new(1, -6, 0, 20)
+    label.Position = UDim2.new(0.5, 0, 0.82, 0)
+    label.AnchorPoint = Vector2.new(0.5, 0.5)
+    label.BackgroundTransparency = 1
+    label.Text = string.upper(cfg.name or id)
+    label.TextColor3 = Color3.fromRGB(220, 222, 230)
+    label.TextSize = 8
+    label.Font = Enum.Font.GothamBold
+    label.TextWrapped = true
+    label.Parent = btn
+
+    local dragging = false
+    local dragStart, startPos
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if not Library.HudPositionsLocked then
+                dragging = true
+                dragStart = input.Position
+                startPos = btn.Position
+            end
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            btn.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+
+    local function endDrag()
+        if dragging then
+            dragging = false
+            Library.HudPositions[id] = {btn.Position.X.Scale, btn.Position.X.Offset, btn.Position.Y.Scale, btn.Position.Y.Offset}
+            Library:SaveHudPositions()
+        end
+    end
+    btn.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            endDrag()
+        end
+    end)
+
+    btn.Activated:Connect(function()
+        if cfg.callback then pcall(cfg.callback) end
+        TweenService:Create(btn, TweenInfo.new(0.1), {Size = UDim2.new(0, size * 0.92, 0, size * 0.92)}):Play()
+        task.delay(0.1, function()
+            if btn and btn.Parent then
+                TweenService:Create(btn, TweenInfo.new(0.12), {Size = UDim2.new(0, size, 0, size)}):Play()
+            end
+        end)
+    end)
+
+    Library.ActionButtons[id] = {
+        btn = btn,
+        cfg = cfg,
+        stroke = stroke,
+        icon = icon,
+        label = label,
+        corner = corner
+    }
+end
+
+function Library:BuildKeybindsAndHudTab(tab)
+    if not tab then return end
+    tab.create_title({ name = "== HUD DISPLAY MODE ==", section = "left" })
+    tab.create_dropdown({
+        name = "Active HUD Mode",
+        flag = "hud_display_mode",
+        section = "left",
+        option = Library.HudMode or "Both",
+        options = {"Both", "Floating Buttons Only", "Keybind HUD Only", "None"},
+        callback = function(val)
+            Library.HudMode = val
+            Library:UpdateHudVisibility()
+        end
+    })
+    tab.create_toggle({
+        name = "Lock HUD Positions",
+        flag = "hud_lock_positions",
+        section = "left",
+        enabled = Library.HudPositionsLocked == true,
+        callback = function(state)
+            Library.HudPositionsLocked = state
+        end
+    })
+    tab.create_button({
+        name = "Reset HUD Positions",
+        flag = "hud_reset_positions_btn",
+        section = "left",
+        callback = function()
+            Library:ResetHudPositions()
+            Library:Notify({
+                Title = "HUD Reset",
+                Content = "Floating button positions restored to defaults.",
+                Duration = 2,
+                Type = "Info"
+            })
+        end
+    })
+
+    tab.create_title({ name = "== FLOATING BUTTONS CUSTOMIZATION ==", section = "right" })
+    tab.create_slider({
+        name = "Button Size",
+        flag = "hud_button_size",
+        section = "right",
+        value = Library.HudButtonSize or 58,
+        minimum_value = 40,
+        maximum_value = 80,
+        callback = function(val)
+            Library:SetHudButtonSize(val)
+        end
+    })
+    tab.create_slider({
+        name = "Corner Rounding (Shape)",
+        flag = "hud_button_rounding",
+        section = "right",
+        value = Library.HudButtonRounding or 16,
+        minimum_value = 0,
+        maximum_value = 30,
+        callback = function(val)
+            Library:SetHudButtonRounding(val)
+        end
+    })
+    tab.create_slider({
+        name = "Background Transparency (%)",
+        flag = "hud_button_transparency",
+        section = "right",
+        value = math.floor((Library.HudButtonTransparency or 0.2) * 100),
+        minimum_value = 0,
+        maximum_value = 80,
+        callback = function(val)
+            Library:SetHudButtonTransparency(val / 100)
+        end
+    })
+
+    tab.create_title({ name = "== REGISTERED ACTIONS & TOGGLES ==", section = "left" })
+    for id, item in pairs(Library.ActionButtons) do
+        local cfg = item.cfg
+        tab.create_toggle({
+            name = "Show " .. (cfg.name or id),
+            flag = "hud_show_" .. id,
+            section = "left",
+            enabled = item.btn.Visible ~= false,
+            callback = function(state)
+                item.btn.Visible = state
+            end
+        })
+    end
+end
+
 function Library:SaveConfig(name)
     name = name or "default"
     local data = {}
+    for flag, value in pairs(self.Flags) do
+        if not SystemSettings[flag] and flag ~= "configname_input" and flag ~= "savedconfigs" and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" and value ~= nil then
+            data[flag] = value
+        end
+    end
     for flag, obj in pairs(self.Objects) do
         if not SystemSettings[flag] and flag ~= "configname_input" and flag ~= "savedconfigs" and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" and obj.GetValue then
-            local ok, value = pcall(function() return obj:GetValue() end)
-            if ok and value ~= nil then data[flag] = value end
+            local ok, val = pcall(function() return obj:GetValue() end)
+            if ok and val ~= nil then
+                data[flag] = val
+            end
+        end
+    end
+    for flag, kb in pairs(self.Keybinds) do
+        if not SystemSettings[flag] and kb.key and kb.key ~= "" then
+            data[flag] = kb.key
         end
     end
     local folder = self:GetConfigFolder()
@@ -1940,15 +2547,24 @@ function Library:LoadConfig(name)
     end
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
     if not ok or type(data) ~= "table" then return false end
+    self.isLoadingConfig = true
     for flag, value in pairs(data) do
         if not SystemSettings[flag] and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" then
             self.Flags[flag] = value
             local obj = self.Objects[flag]
-            if obj and obj.SetValue then
-                pcall(function() obj:SetValue(value) end)
+            if obj then
+                if obj.SetValue then
+                    pcall(function() obj:SetValue(value) end)
+                elseif obj.Set then
+                    pcall(function() obj:Set(value) end)
+                end
+            end
+            if self.Keybinds and self.Keybinds[flag] then
+                self:UpdateKeybind(flag, value)
             end
         end
     end
+    self.isLoadingConfig = false
     self:SetActiveConfig(name)
     if self.OnConfigLoaded then
         pcall(self.OnConfigLoaded, name)
@@ -2189,6 +2805,7 @@ local function doSave()
 end
 
 function Library.save_flags(selfOrFlag, flagOrNil)
+    if Library.isLoadingConfig then return end
     local flag = (type(selfOrFlag) == "string") and selfOrFlag or ((type(flagOrNil) == "string") and flagOrNil or nil)
     if flag and SystemSettings[flag] then
         Library:save_settings_auto()
@@ -2436,6 +3053,18 @@ function Library.new(selfOrOpts, options)
     }, MainHolder)
     table.insert(genv.UIElements, Container)
     corner(Container, 20)
+
+    local WindowBgImage = new("ImageLabel", {
+        Name = "WindowBgImage",
+        Size = UDim2.new(1, 0, 1, 0),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1,
+        ScaleType = Enum.ScaleType.Crop,
+        ZIndex = 2,
+        Visible = false,
+    }, Container)
+    corner(WindowBgImage, 20)
+    Library.WindowBgImage = WindowBgImage
     local containerStroke = stroke(Container, genv.uiline or Color3.fromRGB(34, 35, 42), 1, 0.5)
 
     local containerGlowLine = new("Frame", {
@@ -7295,6 +7924,15 @@ function Library.new(selfOrOpts, options)
                 end, function()
                     obj:UpdateToggle(not obj:GetValue())
                 end)
+
+                local kbObj = {flag = kbFlag}
+                function kbObj:GetValue() return Library.Flags[kbFlag] end
+                function kbObj:SetValue(v)
+                    Library.Flags[kbFlag] = v
+                    Library:UpdateKeybind(kbFlag, v)
+                    KeyText.Text = tostring(v or "None")
+                end
+                Library:RegisterObject(kbFlag, kbObj)
 
                 local setting = false
                 bindTap(Box, function()
