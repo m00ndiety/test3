@@ -2051,7 +2051,18 @@ function Library:SetMultiLanguage(enabled, targetLang)
     if genv.CloseUi and genv.CloseUi ~= Library.core then table.insert(containers, genv.CloseUi) end
 
     local meta = localeMap[targetLang]
-    local pendingQueue = {}
+    local pendingMap = {}
+    local pendingCount = 0
+
+    local function canTranslate(str)
+        if not str or #str < 2 then return false end
+        if str:match("^%s*$") then return false end
+        if str:match("^%d+%%?$") then return false end
+        if str:match("^#%x+$") then return false end
+        if str:match("^MouseButton%d+$") then return false end
+        if str:match("^%d+%.?%d*[km]?%s") then return false end
+        return true
+    end
 
     for _, root in ipairs(containers) do
         for _, elem in ipairs(root:GetDescendants()) do
@@ -2071,8 +2082,12 @@ function Library:SetMultiLanguage(enabled, targetLang)
                         else
                             local quick = Library:TranslateText(src, targetLang)
                             elem.Text = quick
-                            if quick == src and meta and (syn or http or request or game.HttpGet) then
-                                table.insert(pendingQueue, {elem = elem, src = src})
+                            if quick == src and meta and canTranslate(src) and (syn or http or request or game.HttpGet) then
+                                if not pendingMap[src] then
+                                    pendingMap[src] = {}
+                                    pendingCount = pendingCount + 1
+                                end
+                                table.insert(pendingMap[src], elem)
                             end
                         end
                     else
@@ -2083,21 +2098,36 @@ function Library:SetMultiLanguage(enabled, targetLang)
         end
     end
 
-    if Library.MultiLanguageEnabled and #pendingQueue > 0 and meta then
-        task.spawn(function()
-            for _, item in ipairs(pendingQueue) do
-                if not Library.MultiLanguageEnabled or Library.CurrentLanguage ~= targetLang then break end
-                if item.elem and item.elem.Parent then
-                    local online = fetchOnlineTranslation(item.src, meta.code)
+    if Library.MultiLanguageEnabled and pendingCount > 0 and meta then
+        local uniqueList = {}
+        for textKey in pairs(pendingMap) do
+            table.insert(uniqueList, textKey)
+        end
+        local workerCount = math.min(6, #uniqueList)
+        local curIdx = 1
+        for _ = 1, workerCount do
+            task.spawn(function()
+                while true do
+                    if not Library.MultiLanguageEnabled or Library.CurrentLanguage ~= targetLang then break end
+                    local myIdx = curIdx
+                    curIdx = curIdx + 1
+                    if myIdx > #uniqueList then break end
+                    local targetStr = uniqueList[myIdx]
+                    local online = fetchOnlineTranslation(targetStr, meta.code)
                     if online and online ~= "" then
-                        Library.TranslationCache[targetLang][item.src] = online
-                        if item.elem and item.elem.Parent and Library.MultiLanguageEnabled then
-                            item.elem.Text = online
+                        Library.TranslationCache[targetLang][targetStr] = online
+                        local elList = pendingMap[targetStr]
+                        if elList and Library.MultiLanguageEnabled and Library.CurrentLanguage == targetLang then
+                            for _, el in ipairs(elList) do
+                                if el and el.Parent then
+                                    el.Text = online
+                                end
+                            end
                         end
                     end
                 end
-            end
-        end)
+            end)
+        end
     end
 
     if Library.Notify then
@@ -2435,12 +2465,12 @@ function Library:RegisterActionButton(cfg)
     corner.Parent = btn
 
     local accentColor = cfg.color or genv.accent or Color3.fromRGB(168, 85, 247)
-    local stroke = Instance.new("UIStroke")
-    stroke.Thickness = 1.4
-    stroke.Color = activeState and accentColor or (genv.uiline or Color3.fromRGB(42, 45, 58))
-    stroke.Transparency = activeState and 0.15 or 0.45
-    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    stroke.Parent = btn
+    local btnStroke = Instance.new("UIStroke")
+    btnStroke.Thickness = 1.4
+    btnStroke.Color = activeState and accentColor or (genv.uiline or Color3.fromRGB(42, 45, 58))
+    btnStroke.Transparency = activeState and 0.15 or 0.45
+    btnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    btnStroke.Parent = btn
 
     local glowLine = Instance.new("Frame")
     glowLine.Name = "TopGlow"
@@ -2517,7 +2547,7 @@ function Library:RegisterActionButton(cfg)
     local item = {
         btn = btn,
         cfg = cfg,
-        stroke = stroke,
+        stroke = btnStroke,
         icon = icon,
         label = label,
         corner = corner,
@@ -2537,14 +2567,14 @@ function Library:RegisterActionButton(cfg)
         label.Text = getButtonLabel(item.state)
         if item.state then
             TweenService:Create(btn, ti, {BackgroundColor3 = Color3.fromRGB(28, 30, 44)}):Play()
-            TweenService:Create(stroke, ti, {Color = accentColor, Transparency = 0.15}):Play()
+            TweenService:Create(btnStroke, ti, {Color = accentColor, Transparency = 0.15}):Play()
             TweenService:Create(icon, ti, {ImageColor3 = accentColor}):Play()
             TweenService:Create(label, ti, {TextColor3 = WHITE}):Play()
             TweenService:Create(statusDot, ti, {BackgroundColor3 = SUCCESS_COLOR}):Play()
             TweenService:Create(glowLine, ti, {BackgroundTransparency = 0.2}):Play()
         else
             TweenService:Create(btn, ti, {BackgroundColor3 = genv.uicontainer or Color3.fromRGB(18, 20, 27)}):Play()
-            TweenService:Create(stroke, ti, {Color = genv.uiline or Color3.fromRGB(42, 45, 58), Transparency = 0.45}):Play()
+            TweenService:Create(btnStroke, ti, {Color = genv.uiline or Color3.fromRGB(42, 45, 58), Transparency = 0.45}):Play()
             TweenService:Create(icon, ti, {ImageColor3 = Color3.fromRGB(165, 172, 190)}):Play()
             TweenService:Create(label, ti, {TextColor3 = Color3.fromRGB(160, 165, 180)}):Play()
             TweenService:Create(statusDot, ti, {BackgroundColor3 = Color3.fromRGB(48, 52, 66)}):Play()
@@ -7321,7 +7351,14 @@ function Library.new(selfOrOpts, options)
                 object.Visible = false
             end
         end
-        if data.section then data.section.Visible = true end
+        if data.section then
+            data.section.Visible = true
+            if data.tabModule and data.tabModule.relayout then
+                task.defer(function()
+                    data.tabModule:relayout(false)
+                end)
+            end
+        end
 
         if data.tab then
             TweenService:Create(data.tab.Fill, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
@@ -7724,7 +7761,7 @@ function Library.new(selfOrOpts, options)
                 end
             end
 
-            local totalY = math.max(leftY, rightY) + 6
+            local totalY = math.max(leftY, rightY) + 60
             local windowH = itemsSection.AbsoluteWindowSize.Y
             local maxScroll = math.max(0, totalY - windowH)
             local targetScroll = math.min(itemsSection.CanvasPosition.Y, maxScroll)
@@ -7866,16 +7903,19 @@ function Library.new(selfOrOpts, options)
             TweenService:Create(TabText, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 32, 0.5, 0), TextTransparency = 0.55}):Play()
         end)
 
+        local Module = {}
+        function Module:relayout(anim)
+            relayout(anim)
+        end
+
         bindTap(tabBtn, function()
-            Tab.open_tab({tab = tabBtn, section = itemsSection})
+            Tab.open_tab({tab = tabBtn, section = itemsSection, tabModule = Module})
         end)
 
         if tabCount == 0 then
-            Tab.open_tab({tab = tabBtn, section = itemsSection})
+            Tab.open_tab({tab = tabBtn, section = itemsSection, tabModule = Module})
         end
         tabCount += 1
-
-        local Module = {}
 
         local function resolve(arg1, arg2)
             if type(arg1) == "table" and (arg1.name or arg1.title or arg1.flag or arg1.section or arg1.callback) then
