@@ -2154,6 +2154,59 @@ local CursorGui = nil
 local CursorDot = nil
 local CursorConn = nil
 
+Library.CursorPresets = {
+    ["Sleek Pointer"] = { image = "rbxassetid://84070353881242", anchor = Vector2.new(0, 0) },
+    ["Classic Pointer"] = { image = "rbxassetid://113428527051320", anchor = Vector2.new(0, 0) },
+    ["Click Pointer"] = { image = "rbxassetid://81854854241463", anchor = Vector2.new(0, 0) },
+    ["Hand Pointer"] = { image = "rbxassetid://98931495397575", anchor = Vector2.new(0.3, 0.08) },
+    ["Navigation"] = { image = "rbxassetid://76549947719521", anchor = Vector2.new(0.15, 0.15) },
+    ["Text Cursor"] = { image = "rbxassetid://103697482936876", anchor = Vector2.new(0.5, 0.5) },
+    ["Classic Arrow"] = { image = "rbxasset://textures/ArrowCursor.png", anchor = Vector2.new(0, 0) },
+    ["Arrow Pointer"] = { image = "rbxasset://textures/ArrowCursor.png", anchor = Vector2.new(0, 0) },
+    ["Crosshair"] = { image = "rbxassetid://83752373575368", anchor = Vector2.new(0.5, 0.5) },
+    ["Target"] = { image = "rbxassetid://121091323240554", anchor = Vector2.new(0.5, 0.5) },
+    ["Locate Scope"] = { image = "rbxassetid://80648116191645", anchor = Vector2.new(0.5, 0.5) },
+    ["Focus Reticle"] = { image = "rbxassetid://116191961683883", anchor = Vector2.new(0.5, 0.5) },
+    ["Scan Reticle"] = { image = "rbxassetid://125367266780285", anchor = Vector2.new(0.5, 0.5) },
+    ["Scan Eye"] = { image = "rbxassetid://109514269737059", anchor = Vector2.new(0.5, 0.5) },
+    ["Radar"] = { image = "rbxassetid://132868138496209", anchor = Vector2.new(0.5, 0.5) },
+    ["Circle Dot"] = { image = "rbxassetid://122878673716704", anchor = Vector2.new(0.5, 0.5) },
+    ["Precision Cross"] = { image = "rbxassetid://93673591064028", anchor = Vector2.new(0.5, 0.5) },
+    ["Dot"] = { image = "rbxassetid://105006331197983", anchor = Vector2.new(0.5, 0.5) },
+    ["Circle"] = { image = "rbxassetid://10709790948", anchor = Vector2.new(0.5, 0.5) },
+    ["Swords"] = { image = "rbxassetid://99199363807265", anchor = Vector2.new(0.5, 0.5) },
+    ["Skull"] = { image = "rbxassetid://101060850237115", anchor = Vector2.new(0.5, 0.5) },
+    ["Sparkle"] = { image = "rbxassetid://83114431765537", anchor = Vector2.new(0.5, 0.5) },
+    ["Moon Star"] = { image = "rbxassetid://137086737657962", anchor = Vector2.new(0.5, 0.5) },
+    ["Custom Image"] = { image = "", anchor = Vector2.new(0.5, 0.5) }
+}
+
+Library.CursorPresetNames = {
+    "Sleek Pointer",
+    "Classic Pointer",
+    "Click Pointer",
+    "Hand Pointer",
+    "Navigation",
+    "Text Cursor",
+    "Classic Arrow",
+    "Crosshair",
+    "Target",
+    "Locate Scope",
+    "Focus Reticle",
+    "Scan Reticle",
+    "Scan Eye",
+    "Radar",
+    "Circle Dot",
+    "Precision Cross",
+    "Dot",
+    "Circle",
+    "Swords",
+    "Skull",
+    "Sparkle",
+    "Moon Star",
+    "Custom Image"
+}
+
 function Library:SetCustomCursor(enabled, style, size, color, assetUrl)
     if not enabled then
         if CursorGui then CursorGui.Enabled = false end
@@ -2182,20 +2235,17 @@ function Library:SetCustomCursor(enabled, style, size, color, assetUrl)
     size = tonumber(size) or 20
     CursorDot.Size = UDim2.new(0, size, 0, size)
     CursorDot.ImageColor3 = color or Color3.fromRGB(255, 255, 255)
-    if style == "Arrow Pointer" or style == "Classic Arrow" then
-        CursorDot.AnchorPoint = Vector2.new(0, 0)
-        CursorDot.Image = "rbxasset://textures/ArrowCursor.png"
-    elseif style == "Target" then
+    local preset = Library.CursorPresets and Library.CursorPresets[style]
+    if preset then
+        CursorDot.AnchorPoint = preset.anchor
+        if preset.image ~= "" then
+            CursorDot.Image = preset.image
+        end
+    else
         CursorDot.AnchorPoint = Vector2.new(0.5, 0.5)
-        CursorDot.Image = "rbxassetid://10734977012"
-    elseif style == "Circle" then
-        CursorDot.AnchorPoint = Vector2.new(0.5, 0.5)
-        CursorDot.Image = "rbxassetid://10709790948"
-    elseif style == "Dot" then
-        CursorDot.AnchorPoint = Vector2.new(0.5, 0.5)
-        CursorDot.Image = "rbxassetid://10709789810"
-    elseif style == "Custom Image" or (assetUrl and assetUrl ~= "") then
-        CursorDot.AnchorPoint = Vector2.new(0.5, 0.5)
+        CursorDot.Image = "rbxassetid://84070353881242"
+    end
+    if style == "Custom Image" or (assetUrl and assetUrl ~= "" and not preset) then
         local targetUrl = assetUrl or ""
         if targetUrl:find("^https?://") then
             pcall(function()
@@ -2211,12 +2261,7 @@ function Library:SetCustomCursor(enabled, style, size, color, assetUrl)
             CursorDot.Image = "rbxassetid://" .. targetUrl
         elseif targetUrl ~= "" then
             CursorDot.Image = targetUrl
-        else
-            CursorDot.Image = "rbxassetid://10709818534"
         end
-    else
-        CursorDot.AnchorPoint = Vector2.new(0.5, 0.5)
-        CursorDot.Image = "rbxassetid://10709818534"
     end
     if CursorConn then CursorConn:Disconnect() end
     CursorConn = RunService.RenderStepped:Connect(function()
