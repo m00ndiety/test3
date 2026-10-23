@@ -1925,24 +1925,76 @@ local LanguageDictionary = {
         ["Server"] = "Servidor",
         ["Player"] = "Jugador",
         ["Visual"] = "Visuales",
-        ["Aimbot"] = "Apuntado",
-        ["Teleport"] = "Teletransporte",
-        ["Sheriff"] = "Alguacil",
-        ["Murderer"] = "Asesino",
-        ["Innocent"] = "Inocente",
-        ["Configuration Manager"] = "Gestor de Configuracion",
+        ["Visuals"] = "Visuales",
+        ["Combat"] = "Combate",
+        ["Misc"] = "Varios",
+        ["Keybinds"] = "Atajos",
+        ["Keybinds & HUD"] = "Atajos y HUD",
+        ["HUD DISPLAY MODE"] = "MODO DE VISUALIZACION HUD",
+        ["FLOATING BUTTONS CUSTOMIZATION"] = "PERSONALIZAR BOTONES FLOTANTES",
+        ["REGISTERED ACTIONS & TOGGLES"] = "ACCIONES Y BOTONES REGISTRADOS",
+        ["VISUAL & CURSOR CUSTOMIZATION"] = "PERSONALIZACION VISUAL Y CURSOR",
+        ["SERVER HOPPING & MATCHMAKING"] = "SALTO DE SERVIDOR Y EMPAREJAMIENTO",
+        ["CONFIGURATION MANAGER"] = "GESTOR DE CONFIGURACION",
+        ["LIVE EVENT ALERTS"] = "ALERTAS DE EVENTOS EN VIVO",
+        ["SCREEN AMBIENCE"] = "AMBIENTE EN PANTALLA",
+        ["TOAST NOTIFICATIONS"] = "NOTIFICACIONES TOAST",
+        ["CONFIRMATION PROMPTS"] = "AVISOS DE CONFIRMACION",
+        ["Active HUD Mode"] = "Modo HUD Activo",
+        ["Lock HUD Positions"] = "Bloquear Posiciones HUD",
+        ["Reset HUD Positions"] = "Restablecer Posiciones HUD",
+        ["Button Size"] = "Tamano de Boton",
+        ["Corner Rounding (Shape)"] = "Redondeo de Bordes",
+        ["Background Transparency (%)"] = "Transparencia de Fondo (%)",
+        ["Multi-Language Support"] = "Soporte Multi-Idioma",
+        ["Select Language"] = "Seleccionar Idioma",
+        ["Custom Cursor"] = "Cursor Personalizado",
+        ["Cursor Style"] = "Estilo de Cursor",
+        ["Custom Cursor Image URL / ID"] = "URL / ID de Imagen Cursor",
+        ["Cursor Size"] = "Tamano de Cursor",
+        ["Window Background Image"] = "Imagen de Fondo de Ventana",
+        ["Window Transparency"] = "Transparencia de Ventana",
+        ["Atmosphere & Themes"] = "Atmosfera y Temas",
+        ["Selected Theme"] = "Tema Seleccionado",
+        ["Enable Smart ServerHop"] = "Activar Salto Inteligente",
+        ["Server Hop Delay (s)"] = "Espera de Salto (s)",
+        ["Minimum Server Players"] = "Minimo Jugadores Servidor",
+        ["Avoid Same Server"] = "Evitar Mismo Servidor",
+        ["Rejoin Server"] = "Reconectar Servidor",
+        ["Copy Server JobId"] = "Copiar JobId del Servidor",
+        ["Discord Webhook URL"] = "URL de Webhook Discord",
+        ["Discord Alerts"] = "Alertas de Discord",
+        ["Live Event Alerts"] = "Alertas de Eventos en Vivo",
+        ["Config Name"] = "Nombre de Config",
+        ["Saved Configs"] = "Configs Guardadas",
         ["Save Config"] = "Guardar Config",
         ["Load Config"] = "Cargar Config",
         ["Delete Config"] = "Eliminar Config",
-        ["Auto Prestige"] = "Auto Prestigio",
-        ["Enable Smart ServerHop"] = "Activar Salto Inteligente",
-        ["Discord Webhook URL"] = "URL de Webhook Discord",
-        ["Live Event Alerts"] = "Alertas en Vivo",
         ["Autoload Selected Config"] = "Cargar Config Seleccionada",
         ["Autosave Config"] = "Guardado Automatico",
-        ["Keybinds & HUD"] = "Atajos y HUD",
-        ["Display Mode"] = "Modo de Visualizacion",
-        ["Lock HUD Positions"] = "Bloquear Posiciones HUD"
+        ["Auto Load Script on Teleport"] = "Autocargar Script al Teletransportarse",
+        ["Nearby Players"] = "Jugadores Cercanos",
+        ["Active Keybinds"] = "Atajos Activos",
+        ["Grab Gun"] = "Agarrar Arma",
+        ["Shoot Murderer"] = "Disparar al Asesino",
+        ["Aimbot"] = "Apuntado",
+        ["Silent Aim"] = "Apuntado Silencioso",
+        ["Kill All"] = "Eliminar a Todos",
+        ["Throw Knife"] = "Lanzar Cuchillo",
+        ["Noclip"] = "Atravesar Paredes",
+        ["Wall Hop"] = "Salto de Pared",
+        ["Free X-Ray"] = "Rayos X Gratis",
+        ["Fly"] = "Volar",
+        ["Kill Sheriff"] = "Eliminar Alguacil",
+        ["Auto Prestige"] = "Auto Prestigio",
+        ["WalkSpeed"] = "Velocidad al Caminar",
+        ["JumpPower"] = "Fuerza de Salto",
+        ["Infinite Jump"] = "Salto Infinito",
+        ["Anti AFK"] = "Anti Desconexion AFK",
+        ["Fullbright"] = "Brillo Total",
+        ["Low Graphics"] = "Graficos Bajos",
+        ["Remove Fog"] = "Quitar Niebla",
+        ["FPS Cap"] = "Limite de FPS"
     },
     ["Portuguese"] = {
         ["Main"] = "Principal",
@@ -1950,24 +2002,76 @@ local LanguageDictionary = {
         ["Server"] = "Servidor",
         ["Player"] = "Jogador",
         ["Visual"] = "Visuais",
-        ["Aimbot"] = "Mira Automatica",
-        ["Teleport"] = "Teleporte",
-        ["Sheriff"] = "Xerife",
-        ["Murderer"] = "Assassino",
-        ["Innocent"] = "Inocente",
-        ["Configuration Manager"] = "Gerenciador de Configuracao",
+        ["Visuals"] = "Visuais",
+        ["Combat"] = "Combate",
+        ["Misc"] = "Diversos",
+        ["Keybinds"] = "Teclas",
+        ["Keybinds & HUD"] = "Teclas e HUD",
+        ["HUD DISPLAY MODE"] = "MODO DE EXIBICAO HUD",
+        ["FLOATING BUTTONS CUSTOMIZATION"] = "PERSONALIZAR BOTOES FLUTUANTES",
+        ["REGISTERED ACTIONS & TOGGLES"] = "ACOES E ATALHOS REGISTRADOS",
+        ["VISUAL & CURSOR CUSTOMIZATION"] = "PERSONALIZACAO VISUAL E CURSOR",
+        ["SERVER HOPPING & MATCHMAKING"] = "TROCA DE SERVIDOR E PARTIDA",
+        ["CONFIGURATION MANAGER"] = "GERENCIADOR DE CONFIGURACAO",
+        ["LIVE EVENT ALERTS"] = "ALERTAS EM TEMPO REAL",
+        ["SCREEN AMBIENCE"] = "AMBIENCIA DE TELA",
+        ["TOAST NOTIFICATIONS"] = "NOTIFICACOES TOAST",
+        ["CONFIRMATION PROMPTS"] = "CONFIRMACOES",
+        ["Active HUD Mode"] = "Modo HUD Ativo",
+        ["Lock HUD Positions"] = "Travar Posicoes HUD",
+        ["Reset HUD Positions"] = "Redefinir Posicoes HUD",
+        ["Button Size"] = "Tamanho do Botao",
+        ["Corner Rounding (Shape)"] = "Arredondamento",
+        ["Background Transparency (%)"] = "Transparencia de Fundo (%)",
+        ["Multi-Language Support"] = "Suporte Multi-Idioma",
+        ["Select Language"] = "Selecionar Idioma",
+        ["Custom Cursor"] = "Cursor Personalizado",
+        ["Cursor Style"] = "Estilo de Cursor",
+        ["Custom Cursor Image URL / ID"] = "URL / ID da Imagem Cursor",
+        ["Cursor Size"] = "Tamanho do Cursor",
+        ["Window Background Image"] = "Imagem de Fundo da Janela",
+        ["Window Transparency"] = "Transparencia da Janela",
+        ["Atmosphere & Themes"] = "Atmosfera e Temas",
+        ["Selected Theme"] = "Tema Selecionado",
+        ["Enable Smart ServerHop"] = "Ativar Troca Inteligente",
+        ["Server Hop Delay (s)"] = "Espera de Troca (s)",
+        ["Minimum Server Players"] = "Minimo Jogadores Servidor",
+        ["Avoid Same Server"] = "Evitar Mesmo Servidor",
+        ["Rejoin Server"] = "Reconectar Servidor",
+        ["Copy Server JobId"] = "Copiar JobId do Servidor",
+        ["Discord Webhook URL"] = "URL do Webhook Discord",
+        ["Discord Alerts"] = "Alertas do Discord",
+        ["Live Event Alerts"] = "Alertas em Tempo Real",
+        ["Config Name"] = "Nome da Config",
+        ["Saved Configs"] = "Configs Salvas",
         ["Save Config"] = "Salvar Config",
         ["Load Config"] = "Carregar Config",
         ["Delete Config"] = "Excluir Config",
-        ["Auto Prestige"] = "Auto Prestigio",
-        ["Enable Smart ServerHop"] = "Ativar Troca Inteligente",
-        ["Discord Webhook URL"] = "URL do Webhook Discord",
-        ["Live Event Alerts"] = "Alertas em Tempo Real",
         ["Autoload Selected Config"] = "Carregar Config Selecionada",
         ["Autosave Config"] = "Salvamento Automatico",
-        ["Keybinds & HUD"] = "Teclas e HUD",
-        ["Display Mode"] = "Modo de Exibicao",
-        ["Lock HUD Positions"] = "Travar Posicoes HUD"
+        ["Auto Load Script on Teleport"] = "Autocarregar Script no Teleporte",
+        ["Nearby Players"] = "Jogadores Proximos",
+        ["Active Keybinds"] = "Teclas Ativas",
+        ["Grab Gun"] = "Pegar Arma",
+        ["Shoot Murderer"] = "Atirar no Assassino",
+        ["Aimbot"] = "Mira Automatica",
+        ["Silent Aim"] = "Mira Silenciosa",
+        ["Kill All"] = "Matar Todos",
+        ["Throw Knife"] = "Lancar Faca",
+        ["Noclip"] = "Atravessar Paredes",
+        ["Wall Hop"] = "Salto na Parede",
+        ["Free X-Ray"] = "Raio-X Gratis",
+        ["Fly"] = "Voar",
+        ["Kill Sheriff"] = "Matar Xerife",
+        ["Auto Prestige"] = "Auto Prestigio",
+        ["WalkSpeed"] = "Velocidade de Caminhada",
+        ["JumpPower"] = "Forca de Pulo",
+        ["Infinite Jump"] = "Pulo Infinito",
+        ["Anti AFK"] = "Anti AFK",
+        ["Fullbright"] = "Brilho Maximo",
+        ["Low Graphics"] = "Graficos Baixos",
+        ["Remove Fog"] = "Remover Neblina",
+        ["FPS Cap"] = "Limite de FPS"
     },
     ["Russian"] = {
         ["Main"] = "Главная",
@@ -1975,24 +2079,76 @@ local LanguageDictionary = {
         ["Server"] = "Сервер",
         ["Player"] = "Игрок",
         ["Visual"] = "Визуалы",
-        ["Aimbot"] = "Аимбот",
-        ["Teleport"] = "Телепорт",
-        ["Sheriff"] = "Шериф",
-        ["Murderer"] = "Убийца",
-        ["Innocent"] = "Невинный",
-        ["Configuration Manager"] = "Менеджер конфигураций",
+        ["Visuals"] = "Визуалы",
+        ["Combat"] = "Бой",
+        ["Misc"] = "Разное",
+        ["Keybinds"] = "Клавиши",
+        ["Keybinds & HUD"] = "Клавиши и HUD",
+        ["HUD DISPLAY MODE"] = "РЕЖИМ ОТОБРАЖЕНИЯ HUD",
+        ["FLOATING BUTTONS CUSTOMIZATION"] = "НАСТРОЙКА ПЛАВАЮЩИХ КНОПОК",
+        ["REGISTERED ACTIONS & TOGGLES"] = "ЗАРЕГИСТРИРОВАННЫЕ ДЕЙСТВИЯ",
+        ["VISUAL & CURSOR CUSTOMIZATION"] = "НАСТРОЙКА ВИЗУАЛОВ И КУРСОРА",
+        ["SERVER HOPPING & MATCHMAKING"] = "СМЕНА СЕРВЕРА И ПОИСК",
+        ["CONFIGURATION MANAGER"] = "МЕНЕДЖЕР КОНФИГУРАЦИЙ",
+        ["LIVE EVENT ALERTS"] = "ОПОВЕЩЕНИЯ СОБЫТИЙ",
+        ["SCREEN AMBIENCE"] = "ЭФФЕКТЫ ОКРУЖЕНИЯ",
+        ["TOAST NOTIFICATIONS"] = "ВСПЛЫВАЮЩИЕ УВЕДОМЛЕНИЯ",
+        ["CONFIRMATION PROMPTS"] = "ПОДТВЕРЖДЕНИЕ ДЕЙСТВИЙ",
+        ["Active HUD Mode"] = "Активный режим HUD",
+        ["Lock HUD Positions"] = "Закрепить позиции HUD",
+        ["Reset HUD Positions"] = "Сбросить позиции HUD",
+        ["Button Size"] = "Размер кнопок",
+        ["Corner Rounding (Shape)"] = "Закругление углов",
+        ["Background Transparency (%)"] = "Прозрачность фона (%)",
+        ["Multi-Language Support"] = "Мультиязычность",
+        ["Select Language"] = "Выбрать язык",
+        ["Custom Cursor"] = "Кастомный курсор",
+        ["Cursor Style"] = "Стиль курсора",
+        ["Custom Cursor Image URL / ID"] = "URL / ID изображения курсора",
+        ["Cursor Size"] = "Размер курсора",
+        ["Window Background Image"] = "Фоновое изображение окна",
+        ["Window Transparency"] = "Прозрачность окна",
+        ["Atmosphere & Themes"] = "Атмосфера и темы",
+        ["Selected Theme"] = "Выбранная тема",
+        ["Enable Smart ServerHop"] = "Включить умный серверхоп",
+        ["Server Hop Delay (s)"] = "Задержка серверхопа (с)",
+        ["Minimum Server Players"] = "Минимум игроков сервера",
+        ["Avoid Same Server"] = "Избегать тот же сервер",
+        ["Rejoin Server"] = "Перезайти на сервер",
+        ["Copy Server JobId"] = "Скопировать JobId сервера",
+        ["Discord Webhook URL"] = "Discord Webhook URL",
+        ["Discord Alerts"] = "Оповещения Discord",
+        ["Live Event Alerts"] = "Оповещения событий",
+        ["Config Name"] = "Имя конфига",
+        ["Saved Configs"] = "Сохраненные конфиги",
         ["Save Config"] = "Сохранить конфиг",
         ["Load Config"] = "Загрузить конфиг",
         ["Delete Config"] = "Удалить конфиг",
-        ["Auto Prestige"] = "Авто престиж",
-        ["Enable Smart ServerHop"] = "Включить умный серверхоп",
-        ["Discord Webhook URL"] = "Discord Webhook URL",
-        ["Live Event Alerts"] = "Оповещения событий",
         ["Autoload Selected Config"] = "Автозагрузка конфига",
         ["Autosave Config"] = "Автосохранение",
-        ["Keybinds & HUD"] = "Клавиши и HUD",
-        ["Display Mode"] = "Режим отображения",
-        ["Lock HUD Positions"] = "Закрепить позиции HUD"
+        ["Auto Load Script on Teleport"] = "Автозагрузка скрипта при телепорте",
+        ["Nearby Players"] = "Игроки поблизости",
+        ["Active Keybinds"] = "Активные клавиши",
+        ["Grab Gun"] = "Взять пистолет",
+        ["Shoot Murderer"] = "Застрелить убийцу",
+        ["Aimbot"] = "Аимбот",
+        ["Silent Aim"] = "Тихий аимбот",
+        ["Kill All"] = "Убить всех",
+        ["Throw Knife"] = "Бросить нож",
+        ["Noclip"] = "Ноклип",
+        ["Wall Hop"] = "Прыжок от стены",
+        ["Free X-Ray"] = "Бесплатный X-Ray",
+        ["Fly"] = "Полет",
+        ["Kill Sheriff"] = "Убить шерифа",
+        ["Auto Prestige"] = "Авто престиж",
+        ["WalkSpeed"] = "Скорость ходьбы",
+        ["JumpPower"] = "Сила прыжка",
+        ["Infinite Jump"] = "Бесконечный прыжок",
+        ["Anti AFK"] = "Анти АФК",
+        ["Fullbright"] = "Полная яркость",
+        ["Low Graphics"] = "Низкая графика",
+        ["Remove Fog"] = "Убрать туман",
+        ["FPS Cap"] = "Ограничение FPS"
     },
     ["Turkish"] = {
         ["Main"] = "Ana Menu",
@@ -2000,24 +2156,76 @@ local LanguageDictionary = {
         ["Server"] = "Sunucu",
         ["Player"] = "Oyuncu",
         ["Visual"] = "Gorseller",
-        ["Aimbot"] = "Nisan Alma",
-        ["Teleport"] = "Isinlanma",
-        ["Sheriff"] = "Serif",
-        ["Murderer"] = "Katil",
-        ["Innocent"] = "Masum",
-        ["Configuration Manager"] = "Yapilandirma Yoneticisi",
+        ["Visuals"] = "Gorseller",
+        ["Combat"] = "Savas",
+        ["Misc"] = "Cesitli",
+        ["Keybinds"] = "Tuslar",
+        ["Keybinds & HUD"] = "Tuslar ve HUD",
+        ["HUD DISPLAY MODE"] = "HUD GORUNUM MODU",
+        ["FLOATING BUTTONS CUSTOMIZATION"] = "YUZEN DUGMELERI DUZENLE",
+        ["REGISTERED ACTIONS & TOGGLES"] = "KAYITLI EYLEMLER VE DUGMELER",
+        ["VISUAL & CURSOR CUSTOMIZATION"] = "GORSEL VE IMLEC DUZENLEME",
+        ["SERVER HOPPING & MATCHMAKING"] = "SUNUCU DEGISTIRME VE ESLESME",
+        ["CONFIGURATION MANAGER"] = "YAPILANDIRMA YONETICISI",
+        ["LIVE EVENT ALERTS"] = "CANLI ETKINLIK UYARILARI",
+        ["SCREEN AMBIENCE"] = "EKRAN ATMOSFERI",
+        ["TOAST NOTIFICATIONS"] = "BILDIRIMLER",
+        ["CONFIRMATION PROMPTS"] = "ONAY ISTEMLERI",
+        ["Active HUD Mode"] = "Aktif HUD Modu",
+        ["Lock HUD Positions"] = "HUD Konumlarini Kilitle",
+        ["Reset HUD Positions"] = "HUD Konumlarini Sifirla",
+        ["Button Size"] = "Dugme Boyutu",
+        ["Corner Rounding (Shape)"] = "Kose Yuvarlama",
+        ["Background Transparency (%)"] = "Arka Plan Saydamligi (%)",
+        ["Multi-Language Support"] = "Coklu Dil Destegi",
+        ["Select Language"] = "Dil Secin",
+        ["Custom Cursor"] = "Ozel Imlec",
+        ["Cursor Style"] = "Imlec Stili",
+        ["Custom Cursor Image URL / ID"] = "Imlec Resim URL / ID",
+        ["Cursor Size"] = "Imlec Boyutu",
+        ["Window Background Image"] = "Pencere Arka Plan Resmi",
+        ["Window Transparency"] = "Pencere Saydamligi",
+        ["Atmosphere & Themes"] = "Atmosfer ve Temalar",
+        ["Selected Theme"] = "Secilen Tema",
+        ["Enable Smart ServerHop"] = "Akilli Sunucu Gecisi",
+        ["Server Hop Delay (s)"] = "Sunucu Gecis Gecikmesi (sn)",
+        ["Minimum Server Players"] = "Minimum Sunucu Oyuncusu",
+        ["Avoid Same Server"] = "Ayni Sunucudan Kacin",
+        ["Rejoin Server"] = "Sunucuya Yeniden Baglan",
+        ["Copy Server JobId"] = "Sunucu JobId Kopyala",
+        ["Discord Webhook URL"] = "Discord Webhook Baglantisi",
+        ["Discord Alerts"] = "Discord Bildirimleri",
+        ["Live Event Alerts"] = "Canli Etkinlik Uyarilari",
+        ["Config Name"] = "Yapilandirma Adi",
+        ["Saved Configs"] = "Kayitli Yapilandirmalar",
         ["Save Config"] = "Yapilandirmayi Kaydet",
         ["Load Config"] = "Yapilandirmayi Yukle",
         ["Delete Config"] = "Yapilandirmayi Sil",
-        ["Auto Prestige"] = "Otomatik Prestij",
-        ["Enable Smart ServerHop"] = "Akilli Sunucu Gecisi",
-        ["Discord Webhook URL"] = "Discord Webhook Baglantisi",
-        ["Live Event Alerts"] = "Canli Etkinlik Uyarilari",
         ["Autoload Selected Config"] = "Secilen Ayari Otomatik Yukle",
         ["Autosave Config"] = "Otomatik Kaydet",
-        ["Keybinds & HUD"] = "Tuslar ve HUD",
-        ["Display Mode"] = "Gorunum Modu",
-        ["Lock HUD Positions"] = "HUD Konumlarini Kilitle"
+        ["Auto Load Script on Teleport"] = "Isinlanmada Scripti Otomatik Yukle",
+        ["Nearby Players"] = "Yakindaki Oyuncular",
+        ["Active Keybinds"] = "Aktif Tuslar",
+        ["Grab Gun"] = "Silahi Al",
+        ["Shoot Murderer"] = "Katili Vur",
+        ["Aimbot"] = "Nisan Alma",
+        ["Silent Aim"] = "Sessiz Nisan",
+        ["Kill All"] = "Herkesi Oldur",
+        ["Throw Knife"] = "Bicak Firlat",
+        ["Noclip"] = "Duvarlardan Gecme",
+        ["Wall Hop"] = "Duvar Sicramasi",
+        ["Free X-Ray"] = "Ucretsiz X-Ray",
+        ["Fly"] = "Ucma",
+        ["Kill Sheriff"] = "Serifi Oldur",
+        ["Auto Prestige"] = "Otomatik Prestij",
+        ["WalkSpeed"] = "Yurume Hizi",
+        ["JumpPower"] = "Ziplama Gucu",
+        ["Infinite Jump"] = "Sonsuz Ziplama",
+        ["Anti AFK"] = "Anti AFK",
+        ["Fullbright"] = "Tam Parlaklik",
+        ["Low Graphics"] = "Dusuk Grafikler",
+        ["Remove Fog"] = "Sisi Kaldir",
+        ["FPS Cap"] = "FPS Siniri"
     },
     ["Vietnamese"] = {
         ["Main"] = "Chinh",
@@ -2025,24 +2233,76 @@ local LanguageDictionary = {
         ["Server"] = "May chu",
         ["Player"] = "Nguoi choi",
         ["Visual"] = "Hinh anh",
-        ["Aimbot"] = "Tu ngam",
-        ["Teleport"] = "Dich chuyen",
-        ["Sheriff"] = "Canh sat",
-        ["Murderer"] = "Sat thu",
-        ["Innocent"] = "Dan thuong",
-        ["Configuration Manager"] = "Quan ly cau hinh",
+        ["Visuals"] = "Hinh anh",
+        ["Combat"] = "Chien dau",
+        ["Misc"] = "Khac",
+        ["Keybinds"] = "Phim tat",
+        ["Keybinds & HUD"] = "Phim tat va HUD",
+        ["HUD DISPLAY MODE"] = "CHE DO HIEN THI HUD",
+        ["FLOATING BUTTONS CUSTOMIZATION"] = "TUY CHINH NUT NOI",
+        ["REGISTERED ACTIONS & TOGGLES"] = "HANH DONG VA NUT DA DANG KY",
+        ["VISUAL & CURSOR CUSTOMIZATION"] = "TUY CHINH HINH ANH VA CON TRO",
+        ["SERVER HOPPING & MATCHMAKING"] = "CHUYEN MAY CHU VA GHEP DOI",
+        ["CONFIGURATION MANAGER"] = "QUAN LY CAU HINH",
+        ["LIVE EVENT ALERTS"] = "CANH BAO SU KIEN TRUC TIEP",
+        ["SCREEN AMBIENCE"] = "HIEU UNG MOI TRUONG",
+        ["TOAST NOTIFICATIONS"] = "THONG BAO TOAST",
+        ["CONFIRMATION PROMPTS"] = "HOP THOAI XAC NHAN",
+        ["Active HUD Mode"] = "Che do HUD",
+        ["Lock HUD Positions"] = "Khoa vi tri HUD",
+        ["Reset HUD Positions"] = "Dat lai vi tri HUD",
+        ["Button Size"] = "Kich thuoc nut",
+        ["Corner Rounding (Shape)"] = "Bo goc",
+        ["Background Transparency (%)"] = "Do trong suot (%)",
+        ["Multi-Language Support"] = "Ho tro da ngon ngu",
+        ["Select Language"] = "Chon ngon ngu",
+        ["Custom Cursor"] = "Con tro tuy chinh",
+        ["Cursor Style"] = "Kieu con tro",
+        ["Custom Cursor Image URL / ID"] = "URL / ID anh con tro",
+        ["Cursor Size"] = "Kich thuoc con tro",
+        ["Window Background Image"] = "Anh nen cua so",
+        ["Window Transparency"] = "Do trong suot cua so",
+        ["Atmosphere & Themes"] = "Khong khi va chu de",
+        ["Selected Theme"] = "Chu de da chon",
+        ["Enable Smart ServerHop"] = "Bat chuyen may chu thong minh",
+        ["Server Hop Delay (s)"] = "Do tre chuyen (giay)",
+        ["Minimum Server Players"] = "Nguoi choi toi thieu",
+        ["Avoid Same Server"] = "Tranh may chu cu",
+        ["Rejoin Server"] = "Ket noi lai may chu",
+        ["Copy Server JobId"] = "Sao chep JobId may chu",
+        ["Discord Webhook URL"] = "Lien ket Discord Webhook",
+        ["Discord Alerts"] = "Thong bao Discord",
+        ["Live Event Alerts"] = "Canh bao su kien truc tiep",
+        ["Config Name"] = "Ten cau hinh",
+        ["Saved Configs"] = "Cau hinh da luu",
         ["Save Config"] = "Luu cau hinh",
         ["Load Config"] = "Tai cau hinh",
         ["Delete Config"] = "Xoa cau hinh",
-        ["Auto Prestige"] = "Tu dong len cap",
-        ["Enable Smart ServerHop"] = "Doi may chu thong minh",
-        ["Discord Webhook URL"] = "Lien ket Discord Webhook",
-        ["Live Event Alerts"] = "Canh bao su kien truc tiep",
         ["Autoload Selected Config"] = "Tu dong tai cau hinh",
         ["Autosave Config"] = "Tu dong luu",
-        ["Keybinds & HUD"] = "Phim tat va HUD",
-        ["Display Mode"] = "Che do hien thi",
-        ["Lock HUD Positions"] = "Khoa vi tri HUD"
+        ["Auto Load Script on Teleport"] = "Tu dong tai script khi dich chuyen",
+        ["Nearby Players"] = "Nguoi choi gan day",
+        ["Active Keybinds"] = "Phim tat dang bat",
+        ["Grab Gun"] = "Nhat sung",
+        ["Shoot Murderer"] = "Ban sat thu",
+        ["Aimbot"] = "Tu ngam",
+        ["Silent Aim"] = "Ngam im lang",
+        ["Kill All"] = "Tieu diet tat ca",
+        ["Throw Knife"] = "Phong dao",
+        ["Noclip"] = "Di xuyen tuong",
+        ["Wall Hop"] = "Nhay tuong",
+        ["Free X-Ray"] = "X-Ray mien phi",
+        ["Fly"] = "Bay",
+        ["Kill Sheriff"] = "Tieu diet canh sat",
+        ["Auto Prestige"] = "Tu dong len cap",
+        ["WalkSpeed"] = "Toc do di chuyen",
+        ["JumpPower"] = "Suc nhay",
+        ["Infinite Jump"] = "Nhay vo han",
+        ["Anti AFK"] = "Chong AFK",
+        ["Fullbright"] = "Do sang toi da",
+        ["Low Graphics"] = "Do hoa thap",
+        ["Remove Fog"] = "Xoa suong mu",
+        ["FPS Cap"] = "Gioi han FPS"
     }
 }
 
@@ -2054,21 +2314,38 @@ function Library:TranslateText(text, targetLang)
     targetLang = targetLang or Library.Flags.language_selector or "Spanish"
     if targetLang == "English" then return text end
 
+    if text:sub(1, 3) == "== " and text:sub(-3) == " ==" then
+        local inner = text:sub(4, -4)
+        local transInner = Library:TranslateText(inner, targetLang)
+        return "== " .. string.upper(transInner) .. " =="
+    end
+
+    if text:sub(1, 5) == "Show " then
+        local inner = text:sub(6)
+        local showPrefixes = {
+            Spanish = "Mostrar ",
+            Portuguese = "Mostrar ",
+            Russian = "Показать ",
+            Turkish = "Goster: ",
+            Vietnamese = "Hien "
+        }
+        local pfx = showPrefixes[targetLang] or "Show "
+        return pfx .. Library:TranslateText(inner, targetLang)
+    end
+
     local dict = LanguageDictionary[targetLang]
-    if dict and dict[text] then return dict[text] end
+    if dict then
+        if dict[text] then return dict[text] end
+        local lower = string.lower(text)
+        if dict[lower] then return dict[lower] end
+    end
 
     local localeMap = {
         Spanish = "es-es",
         Portuguese = "pt-br",
         Russian = "ru-ru",
         Turkish = "tr-tr",
-        Vietnamese = "vi-vn",
-        Indonesian = "id-id",
-        German = "de-de",
-        French = "fr-fr",
-        Chinese = "zh-cn",
-        Japanese = "ja-jp",
-        Korean = "ko-kr"
+        Vietnamese = "vi-vn"
     }
     local loc = localeMap[targetLang]
     if loc then
@@ -2088,18 +2365,48 @@ end
 
 function Library:SetMultiLanguage(enabled, targetLang)
     targetLang = targetLang or Library.Flags.language_selector or "Spanish"
-    for _, elem in ipairs(genv.UIElements) do
-        if elem and elem.Parent and (elem:IsA("TextLabel") or elem:IsA("TextButton")) then
-            local src = elem:GetAttribute("SourceText")
-            if not src then
-                src = elem.Text
-                elem:SetAttribute("SourceText", src)
+    Library.MultiLanguageEnabled = (enabled == true)
+    Library.CurrentLanguage = targetLang
+    local containers = {}
+    if Library.core then table.insert(containers, Library.core) end
+    if Library.HudGui then table.insert(containers, Library.HudGui) end
+    if genv.CloseUi and genv.CloseUi ~= Library.core then table.insert(containers, genv.CloseUi) end
+
+    for _, root in ipairs(containers) do
+        for _, elem in ipairs(root:GetDescendants()) do
+            if elem:IsA("TextLabel") or elem:IsA("TextButton") then
+                local src = elem:GetAttribute("SourceText")
+                if not src then
+                    src = elem.Text
+                    if src and src ~= "" then
+                        elem:SetAttribute("SourceText", src)
+                    end
+                end
+                if src and src ~= "" then
+                    if Library.MultiLanguageEnabled then
+                        elem.Text = Library:TranslateText(src, targetLang)
+                    else
+                        elem.Text = src
+                    end
+                end
             end
-            if enabled then
-                elem.Text = Library:TranslateText(src, targetLang)
-            else
-                elem.Text = src
-            end
+        end
+    end
+    if Library.Notify then
+        if Library.MultiLanguageEnabled then
+            Library:Notify({
+                Title = "Language",
+                Content = "Language switched to " .. targetLang,
+                Duration = 2,
+                Type = "Info"
+            })
+        else
+            Library:Notify({
+                Title = "Language",
+                Content = "Restored English source text",
+                Duration = 2,
+                Type = "Info"
+            })
         end
     end
 end
@@ -2136,13 +2443,20 @@ function Library:SetCustomCursor(enabled, style, size, color, assetUrl)
     size = tonumber(size) or 20
     CursorDot.Size = UDim2.new(0, size, 0, size)
     CursorDot.ImageColor3 = color or Color3.fromRGB(255, 255, 255)
-    if style == "Crosshair" then
-        CursorDot.Image = "rbxassetid://13321880274"
-    elseif style == "Classic Arrow" then
-        CursorDot.Image = "rbxassetid://12941020168"
+    if style == "Arrow Pointer" or style == "Classic Arrow" then
+        CursorDot.AnchorPoint = Vector2.new(0, 0)
+        CursorDot.Image = "rbxasset://textures/ArrowCursor.png"
+    elseif style == "Target" then
+        CursorDot.AnchorPoint = Vector2.new(0.5, 0.5)
+        CursorDot.Image = "rbxassetid://10734977012"
+    elseif style == "Circle" then
+        CursorDot.AnchorPoint = Vector2.new(0.5, 0.5)
+        CursorDot.Image = "rbxassetid://10709790948"
     elseif style == "Dot" then
-        CursorDot.Image = "rbxassetid://17290798394"
-    elseif (style == "Custom Image" or (assetUrl and assetUrl ~= "")) then
+        CursorDot.AnchorPoint = Vector2.new(0.5, 0.5)
+        CursorDot.Image = "rbxassetid://10709789810"
+    elseif style == "Custom Image" or (assetUrl and assetUrl ~= "") then
+        CursorDot.AnchorPoint = Vector2.new(0.5, 0.5)
         local targetUrl = assetUrl or ""
         if targetUrl:find("^https?://") then
             pcall(function()
@@ -2159,10 +2473,11 @@ function Library:SetCustomCursor(enabled, style, size, color, assetUrl)
         elseif targetUrl ~= "" then
             CursorDot.Image = targetUrl
         else
-            CursorDot.Image = "rbxassetid://17290798394"
+            CursorDot.Image = "rbxassetid://10709818534"
         end
     else
-        CursorDot.Image = "rbxassetid://17290798394"
+        CursorDot.AnchorPoint = Vector2.new(0.5, 0.5)
+        CursorDot.Image = "rbxassetid://10709818534"
     end
     if CursorConn then CursorConn:Disconnect() end
     CursorConn = RunService.RenderStepped:Connect(function()
@@ -2333,6 +2648,29 @@ function Library:ResetHudPositions()
     end
 end
 
+function Library:SetActionButtonState(id, state)
+    local item = Library.ActionButtons[id]
+    if item and item.SetState then
+        item:SetState(state)
+    end
+end
+
+function Library:UpdateActionButtonStateByFlag(flag, state)
+    if not flag then return end
+    for _, item in pairs(Library.ActionButtons) do
+        if item.cfg and item.cfg.flag == flag then
+            item:SetState(state)
+        end
+    end
+end
+
+function Library:SetActionButtonState(id, state)
+    local item = Library.ActionButtons[id]
+    if item and item.SetState then
+        item:SetState(state)
+    end
+end
+
 function Library:RegisterActionButton(cfg)
     local id = cfg.id or cfg.name
     if not id then return end
@@ -2353,51 +2691,157 @@ function Library:RegisterActionButton(cfg)
         Library.HudGui = btnGui
     end
 
+    local isToggle = (cfg.isToggle == true) or (cfg.flag ~= nil)
+    local activeState = cfg.state or false
+    if cfg.flag and Library.Flags[cfg.flag] ~= nil then
+        activeState = Library.Flags[cfg.flag] == true
+    end
+
     local size = Library.HudButtonSize or 58
     local btn = Instance.new("TextButton")
     btn.Name = id .. "Btn"
     btn.Size = UDim2.new(0, size, 0, size)
     btn.Position = pos
     btn.AnchorPoint = Vector2.new(0.5, 0.5)
-    btn.BackgroundColor3 = Color3.fromRGB(15, 16, 20)
-    btn.BackgroundTransparency = Library.HudButtonTransparency or 0.2
+    btn.BackgroundColor3 = activeState and Color3.fromRGB(28, 30, 44) or (genv.uicontainer or Color3.fromRGB(18, 20, 27))
+    btn.BackgroundTransparency = Library.HudButtonTransparency or 0.15
     btn.Text = ""
     btn.AutoButtonColor = false
     btn.Parent = btnGui
+
+    local shadow = Instance.new("ImageLabel")
+    shadow.Name = "Shadow"
+    shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+    shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+    shadow.Size = UDim2.new(1, 24, 1, 24)
+    shadow.BackgroundTransparency = 1
+    shadow.Image = "rbxassetid://17290899982"
+    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.ImageTransparency = 0.5
+    shadow.ZIndex = 0
+    shadow.Parent = btn
 
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, Library.HudButtonRounding or 16)
     corner.Parent = btn
 
+    local accentColor = cfg.color or genv.accent or Color3.fromRGB(168, 85, 247)
     local stroke = Instance.new("UIStroke")
     stroke.Thickness = 1.4
-    stroke.Color = cfg.color or Color3.fromRGB(168, 85, 247)
-    stroke.Transparency = 0.35
+    stroke.Color = activeState and accentColor or (genv.uiline or Color3.fromRGB(42, 45, 58))
+    stroke.Transparency = activeState and 0.15 or 0.45
     stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     stroke.Parent = btn
 
+    local glowLine = Instance.new("Frame")
+    glowLine.Name = "TopGlow"
+    glowLine.AnchorPoint = Vector2.new(0.5, 0)
+    glowLine.Position = UDim2.new(0.5, 0, 0, 0)
+    glowLine.Size = UDim2.new(0.65, 0, 0, 1)
+    glowLine.BackgroundColor3 = WHITE
+    glowLine.BackgroundTransparency = activeState and 0.25 or 0.55
+    glowLine.BorderSizePixel = 0
+    glowLine.ZIndex = 2
+    glowLine.Parent = btn
+
+    local grad = Instance.new("UIGradient")
+    grad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, accentColor),
+        ColorSequenceKeypoint.new(0.5, WHITE),
+        ColorSequenceKeypoint.new(1, accentColor)
+    }
+    grad.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 1),
+        NumberSequenceKeypoint.new(0.5, 0.2),
+        NumberSequenceKeypoint.new(1, 1)
+    }
+    grad.Parent = glowLine
+
+    local statusDot = Instance.new("Frame")
+    statusDot.Name = "StatusDot"
+    statusDot.AnchorPoint = Vector2.new(1, 0)
+    statusDot.Position = UDim2.new(1, -6, 0, 6)
+    statusDot.Size = UDim2.new(0, 8, 0, 8)
+    statusDot.BackgroundColor3 = activeState and SUCCESS_COLOR or Color3.fromRGB(48, 52, 66)
+    statusDot.BorderSizePixel = 0
+    statusDot.Visible = isToggle
+    statusDot.ZIndex = 3
+    statusDot.Parent = btn
+    pill(statusDot)
+    stroke(statusDot, Color3.fromRGB(24, 26, 36), 1, 0.3)
+
     local icon = Instance.new("ImageLabel")
     icon.Name = "Icon"
-    icon.Size = UDim2.new(0, 24, 0, 24)
-    icon.Position = UDim2.new(0.5, 0, 0.38, 0)
+    icon.Size = UDim2.new(0, 20, 0, 20)
+    icon.Position = UDim2.new(0.5, 0, 0.36, 0)
     icon.AnchorPoint = Vector2.new(0.5, 0.5)
     icon.BackgroundTransparency = 1
     icon.Image = cfg.icon or ""
-    icon.ImageColor3 = cfg.color or Color3.fromRGB(240, 240, 245)
+    icon.ImageColor3 = activeState and accentColor or Color3.fromRGB(165, 172, 190)
+    icon.ZIndex = 2
     icon.Parent = btn
+
+    local function getButtonLabel(state)
+        local base = string.upper(cfg.name or id)
+        if not isToggle then return base end
+        if state then
+            return base .. '  <font color="#22c55e"><b>ON</b></font>'
+        end
+        return base .. '  <font color="#64748b">OFF</font>'
+    end
 
     local label = Instance.new("TextLabel")
     label.Name = "Label"
-    label.Size = UDim2.new(1, -6, 0, 20)
-    label.Position = UDim2.new(0.5, 0, 0.82, 0)
+    label.Size = UDim2.new(1, -6, 0, 16)
+    label.Position = UDim2.new(0.5, 0, 0.79, 0)
     label.AnchorPoint = Vector2.new(0.5, 0.5)
     label.BackgroundTransparency = 1
-    label.Text = string.upper(cfg.name or id)
-    label.TextColor3 = Color3.fromRGB(220, 222, 230)
+    label.RichText = true
+    label.Text = getButtonLabel(activeState)
+    label.TextColor3 = activeState and WHITE or Color3.fromRGB(160, 165, 180)
     label.TextSize = 8
-    label.Font = Enum.Font.GothamBold
+    label.FontFace = font(Enum.FontWeight.Bold)
     label.TextWrapped = true
+    label.ZIndex = 2
     label.Parent = btn
+
+    local item = {
+        btn = btn,
+        cfg = cfg,
+        stroke = stroke,
+        icon = icon,
+        label = label,
+        corner = corner,
+        statusDot = statusDot,
+        glowLine = glowLine,
+        isToggle = isToggle,
+        state = activeState
+    }
+
+    function item:SetState(newState)
+        item.state = (newState == true)
+        if cfg.flag then
+            Library.Flags[cfg.flag] = item.state
+        end
+        local dur = 0.2
+        local ti = TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        label.Text = getButtonLabel(item.state)
+        if item.state then
+            TweenService:Create(btn, ti, {BackgroundColor3 = Color3.fromRGB(28, 30, 44)}):Play()
+            TweenService:Create(stroke, ti, {Color = accentColor, Transparency = 0.15}):Play()
+            TweenService:Create(icon, ti, {ImageColor3 = accentColor}):Play()
+            TweenService:Create(label, ti, {TextColor3 = WHITE}):Play()
+            TweenService:Create(statusDot, ti, {BackgroundColor3 = SUCCESS_COLOR}):Play()
+            TweenService:Create(glowLine, ti, {BackgroundTransparency = 0.2}):Play()
+        else
+            TweenService:Create(btn, ti, {BackgroundColor3 = genv.uicontainer or Color3.fromRGB(18, 20, 27)}):Play()
+            TweenService:Create(stroke, ti, {Color = genv.uiline or Color3.fromRGB(42, 45, 58), Transparency = 0.45}):Play()
+            TweenService:Create(icon, ti, {ImageColor3 = Color3.fromRGB(165, 172, 190)}):Play()
+            TweenService:Create(label, ti, {TextColor3 = Color3.fromRGB(160, 165, 180)}):Play()
+            TweenService:Create(statusDot, ti, {BackgroundColor3 = Color3.fromRGB(48, 52, 66)}):Play()
+            TweenService:Create(glowLine, ti, {BackgroundTransparency = 0.55}):Play()
+        end
+    end
 
     local dragging = false
     local dragStart, startPos
@@ -2437,27 +2881,46 @@ function Library:RegisterActionButton(cfg)
     end)
 
     btn.Activated:Connect(function()
-        if cfg.callback then pcall(cfg.callback) end
-        TweenService:Create(btn, TweenInfo.new(0.1), {Size = UDim2.new(0, size * 0.92, 0, size * 0.92)}):Play()
-        task.delay(0.1, function()
+        if isToggle then
+            item:SetState(not item.state)
+            if cfg.flag and Library.Objects[cfg.flag] and Library.Objects[cfg.flag].SetValue then
+                pcall(function() Library.Objects[cfg.flag]:SetValue(item.state, true) end)
+            end
+        end
+        if cfg.callback then
+            pcall(cfg.callback, isToggle and item.state or nil)
+        end
+        TweenService:Create(btn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, size * 0.94, 0, size * 0.94)}):Play()
+        task.delay(0.08, function()
             if btn and btn.Parent then
-                TweenService:Create(btn, TweenInfo.new(0.12), {Size = UDim2.new(0, size, 0, size)}):Play()
+                TweenService:Create(btn, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, size, 0, size)}):Play()
             end
         end)
     end)
 
-    Library.ActionButtons[id] = {
-        btn = btn,
-        cfg = cfg,
-        stroke = stroke,
-        icon = icon,
-        label = label,
-        corner = corner
-    }
+    Library.ActionButtons[id] = item
+
+    if Library.KeybindsAndHudTab and Library.KeybindsAndHudTab.create_toggle then
+        Library.RegisteredHudToggles = Library.RegisteredHudToggles or {}
+        if not Library.RegisteredHudToggles[id] then
+            Library.RegisteredHudToggles[id] = true
+            Library.KeybindsAndHudTab.create_toggle({
+                name = "Show " .. (cfg.name or id),
+                flag = "hud_show_" .. id,
+                section = "left",
+                enabled = btn.Visible ~= false,
+                callback = function(state)
+                    btn.Visible = state
+                end
+            })
+        end
+    end
 end
 
 function Library:BuildKeybindsAndHudTab(tab)
     if not tab then return end
+    Library.KeybindsAndHudTab = tab
+    Library.RegisteredHudToggles = Library.RegisteredHudToggles or {}
     tab.create_title({ name = "== HUD DISPLAY MODE ==", section = "left" })
     tab.create_dropdown({
         name = "Active HUD Mode",
@@ -2531,16 +2994,19 @@ function Library:BuildKeybindsAndHudTab(tab)
 
     tab.create_title({ name = "== REGISTERED ACTIONS & TOGGLES ==", section = "left" })
     for id, item in pairs(Library.ActionButtons) do
-        local cfg = item.cfg
-        tab.create_toggle({
-            name = "Show " .. (cfg.name or id),
-            flag = "hud_show_" .. id,
-            section = "left",
-            enabled = item.btn.Visible ~= false,
-            callback = function(state)
-                item.btn.Visible = state
-            end
-        })
+        if not Library.RegisteredHudToggles[id] then
+            Library.RegisteredHudToggles[id] = true
+            local cfg = item.cfg
+            tab.create_toggle({
+                name = "Show " .. (cfg.name or id),
+                flag = "hud_show_" .. id,
+                section = "left",
+                enabled = item.btn.Visible ~= false,
+                callback = function(state)
+                    item.btn.Visible = state
+                end
+            })
+        end
     end
 end
 
@@ -4434,19 +4900,16 @@ function Library.new(selfOrOpts, options)
         for name, item in pairs(keybindHudRows) do
             if item.switchTrack and item.switchTrack.Parent and item.switchKnob and item.switchKnob.Parent and item.getState then
                 local isChecked = item.getState() == true
-                local targetPos = isChecked and UDim2.new(1, -13, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
-                local targetCol = isChecked and (genv.togglecoloron or genv.accent or Color3.fromRGB(168, 85, 247)) or (genv.togglecoloroff or Color3.fromRGB(38, 40, 50))
-                TweenService:Create(item.switchKnob, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 14, 0, 11)}):Play()
-                TweenService:Create(item.switchKnob, TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = targetPos}):Play()
-                TweenService:Create(item.switchTrack, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = targetCol}):Play()
-                task.delay(0.09, function()
-                    if item.switchKnob and item.switchKnob.Parent then
-                        TweenService:Create(item.switchKnob, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 11, 0, 11)}):Play()
+                if item.lastState ~= isChecked then
+                    item.lastState = isChecked
+                    local targetPos = isChecked and UDim2.new(1, -13, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+                    local targetCol = isChecked and (genv.togglecoloron or genv.accent or Color3.fromRGB(168, 85, 247)) or (genv.togglecoloroff or Color3.fromRGB(38, 40, 50))
+                    TweenService:Create(item.switchKnob, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPos}):Play()
+                    TweenService:Create(item.switchTrack, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = targetCol}):Play()
+                    if item.rowStrk and item.rowStrk.Parent then
+                        local strkCol = isChecked and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(38, 40, 52)
+                        TweenService:Create(item.rowStrk, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Color = strkCol}):Play()
                     end
-                end)
-                if item.rowStrk and item.rowStrk.Parent then
-                    local strkCol = isChecked and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(38, 40, 52)
-                    TweenService:Create(item.rowStrk, TweenInfo.new(0.2), {Color = strkCol}):Play()
                 end
             end
         end
@@ -4604,10 +5067,10 @@ function Library.new(selfOrOpts, options)
                     local function toggleRow()
                         if tick() - lastTog < 0.15 then return end
                         lastTog = tick()
-                        TweenService:Create(rScale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 0.96}):Play()
-                        task.delay(0.08, function()
-                            if rScale and rScale.Parent then
-                                TweenService:Create(rScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+                        TweenService:Create(row, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(34, 37, 48)}):Play()
+                        task.delay(0.1, function()
+                            if row and row.Parent then
+                                TweenService:Create(row, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(24, 26, 33)}):Play()
                             end
                         end)
                         if kb.toggle then
@@ -5016,7 +5479,7 @@ function Library.new(selfOrOpts, options)
         TextSize = 11,
         TextXAlignment = Enum.TextXAlignment.Left,
         RichText = true,
-        Text = "<font color=\"#8e92a4\">Plrs</font>  <font color=\"#ffffff\"><b>1</b></font>",
+        Text = "<font color=\"#8e92a4\">Players</font>  <font color=\"#ffffff\"><b>1</b></font>",
         ZIndex = 854,
     }, plrTile)
 
@@ -5040,7 +5503,7 @@ function Library.new(selfOrOpts, options)
     local actTileIcon = new("ImageLabel", {
         Size = UDim2.new(0, 14, 0, 14),
         BackgroundTransparency = 1,
-        Image = "rbxassetid://138635884129147",
+        Image = "rbxassetid://10723404337",
         ImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
         ZIndex = 854,
     }, actTile)
@@ -5052,7 +5515,7 @@ function Library.new(selfOrOpts, options)
         TextSize = 11,
         TextXAlignment = Enum.TextXAlignment.Left,
         RichText = true,
-        Text = "<font color=\"#8e92a4\">Active</font>  <font color=\"#ffffff\"><b>0</b></font>",
+        Text = "<font color=\"#8e92a4\">Online</font>  <font color=\"#ffffff\"><b>0</b></font>",
         ZIndex = 854,
     }, actTile)
 
@@ -5641,8 +6104,8 @@ function Library.new(selfOrOpts, options)
             end
             islandFpsVal.Text = string.format("<font color=\"#8e92a4\">FPS</font>  <font color=\"#ffffff\"><b>%d</b></font>", currentFps)
             islandPingVal.Text = string.format("<font color=\"#8e92a4\">Ping</font>  <font color=\"#ffffff\"><b>%d</b><font color=\"#8e92a4\"> ms</font></font>", ping)
-            islandPlrVal.Text = string.format("<font color=\"#8e92a4\">Plrs</font>  <font color=\"#ffffff\"><b>%d</b></font>", playerCount)
-            islandActiveVal.Text = string.format("<font color=\"#8e92a4\">Active</font>  <font color=\"#ffffff\"><b>%d</b></font>", scriptActiveUsers)
+            islandPlrVal.Text = string.format("<font color=\"#8e92a4\">Players</font>  <font color=\"#ffffff\"><b>%d</b></font>", playerCount)
+            islandActiveVal.Text = string.format("<font color=\"#8e92a4\">Online</font>  <font color=\"#ffffff\"><b>%s</b></font>", (scriptActiveUsers >= 10000 and formatCount(scriptActiveUsers)) or tostring(scriptActiveUsers))
 
             wmPingText.Text = string.format("<font color=\"#ffffff\"><b>%d</b></font> <font color=\"#8e92a4\">ms</font>", ping)
 
@@ -7855,27 +8318,17 @@ function Library.new(selfOrOpts, options)
                 if newState ~= nil then self.state = newState else self.state = not self.state end
                 Library.Flags[self.flag] = self.state
                 Switch:SetAttribute("State", self.state)
-                local tiStretch = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                local tiSlide = TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-                local colorTi = TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+                local tiSlide = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                local colorTi = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
                 if self.state then
                     TweenService:Create(Switch, colorTi, {BackgroundColor3 = genv.togglecoloron or genv.accent or Color3.fromRGB(168, 85, 247)}):Play()
-                    TweenService:Create(Circle, tiStretch, {Size = UDim2.new(0, 14, 0, 11)}):Play()
                     TweenService:Create(Circle, tiSlide, {Position = UDim2.new(1, -13, 0.5, 0)}):Play()
-                    task.delay(0.09, function()
-                        if Circle and Circle.Parent then
-                            TweenService:Create(Circle, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 11, 0, 11)}):Play()
-                        end
-                    end)
                 else
                     TweenService:Create(Switch, colorTi, {BackgroundColor3 = genv.togglecoloroff or Color3.fromRGB(60, 64, 72)}):Play()
-                    TweenService:Create(Circle, tiStretch, {Size = UDim2.new(0, 14, 0, 11)}):Play()
                     TweenService:Create(Circle, tiSlide, {Position = UDim2.new(0, 2, 0.5, 0)}):Play()
-                    task.delay(0.09, function()
-                        if Circle and Circle.Parent then
-                            TweenService:Create(Circle, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 11, 0, 11)}):Play()
-                        end
-                    end)
+                end
+                if Library.UpdateActionButtonStateByFlag then
+                    Library:UpdateActionButtonStateByFlag(self.flag, self.state)
                 end
                 if not skipCallback then
                     Library.save_flags(self.flag)
