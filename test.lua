@@ -170,7 +170,11 @@ end
 
 local function fetchScriptActiveUsers()
     task.spawn(function()
-        scriptActiveUsers = math.clamp(scriptActiveUsers + math.random(-2, 3), 270, 315)
+        if Library.OnlineCount and Library.OnlineCount > 0 then
+            scriptActiveUsers = Library.OnlineCount
+        else
+            scriptActiveUsers = math.clamp(scriptActiveUsers + math.random(-2, 3), 270, 315)
+        end
         for _, fn in ipairs(scriptUserListeners) do
             pcall(fn, scriptActiveUsers)
         end
@@ -2111,6 +2115,9 @@ function Library:SetCustomCursor(enabled, style, size, color, assetUrl)
         UserInputService.MouseIconEnabled = true
         return
     end
+    if IsMobile and not UserInputService.MouseEnabled then
+        return
+    end
     UserInputService.MouseIconEnabled = false
     if not CursorGui then
         CursorGui = Instance.new("ScreenGui")
@@ -2133,8 +2140,27 @@ function Library:SetCustomCursor(enabled, style, size, color, assetUrl)
         CursorDot.Image = "rbxassetid://13321880274"
     elseif style == "Classic Arrow" then
         CursorDot.Image = "rbxassetid://12941020168"
-    elseif style == "Custom Image" and assetUrl and assetUrl ~= "" then
-        CursorDot.Image = assetUrl
+    elseif style == "Dot" then
+        CursorDot.Image = "rbxassetid://17290798394"
+    elseif (style == "Custom Image" or (assetUrl and assetUrl ~= "")) then
+        local targetUrl = assetUrl or ""
+        if targetUrl:find("^https?://") then
+            pcall(function()
+                local getAsset = getsynasset or getcustomasset
+                if getAsset and writefile then
+                    local res = game:HttpGet(targetUrl)
+                    if not isfolder("Moondiety") and makefolder then makefolder("Moondiety") end
+                    writefile("Moondiety/custom_cursor.png", res)
+                    CursorDot.Image = getAsset("Moondiety/custom_cursor.png")
+                end
+            end)
+        elseif targetUrl:match("^%d+$") then
+            CursorDot.Image = "rbxassetid://" .. targetUrl
+        elseif targetUrl ~= "" then
+            CursorDot.Image = targetUrl
+        else
+            CursorDot.Image = "rbxassetid://17290798394"
+        end
     else
         CursorDot.Image = "rbxassetid://17290798394"
     end
@@ -2179,6 +2205,12 @@ task.spawn(function()
                     local data = HttpService:JSONDecode(body)
                     if data and data.online then
                         Library.OnlineCount = tonumber(data.online) or Library.OnlineCount
+                        if Library.OnlineCount > 0 then
+                            scriptActiveUsers = Library.OnlineCount
+                            for _, fn in ipairs(scriptUserListeners) do
+                                pcall(fn, scriptActiveUsers)
+                            end
+                        end
                     end
                 end
             end
@@ -2205,7 +2237,14 @@ end)
 
 Library.ActionButtons = {}
 Library.HudPositions = {}
-Library.HudPositionsFile = "Moondiety/hud_positions.json"
+function Library:GetHudPositionsFile()
+    local gId = game.GameId
+    if not gId or gId == 0 then
+        gId = game.PlaceId or 0
+    end
+    return "Moondiety/hud_positions_" .. tostring(gId) .. ".json"
+end
+Library.HudPositionsFile = Library:GetHudPositionsFile()
 Library.HudMode = "Both"
 Library.HudButtonSize = 58
 Library.HudButtonRounding = 16
@@ -2216,15 +2255,23 @@ function Library:SaveHudPositions()
     pcall(function()
         if not isfolder("Moondiety") and makefolder then makefolder("Moondiety") end
         if writefile then
-            writefile(Library.HudPositionsFile, HttpService:JSONEncode(Library.HudPositions))
+            local targetFile = Library:GetHudPositionsFile()
+            writefile(targetFile, HttpService:JSONEncode(Library.HudPositions))
         end
     end)
 end
 
 function Library:LoadHudPositions()
     pcall(function()
-        if isfile and isfile(Library.HudPositionsFile) and readfile then
-            local data = HttpService:JSONDecode(readfile(Library.HudPositionsFile))
+        local targetFile = Library:GetHudPositionsFile()
+        local filePath = nil
+        if isfile and isfile(targetFile) then
+            filePath = targetFile
+        elseif isfile and isfile("Moondiety/hud_positions.json") then
+            filePath = "Moondiety/hud_positions.json"
+        end
+        if filePath and readfile then
+            local data = HttpService:JSONDecode(readfile(filePath))
             if type(data) == "table" then
                 Library.HudPositions = data
             end
@@ -2272,8 +2319,12 @@ end
 function Library:ResetHudPositions()
     table.clear(Library.HudPositions)
     pcall(function()
-        if isfile and isfile(Library.HudPositionsFile) and delfile then
-            delfile(Library.HudPositionsFile)
+        local targetFile = Library:GetHudPositionsFile()
+        if isfile and isfile(targetFile) and delfile then
+            delfile(targetFile)
+        end
+        if isfile and isfile("Moondiety/hud_positions.json") and delfile then
+            delfile("Moondiety/hud_positions.json")
         end
     end)
     for id, item in pairs(Library.ActionButtons) do
@@ -2867,7 +2918,7 @@ function Library:SetIslandVisible(state)
     Library.IslandEnabled = state
     if Library.IslandFrame then
         Library.IslandFrame.Visible = state and Library.hidden
-        if state and Library.hidden and Library.IslandStyle == "Always Show" and Library.SetIslandExpanded then
+        if state and Library.hidden and (Library.IslandStyle == "Always Show" or Library.IslandStyle == "Always Expanded") and Library.SetIslandExpanded then
             Library.SetIslandExpanded(true)
         end
     end
@@ -2876,7 +2927,7 @@ end
 function Library:SetIslandStyle(style)
     Library.IslandStyle = style
     if Library.IslandFrame and Library.IslandFrame.Visible and Library.SetIslandExpanded then
-        if style == "Always Show" then
+        if style == "Always Show" or style == "Always Expanded" then
             Library.SetIslandExpanded(true)
         else
             Library.SetIslandExpanded(false)
@@ -5078,13 +5129,13 @@ function Library.new(selfOrOpts, options)
     Library.SetIslandExpanded = setIslandExpanded
 
     island.MouseEnter:Connect(function()
-        if Library.IslandStyle == "Show on Hover" then
+        if Library.IslandStyle == "Expand on Hover" or Library.IslandStyle == "Show on Hover" then
             setIslandExpanded(true)
         end
     end)
     island.MouseLeave:Connect(function()
-        if Library.IslandStyle == "Show on Hover" and not islandDragging then
-            task.delay(0.08, function()
+        if (Library.IslandStyle == "Expand on Hover" or Library.IslandStyle == "Show on Hover") and not islandDragging then
+            task.delay(0.12, function()
                 if not islandExpandedState or islandDragging then return end
                 local mPos = UserInputService:GetMouseLocation()
                 local aPos = island.AbsolutePosition
@@ -5128,8 +5179,19 @@ function Library.new(selfOrOpts, options)
             if islandDragging then
                 islandDragging = false
                 TweenService:Create(islandScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), {Scale = 1}):Play()
-                if not islandMoved and Library.IslandStyle == "Click to Expand" then
-                    setIslandExpanded(not islandExpandedState)
+                if not islandMoved then
+                    if Library.IslandStyle == "Click to Expand" or ((Library.IslandStyle == "Expand on Hover" or Library.IslandStyle == "Show on Hover") and input.UserInputType == Enum.UserInputType.Touch) then
+                        setIslandExpanded(not islandExpandedState)
+                    elseif Library.IslandStyle == "Compact Pill" then
+                        setHidden(false)
+                    end
+                end
+            elseif islandExpandedState and (Library.IslandStyle == "Click to Expand" or ((Library.IslandStyle == "Expand on Hover" or Library.IslandStyle == "Show on Hover") and input.UserInputType == Enum.UserInputType.Touch)) then
+                local pos = input.Position
+                local aPos = island.AbsolutePosition
+                local aSize = island.AbsoluteSize
+                if pos.X < aPos.X or pos.X > aPos.X + aSize.X or pos.Y < aPos.Y or pos.Y > aPos.Y + aSize.Y then
+                    setIslandExpanded(false)
                 end
             end
         end
