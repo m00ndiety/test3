@@ -2332,12 +2332,26 @@ function Library:LoadHudPositions()
         end
     end)
 end
+Library.FloatingButtonsVisible = true
 Library:LoadHudPositions()
+
+function Library:SetFloatingButtonsVisible(state)
+    Library.FloatingButtonsVisible = (state == true)
+    if Library.Objects and Library.Objects["hud_show_floating_buttons"] and Library.Objects["hud_show_floating_buttons"].SetValue then
+        if Library.Objects["hud_show_floating_buttons"]:GetValue() ~= Library.FloatingButtonsVisible then
+            Library.Objects["hud_show_floating_buttons"]:SetValue(Library.FloatingButtonsVisible, true)
+        end
+    end
+    Library:UpdateHudVisibility()
+end
 
 function Library:UpdateHudVisibility()
     local mode = Library.HudMode or "Both"
     local showButtons = (mode == "Both" or mode == "Floating Buttons Only")
     local showKeybinds = (mode == "Both" or mode == "Keybind HUD Only")
+    if Library.FloatingButtonsVisible == false then
+        showButtons = false
+    end
     if Library.HudGui then
         Library.HudGui.Enabled = showButtons
     end
@@ -2347,15 +2361,16 @@ function Library:UpdateHudVisibility()
 end
 
 function Library:SetHudButtonSize(newSize)
-    newSize = tonumber(newSize) or 58
+    newSize = tonumber(newSize) or 54
     Library.HudButtonSize = newSize
+    local newW = math.floor(newSize * 1.08)
     for _, item in pairs(Library.ActionButtons) do
-        if item.btn then item.btn.Size = UDim2.new(0, newSize, 0, newSize) end
+        if item.btn then item.btn.Size = UDim2.new(0, newW, 0, newSize) end
     end
 end
 
 function Library:SetHudButtonRounding(radius)
-    radius = tonumber(radius) or 16
+    radius = tonumber(radius) or 10
     Library.HudButtonRounding = radius
     for _, item in pairs(Library.ActionButtons) do
         if item.corner then item.corner.CornerRadius = UDim.new(0, radius) end
@@ -2363,7 +2378,7 @@ function Library:SetHudButtonRounding(radius)
 end
 
 function Library:SetHudButtonTransparency(trans)
-    trans = tonumber(trans) or 0.2
+    trans = tonumber(trans) or 0.15
     Library.HudButtonTransparency = trans
     for _, item in pairs(Library.ActionButtons) do
         if item.btn then item.btn.BackgroundTransparency = trans end
@@ -2403,13 +2418,6 @@ function Library:UpdateActionButtonStateByFlag(flag, state)
     end
 end
 
-function Library:SetActionButtonState(id, state)
-    local item = Library.ActionButtons[id]
-    if item and item.SetState then
-        item:SetState(state)
-    end
-end
-
 function Library:RegisterActionButton(cfg)
     local id = cfg.id or cfg.name
     if not id then return end
@@ -2426,6 +2434,7 @@ function Library:RegisterActionButton(cfg)
         btnGui.ResetOnSpawn = false
         btnGui.IgnoreGuiInset = true
         btnGui.DisplayOrder = 99999
+        btnGui.Enabled = (Library.FloatingButtonsVisible ~= false)
         btnGui.Parent = (gethui and gethui()) or CoreGui
         Library.HudGui = btnGui
     end
@@ -2436,13 +2445,19 @@ function Library:RegisterActionButton(cfg)
         activeState = Library.Flags[cfg.flag] == true
     end
 
-    local size = Library.HudButtonSize or 58
+    local size = Library.HudButtonSize or 54
+    local width = math.floor(size * 1.08)
+    local height = size
+    local accentColor = genv.accent or cfg.color or Color3.fromRGB(168, 85, 247)
+    local containerColor = genv.uicontainer or Color3.fromRGB(18, 19, 24)
+    local lineColor = genv.uiline or Color3.fromRGB(42, 45, 56)
+
     local btn = Instance.new("TextButton")
     btn.Name = id .. "Btn"
-    btn.Size = UDim2.new(0, size, 0, size)
+    btn.Size = UDim2.new(0, width, 0, height)
     btn.Position = pos
     btn.AnchorPoint = Vector2.new(0.5, 0.5)
-    btn.BackgroundColor3 = activeState and Color3.fromRGB(28, 30, 44) or (genv.uicontainer or Color3.fromRGB(18, 20, 27))
+    btn.BackgroundColor3 = activeState and Color3.fromRGB(24, 26, 36) or containerColor
     btn.BackgroundTransparency = Library.HudButtonTransparency or 0.15
     btn.Text = ""
     btn.AutoButtonColor = false
@@ -2452,97 +2467,86 @@ function Library:RegisterActionButton(cfg)
     shadow.Name = "Shadow"
     shadow.AnchorPoint = Vector2.new(0.5, 0.5)
     shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
-    shadow.Size = UDim2.new(1, 24, 1, 24)
+    shadow.Size = UDim2.new(1, 16, 1, 16)
     shadow.BackgroundTransparency = 1
     shadow.Image = "rbxassetid://17290899982"
     shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-    shadow.ImageTransparency = 0.5
+    shadow.ImageTransparency = 0.55
     shadow.ZIndex = 0
     shadow.Parent = btn
 
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, Library.HudButtonRounding or 16)
+    corner.CornerRadius = UDim.new(0, Library.HudButtonRounding or 10)
     corner.Parent = btn
 
-    local accentColor = cfg.color or genv.accent or Color3.fromRGB(168, 85, 247)
     local btnStroke = Instance.new("UIStroke")
-    btnStroke.Thickness = 1.4
-    btnStroke.Color = activeState and accentColor or (genv.uiline or Color3.fromRGB(42, 45, 58))
-    btnStroke.Transparency = activeState and 0.15 or 0.45
+    btnStroke.Thickness = 1.2
+    btnStroke.Color = activeState and accentColor or lineColor
+    btnStroke.Transparency = activeState and 0.12 or 0.38
     btnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     btnStroke.Parent = btn
 
     local glowLine = Instance.new("Frame")
-    glowLine.Name = "TopGlow"
+    glowLine.Name = "TopHighlight"
     glowLine.AnchorPoint = Vector2.new(0.5, 0)
     glowLine.Position = UDim2.new(0.5, 0, 0, 0)
-    glowLine.Size = UDim2.new(0.65, 0, 0, 1)
-    glowLine.BackgroundColor3 = WHITE
-    glowLine.BackgroundTransparency = activeState and 0.25 or 0.55
+    glowLine.Size = UDim2.new(0.55, 0, 0, 1)
+    glowLine.BackgroundColor3 = activeState and accentColor or lineColor
+    glowLine.BackgroundTransparency = activeState and 0.25 or 0.65
     glowLine.BorderSizePixel = 0
     glowLine.ZIndex = 2
     glowLine.Parent = btn
 
-    local grad = Instance.new("UIGradient")
-    grad.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, accentColor),
-        ColorSequenceKeypoint.new(0.5, WHITE),
-        ColorSequenceKeypoint.new(1, accentColor)
-    }
-    grad.Transparency = NumberSequence.new{
-        NumberSequenceKeypoint.new(0, 1),
-        NumberSequenceKeypoint.new(0.5, 0.2),
-        NumberSequenceKeypoint.new(1, 1)
-    }
-    grad.Parent = glowLine
-
-    local statusDot = Instance.new("Frame")
-    statusDot.Name = "StatusDot"
-    statusDot.AnchorPoint = Vector2.new(1, 0)
-    statusDot.Position = UDim2.new(1, -6, 0, 6)
-    statusDot.Size = UDim2.new(0, 8, 0, 8)
-    statusDot.BackgroundColor3 = activeState and SUCCESS_COLOR or Color3.fromRGB(48, 52, 66)
-    statusDot.BorderSizePixel = 0
-    statusDot.Visible = isToggle
-    statusDot.ZIndex = 3
-    statusDot.Parent = btn
-    pill(statusDot)
-    stroke(statusDot, Color3.fromRGB(24, 26, 36), 1, 0.3)
-
     local icon = Instance.new("ImageLabel")
     icon.Name = "Icon"
     icon.Size = UDim2.new(0, 20, 0, 20)
-    icon.Position = UDim2.new(0.5, 0, 0.36, 0)
+    icon.Position = UDim2.new(0.5, 0, 0, 16)
     icon.AnchorPoint = Vector2.new(0.5, 0.5)
     icon.BackgroundTransparency = 1
     icon.Image = cfg.icon or ""
-    icon.ImageColor3 = activeState and accentColor or Color3.fromRGB(165, 172, 190)
+    icon.ImageColor3 = activeState and accentColor or Color3.fromRGB(165, 170, 185)
     icon.ZIndex = 2
     icon.Parent = btn
 
-    local function getButtonLabel(state)
-        local base = string.upper(cfg.name or id)
-        if not isToggle then return base end
-        if state then
-            return base .. '  <font color="#22c55e"><b>ON</b></font>'
-        end
-        return base .. '  <font color="#64748b">OFF</font>'
-    end
-
     local label = Instance.new("TextLabel")
     label.Name = "Label"
-    label.Size = UDim2.new(1, -6, 0, 16)
-    label.Position = UDim2.new(0.5, 0, 0.79, 0)
+    label.Size = UDim2.new(1, -6, 0, 12)
+    label.Position = UDim2.new(0.5, 0, 1, -9)
     label.AnchorPoint = Vector2.new(0.5, 0.5)
     label.BackgroundTransparency = 1
-    label.RichText = true
-    label.Text = getButtonLabel(activeState)
-    label.TextColor3 = activeState and WHITE or Color3.fromRGB(160, 165, 180)
-    label.TextSize = 8
+    label.Text = string.upper(cfg.name or id)
+    label.TextColor3 = activeState and WHITE or Color3.fromRGB(175, 180, 195)
+    label.TextSize = 8.5
     label.FontFace = font(Enum.FontWeight.Bold)
-    label.TextWrapped = true
+    label.TextTruncate = Enum.TextTruncate.AtEnd
     label.ZIndex = 2
     label.Parent = btn
+
+    local switchTrack, switchKnob
+    if isToggle then
+        switchTrack = Instance.new("Frame")
+        switchTrack.Name = "SwitchTrack"
+        switchTrack.AnchorPoint = Vector2.new(1, 0)
+        switchTrack.Position = UDim2.new(1, -5, 0, 5)
+        switchTrack.Size = UDim2.new(0, 18, 0, 9)
+        switchTrack.BackgroundColor3 = activeState and accentColor or Color3.fromRGB(36, 38, 48)
+        switchTrack.BorderSizePixel = 0
+        switchTrack.ZIndex = 3
+        switchTrack.Parent = btn
+        pill(switchTrack)
+        stroke(switchTrack, Color3.fromRGB(50, 53, 66), 1, 0.5)
+
+        switchKnob = Instance.new("Frame")
+        switchKnob.Name = "SwitchKnob"
+        switchKnob.AnchorPoint = Vector2.new(0, 0.5)
+        switchKnob.Position = activeState and UDim2.new(1, -8, 0.5, 0) or UDim2.new(0, 1, 0.5, 0)
+        switchKnob.Size = UDim2.new(0, 7, 0, 7)
+        switchKnob.BackgroundColor3 = WHITE
+        switchKnob.BorderSizePixel = 0
+        switchKnob.ZIndex = 4
+        switchKnob.Parent = switchTrack
+        pill(switchKnob)
+    end
 
     local item = {
         btn = btn,
@@ -2551,10 +2555,12 @@ function Library:RegisterActionButton(cfg)
         icon = icon,
         label = label,
         corner = corner,
-        statusDot = statusDot,
         glowLine = glowLine,
+        switchTrack = switchTrack,
+        switchKnob = switchKnob,
         isToggle = isToggle,
-        state = activeState
+        state = activeState,
+        accentColor = accentColor
     }
 
     function item:SetState(newState)
@@ -2562,46 +2568,85 @@ function Library:RegisterActionButton(cfg)
         if cfg.flag then
             Library.Flags[cfg.flag] = item.state
         end
-        local dur = 0.2
+        local dur = 0.18
         local ti = TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        label.Text = getButtonLabel(item.state)
+        local curAccent = item.accentColor or genv.accent or Color3.fromRGB(168, 85, 247)
+        local curContainer = genv.uicontainer or Color3.fromRGB(18, 19, 24)
+        local curLine = genv.uiline or Color3.fromRGB(42, 45, 56)
         if item.state then
-            TweenService:Create(btn, ti, {BackgroundColor3 = Color3.fromRGB(28, 30, 44)}):Play()
-            TweenService:Create(btnStroke, ti, {Color = accentColor, Transparency = 0.15}):Play()
-            TweenService:Create(icon, ti, {ImageColor3 = accentColor}):Play()
+            TweenService:Create(btn, ti, {BackgroundColor3 = Color3.fromRGB(24, 26, 36)}):Play()
+            TweenService:Create(btnStroke, ti, {Color = curAccent, Transparency = 0.12}):Play()
+            TweenService:Create(icon, ti, {ImageColor3 = curAccent}):Play()
             TweenService:Create(label, ti, {TextColor3 = WHITE}):Play()
-            TweenService:Create(statusDot, ti, {BackgroundColor3 = SUCCESS_COLOR}):Play()
-            TweenService:Create(glowLine, ti, {BackgroundTransparency = 0.2}):Play()
+            TweenService:Create(glowLine, ti, {BackgroundColor3 = curAccent, BackgroundTransparency = 0.25}):Play()
+            if switchTrack and switchKnob then
+                TweenService:Create(switchTrack, ti, {BackgroundColor3 = curAccent}):Play()
+                TweenService:Create(switchKnob, ti, {Position = UDim2.new(1, -8, 0.5, 0)}):Play()
+            end
         else
-            TweenService:Create(btn, ti, {BackgroundColor3 = genv.uicontainer or Color3.fromRGB(18, 20, 27)}):Play()
-            TweenService:Create(btnStroke, ti, {Color = genv.uiline or Color3.fromRGB(42, 45, 58), Transparency = 0.45}):Play()
-            TweenService:Create(icon, ti, {ImageColor3 = Color3.fromRGB(165, 172, 190)}):Play()
-            TweenService:Create(label, ti, {TextColor3 = Color3.fromRGB(160, 165, 180)}):Play()
-            TweenService:Create(statusDot, ti, {BackgroundColor3 = Color3.fromRGB(48, 52, 66)}):Play()
-            TweenService:Create(glowLine, ti, {BackgroundTransparency = 0.55}):Play()
+            TweenService:Create(btn, ti, {BackgroundColor3 = curContainer}):Play()
+            TweenService:Create(btnStroke, ti, {Color = curLine, Transparency = 0.38}):Play()
+            TweenService:Create(icon, ti, {ImageColor3 = Color3.fromRGB(165, 170, 185)}):Play()
+            TweenService:Create(label, ti, {TextColor3 = Color3.fromRGB(175, 180, 195)}):Play()
+            TweenService:Create(glowLine, ti, {BackgroundColor3 = curLine, BackgroundTransparency = 0.65}):Play()
+            if switchTrack and switchKnob then
+                TweenService:Create(switchTrack, ti, {BackgroundColor3 = Color3.fromRGB(36, 38, 48)}):Play()
+                TweenService:Create(switchKnob, ti, {Position = UDim2.new(0, 1, 0.5, 0)}):Play()
+            end
+        end
+    end
+
+    function item:UpdateTheme(cContainer, cLine, cAccent)
+        cAccent = cAccent or genv.accent or Color3.fromRGB(168, 85, 247)
+        cContainer = cContainer or genv.uicontainer or Color3.fromRGB(18, 19, 24)
+        cLine = cLine or genv.uiline or Color3.fromRGB(42, 45, 56)
+        item.accentColor = cAccent
+        if item.state then
+            btn.BackgroundColor3 = Color3.fromRGB(24, 26, 36)
+            btnStroke.Color = cAccent
+            icon.ImageColor3 = cAccent
+            label.TextColor3 = WHITE
+            glowLine.BackgroundColor3 = cAccent
+            glowLine.BackgroundTransparency = 0.25
+            if switchTrack then switchTrack.BackgroundColor3 = cAccent end
+        else
+            btn.BackgroundColor3 = cContainer
+            btnStroke.Color = cLine
+            icon.ImageColor3 = Color3.fromRGB(165, 170, 185)
+            label.TextColor3 = Color3.fromRGB(175, 180, 195)
+            glowLine.BackgroundColor3 = cLine
+            glowLine.BackgroundTransparency = 0.65
+            if switchTrack then switchTrack.BackgroundColor3 = Color3.fromRGB(36, 38, 48) end
         end
     end
 
     local dragging = false
-    local dragStart, startPos
+    local dragStartPos = nil
+    local initialPos = nil
+    local hasDragged = false
+
     btn.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             if not Library.HudPositionsLocked then
                 dragging = true
-                dragStart = input.Position
-                startPos = btn.Position
+                dragStartPos = input.Position
+                initialPos = btn.Position
+                hasDragged = false
             end
         end
     end)
 
     UserInputService.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - dragStart
+            local delta = input.Position - dragStartPos
+            if delta.Magnitude > 6 then
+                hasDragged = true
+            end
             btn.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
+                initialPos.X.Scale,
+                initialPos.X.Offset + delta.X,
+                initialPos.Y.Scale,
+                initialPos.Y.Offset + delta.Y
             )
         end
     end)
@@ -2613,6 +2658,7 @@ function Library:RegisterActionButton(cfg)
             Library:SaveHudPositions()
         end
     end
+
     btn.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             endDrag()
@@ -2620,6 +2666,10 @@ function Library:RegisterActionButton(cfg)
     end)
 
     btn.Activated:Connect(function()
+        if hasDragged then
+            hasDragged = false
+            return
+        end
         if isToggle then
             item:SetState(not item.state)
             if cfg.flag and Library.Objects[cfg.flag] and Library.Objects[cfg.flag].SetValue then
@@ -2629,10 +2679,12 @@ function Library:RegisterActionButton(cfg)
         if cfg.callback then
             pcall(cfg.callback, isToggle and item.state or nil)
         end
-        TweenService:Create(btn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, size * 0.94, 0, size * 0.94)}):Play()
-        task.delay(0.08, function()
+        local currentW = math.floor((Library.HudButtonSize or 54) * 1.08)
+        local currentH = Library.HudButtonSize or 54
+        TweenService:Create(btn, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, currentW * 0.93, 0, currentH * 0.93)}):Play()
+        task.delay(0.09, function()
             if btn and btn.Parent then
-                TweenService:Create(btn, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, size, 0, size)}):Play()
+                TweenService:Create(btn, TweenInfo.new(0.14, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, currentW, 0, currentH)}):Play()
             end
         end)
     end)
@@ -2661,6 +2713,16 @@ function Library:BuildKeybindsAndHudTab(tab)
     Library.KeybindsAndHudTab = tab
     Library.RegisteredHudToggles = Library.RegisteredHudToggles or {}
     tab.create_title({ name = "== HUD DISPLAY MODE ==", section = "left" })
+    tab.create_toggle({
+        name = "Show Mobile Floating Buttons",
+        flag = "hud_show_floating_buttons",
+        section = "left",
+        enabled = Library.FloatingButtonsVisible ~= false,
+        keybind = { default = "None", flag = "hud_floating_buttons_key" },
+        callback = function(state)
+            Library:SetFloatingButtonsVisible(state)
+        end
+    })
     tab.create_dropdown({
         name = "Active HUD Mode",
         flag = "hud_display_mode",
@@ -5794,6 +5856,13 @@ function Library.new(selfOrOpts, options)
                     if data.accentBar and (data.nType == "Info" or not data.nType) then
                         data.accentBar.BackgroundColor3 = cAccent
                     end
+                end
+            end
+        end
+        if Library.ActionButtons then
+            for _, ab in pairs(Library.ActionButtons) do
+                if ab and ab.UpdateTheme then
+                    ab:UpdateTheme(cContainer, cLine, cAccent)
                 end
             end
         end
