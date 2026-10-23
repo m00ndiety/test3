@@ -1918,448 +1918,126 @@ function Library:RefreshConfigs()
     end
 end
 
-local LanguageDictionary = {
-    ["Spanish"] = {
-        ["Main"] = "Principal",
-        ["Settings"] = "Ajustes",
-        ["Server"] = "Servidor",
-        ["Player"] = "Jugador",
-        ["Visual"] = "Visuales",
-        ["Visuals"] = "Visuales",
-        ["Combat"] = "Combate",
-        ["Misc"] = "Varios",
-        ["Keybinds"] = "Atajos",
-        ["Keybinds & HUD"] = "Atajos y HUD",
-        ["HUD DISPLAY MODE"] = "MODO DE VISUALIZACION HUD",
-        ["FLOATING BUTTONS CUSTOMIZATION"] = "PERSONALIZAR BOTONES FLOTANTES",
-        ["REGISTERED ACTIONS & TOGGLES"] = "ACCIONES Y BOTONES REGISTRADOS",
-        ["VISUAL & CURSOR CUSTOMIZATION"] = "PERSONALIZACION VISUAL Y CURSOR",
-        ["SERVER HOPPING & MATCHMAKING"] = "SALTO DE SERVIDOR Y EMPAREJAMIENTO",
-        ["CONFIGURATION MANAGER"] = "GESTOR DE CONFIGURACION",
-        ["LIVE EVENT ALERTS"] = "ALERTAS DE EVENTOS EN VIVO",
-        ["SCREEN AMBIENCE"] = "AMBIENTE EN PANTALLA",
-        ["TOAST NOTIFICATIONS"] = "NOTIFICACIONES TOAST",
-        ["CONFIRMATION PROMPTS"] = "AVISOS DE CONFIRMACION",
-        ["Active HUD Mode"] = "Modo HUD Activo",
-        ["Lock HUD Positions"] = "Bloquear Posiciones HUD",
-        ["Reset HUD Positions"] = "Restablecer Posiciones HUD",
-        ["Button Size"] = "Tamano de Boton",
-        ["Corner Rounding (Shape)"] = "Redondeo de Bordes",
-        ["Background Transparency (%)"] = "Transparencia de Fondo (%)",
-        ["Multi-Language Support"] = "Soporte Multi-Idioma",
-        ["Select Language"] = "Seleccionar Idioma",
-        ["Custom Cursor"] = "Cursor Personalizado",
-        ["Cursor Style"] = "Estilo de Cursor",
-        ["Custom Cursor Image URL / ID"] = "URL / ID de Imagen Cursor",
-        ["Cursor Size"] = "Tamano de Cursor",
-        ["Window Background Image"] = "Imagen de Fondo de Ventana",
-        ["Window Transparency"] = "Transparencia de Ventana",
-        ["Atmosphere & Themes"] = "Atmosfera y Temas",
-        ["Selected Theme"] = "Tema Seleccionado",
-        ["Enable Smart ServerHop"] = "Activar Salto Inteligente",
-        ["Server Hop Delay (s)"] = "Espera de Salto (s)",
-        ["Minimum Server Players"] = "Minimo Jugadores Servidor",
-        ["Avoid Same Server"] = "Evitar Mismo Servidor",
-        ["Rejoin Server"] = "Reconectar Servidor",
-        ["Copy Server JobId"] = "Copiar JobId del Servidor",
-        ["Discord Webhook URL"] = "URL de Webhook Discord",
-        ["Discord Alerts"] = "Alertas de Discord",
-        ["Live Event Alerts"] = "Alertas de Eventos en Vivo",
-        ["Config Name"] = "Nombre de Config",
-        ["Saved Configs"] = "Configs Guardadas",
-        ["Save Config"] = "Guardar Config",
-        ["Load Config"] = "Cargar Config",
-        ["Delete Config"] = "Eliminar Config",
-        ["Autoload Selected Config"] = "Cargar Config Seleccionada",
-        ["Autosave Config"] = "Guardado Automatico",
-        ["Auto Load Script on Teleport"] = "Autocargar Script al Teletransportarse",
-        ["Nearby Players"] = "Jugadores Cercanos",
-        ["Active Keybinds"] = "Atajos Activos",
-        ["Grab Gun"] = "Agarrar Arma",
-        ["Shoot Murderer"] = "Disparar al Asesino",
-        ["Aimbot"] = "Apuntado",
-        ["Silent Aim"] = "Apuntado Silencioso",
-        ["Kill All"] = "Eliminar a Todos",
-        ["Throw Knife"] = "Lanzar Cuchillo",
-        ["Noclip"] = "Atravesar Paredes",
-        ["Wall Hop"] = "Salto de Pared",
-        ["Free X-Ray"] = "Rayos X Gratis",
-        ["Fly"] = "Volar",
-        ["Kill Sheriff"] = "Eliminar Alguacil",
-        ["Auto Prestige"] = "Auto Prestigio",
-        ["WalkSpeed"] = "Velocidad al Caminar",
-        ["JumpPower"] = "Fuerza de Salto",
-        ["Infinite Jump"] = "Salto Infinito",
-        ["Anti AFK"] = "Anti Desconexion AFK",
-        ["Fullbright"] = "Brillo Total",
-        ["Low Graphics"] = "Graficos Bajos",
-        ["Remove Fog"] = "Quitar Niebla",
-        ["FPS Cap"] = "Limite de FPS"
-    },
-    ["Portuguese"] = {
-        ["Main"] = "Principal",
-        ["Settings"] = "Configuracoes",
-        ["Server"] = "Servidor",
-        ["Player"] = "Jogador",
-        ["Visual"] = "Visuais",
-        ["Visuals"] = "Visuais",
-        ["Combat"] = "Combate",
-        ["Misc"] = "Diversos",
-        ["Keybinds"] = "Teclas",
-        ["Keybinds & HUD"] = "Teclas e HUD",
-        ["HUD DISPLAY MODE"] = "MODO DE EXIBICAO HUD",
-        ["FLOATING BUTTONS CUSTOMIZATION"] = "PERSONALIZAR BOTOES FLUTUANTES",
-        ["REGISTERED ACTIONS & TOGGLES"] = "ACOES E ATALHOS REGISTRADOS",
-        ["VISUAL & CURSOR CUSTOMIZATION"] = "PERSONALIZACAO VISUAL E CURSOR",
-        ["SERVER HOPPING & MATCHMAKING"] = "TROCA DE SERVIDOR E PARTIDA",
-        ["CONFIGURATION MANAGER"] = "GERENCIADOR DE CONFIGURACAO",
-        ["LIVE EVENT ALERTS"] = "ALERTAS EM TEMPO REAL",
-        ["SCREEN AMBIENCE"] = "AMBIENCIA DE TELA",
-        ["TOAST NOTIFICATIONS"] = "NOTIFICACOES TOAST",
-        ["CONFIRMATION PROMPTS"] = "CONFIRMACOES",
-        ["Active HUD Mode"] = "Modo HUD Ativo",
-        ["Lock HUD Positions"] = "Travar Posicoes HUD",
-        ["Reset HUD Positions"] = "Redefinir Posicoes HUD",
-        ["Button Size"] = "Tamanho do Botao",
-        ["Corner Rounding (Shape)"] = "Arredondamento",
-        ["Background Transparency (%)"] = "Transparencia de Fundo (%)",
-        ["Multi-Language Support"] = "Suporte Multi-Idioma",
-        ["Select Language"] = "Selecionar Idioma",
-        ["Custom Cursor"] = "Cursor Personalizado",
-        ["Cursor Style"] = "Estilo de Cursor",
-        ["Custom Cursor Image URL / ID"] = "URL / ID da Imagem Cursor",
-        ["Cursor Size"] = "Tamanho do Cursor",
-        ["Window Background Image"] = "Imagem de Fundo da Janela",
-        ["Window Transparency"] = "Transparencia da Janela",
-        ["Atmosphere & Themes"] = "Atmosfera e Temas",
-        ["Selected Theme"] = "Tema Selecionado",
-        ["Enable Smart ServerHop"] = "Ativar Troca Inteligente",
-        ["Server Hop Delay (s)"] = "Espera de Troca (s)",
-        ["Minimum Server Players"] = "Minimo Jogadores Servidor",
-        ["Avoid Same Server"] = "Evitar Mesmo Servidor",
-        ["Rejoin Server"] = "Reconectar Servidor",
-        ["Copy Server JobId"] = "Copiar JobId do Servidor",
-        ["Discord Webhook URL"] = "URL do Webhook Discord",
-        ["Discord Alerts"] = "Alertas do Discord",
-        ["Live Event Alerts"] = "Alertas em Tempo Real",
-        ["Config Name"] = "Nome da Config",
-        ["Saved Configs"] = "Configs Salvas",
-        ["Save Config"] = "Salvar Config",
-        ["Load Config"] = "Carregar Config",
-        ["Delete Config"] = "Excluir Config",
-        ["Autoload Selected Config"] = "Carregar Config Selecionada",
-        ["Autosave Config"] = "Salvamento Automatico",
-        ["Auto Load Script on Teleport"] = "Autocarregar Script no Teleporte",
-        ["Nearby Players"] = "Jogadores Proximos",
-        ["Active Keybinds"] = "Teclas Ativas",
-        ["Grab Gun"] = "Pegar Arma",
-        ["Shoot Murderer"] = "Atirar no Assassino",
-        ["Aimbot"] = "Mira Automatica",
-        ["Silent Aim"] = "Mira Silenciosa",
-        ["Kill All"] = "Matar Todos",
-        ["Throw Knife"] = "Lancar Faca",
-        ["Noclip"] = "Atravessar Paredes",
-        ["Wall Hop"] = "Salto na Parede",
-        ["Free X-Ray"] = "Raio-X Gratis",
-        ["Fly"] = "Voar",
-        ["Kill Sheriff"] = "Matar Xerife",
-        ["Auto Prestige"] = "Auto Prestigio",
-        ["WalkSpeed"] = "Velocidade de Caminhada",
-        ["JumpPower"] = "Forca de Pulo",
-        ["Infinite Jump"] = "Pulo Infinito",
-        ["Anti AFK"] = "Anti AFK",
-        ["Fullbright"] = "Brilho Maximo",
-        ["Low Graphics"] = "Graficos Baixos",
-        ["Remove Fog"] = "Remover Neblina",
-        ["FPS Cap"] = "Limite de FPS"
-    },
-    ["Russian"] = {
-        ["Main"] = "Главная",
-        ["Settings"] = "Настройки",
-        ["Server"] = "Сервер",
-        ["Player"] = "Игрок",
-        ["Visual"] = "Визуалы",
-        ["Visuals"] = "Визуалы",
-        ["Combat"] = "Бой",
-        ["Misc"] = "Разное",
-        ["Keybinds"] = "Клавиши",
-        ["Keybinds & HUD"] = "Клавиши и HUD",
-        ["HUD DISPLAY MODE"] = "РЕЖИМ ОТОБРАЖЕНИЯ HUD",
-        ["FLOATING BUTTONS CUSTOMIZATION"] = "НАСТРОЙКА ПЛАВАЮЩИХ КНОПОК",
-        ["REGISTERED ACTIONS & TOGGLES"] = "ЗАРЕГИСТРИРОВАННЫЕ ДЕЙСТВИЯ",
-        ["VISUAL & CURSOR CUSTOMIZATION"] = "НАСТРОЙКА ВИЗУАЛОВ И КУРСОРА",
-        ["SERVER HOPPING & MATCHMAKING"] = "СМЕНА СЕРВЕРА И ПОИСК",
-        ["CONFIGURATION MANAGER"] = "МЕНЕДЖЕР КОНФИГУРАЦИЙ",
-        ["LIVE EVENT ALERTS"] = "ОПОВЕЩЕНИЯ СОБЫТИЙ",
-        ["SCREEN AMBIENCE"] = "ЭФФЕКТЫ ОКРУЖЕНИЯ",
-        ["TOAST NOTIFICATIONS"] = "ВСПЛЫВАЮЩИЕ УВЕДОМЛЕНИЯ",
-        ["CONFIRMATION PROMPTS"] = "ПОДТВЕРЖДЕНИЕ ДЕЙСТВИЙ",
-        ["Active HUD Mode"] = "Активный режим HUD",
-        ["Lock HUD Positions"] = "Закрепить позиции HUD",
-        ["Reset HUD Positions"] = "Сбросить позиции HUD",
-        ["Button Size"] = "Размер кнопок",
-        ["Corner Rounding (Shape)"] = "Закругление углов",
-        ["Background Transparency (%)"] = "Прозрачность фона (%)",
-        ["Multi-Language Support"] = "Мультиязычность",
-        ["Select Language"] = "Выбрать язык",
-        ["Custom Cursor"] = "Кастомный курсор",
-        ["Cursor Style"] = "Стиль курсора",
-        ["Custom Cursor Image URL / ID"] = "URL / ID изображения курсора",
-        ["Cursor Size"] = "Размер курсора",
-        ["Window Background Image"] = "Фоновое изображение окна",
-        ["Window Transparency"] = "Прозрачность окна",
-        ["Atmosphere & Themes"] = "Атмосфера и темы",
-        ["Selected Theme"] = "Выбранная тема",
-        ["Enable Smart ServerHop"] = "Включить умный серверхоп",
-        ["Server Hop Delay (s)"] = "Задержка серверхопа (с)",
-        ["Minimum Server Players"] = "Минимум игроков сервера",
-        ["Avoid Same Server"] = "Избегать тот же сервер",
-        ["Rejoin Server"] = "Перезайти на сервер",
-        ["Copy Server JobId"] = "Скопировать JobId сервера",
-        ["Discord Webhook URL"] = "Discord Webhook URL",
-        ["Discord Alerts"] = "Оповещения Discord",
-        ["Live Event Alerts"] = "Оповещения событий",
-        ["Config Name"] = "Имя конфига",
-        ["Saved Configs"] = "Сохраненные конфиги",
-        ["Save Config"] = "Сохранить конфиг",
-        ["Load Config"] = "Загрузить конфиг",
-        ["Delete Config"] = "Удалить конфиг",
-        ["Autoload Selected Config"] = "Автозагрузка конфига",
-        ["Autosave Config"] = "Автосохранение",
-        ["Auto Load Script on Teleport"] = "Автозагрузка скрипта при телепорте",
-        ["Nearby Players"] = "Игроки поблизости",
-        ["Active Keybinds"] = "Активные клавиши",
-        ["Grab Gun"] = "Взять пистолет",
-        ["Shoot Murderer"] = "Застрелить убийцу",
-        ["Aimbot"] = "Аимбот",
-        ["Silent Aim"] = "Тихий аимбот",
-        ["Kill All"] = "Убить всех",
-        ["Throw Knife"] = "Бросить нож",
-        ["Noclip"] = "Ноклип",
-        ["Wall Hop"] = "Прыжок от стены",
-        ["Free X-Ray"] = "Бесплатный X-Ray",
-        ["Fly"] = "Полет",
-        ["Kill Sheriff"] = "Убить шерифа",
-        ["Auto Prestige"] = "Авто престиж",
-        ["WalkSpeed"] = "Скорость ходьбы",
-        ["JumpPower"] = "Сила прыжка",
-        ["Infinite Jump"] = "Бесконечный прыжок",
-        ["Anti AFK"] = "Анти АФК",
-        ["Fullbright"] = "Полная яркость",
-        ["Low Graphics"] = "Низкая графика",
-        ["Remove Fog"] = "Убрать туман",
-        ["FPS Cap"] = "Ограничение FPS"
-    },
-    ["Turkish"] = {
-        ["Main"] = "Ana Menu",
-        ["Settings"] = "Ayarlar",
-        ["Server"] = "Sunucu",
-        ["Player"] = "Oyuncu",
-        ["Visual"] = "Gorseller",
-        ["Visuals"] = "Gorseller",
-        ["Combat"] = "Savas",
-        ["Misc"] = "Cesitli",
-        ["Keybinds"] = "Tuslar",
-        ["Keybinds & HUD"] = "Tuslar ve HUD",
-        ["HUD DISPLAY MODE"] = "HUD GORUNUM MODU",
-        ["FLOATING BUTTONS CUSTOMIZATION"] = "YUZEN DUGMELERI DUZENLE",
-        ["REGISTERED ACTIONS & TOGGLES"] = "KAYITLI EYLEMLER VE DUGMELER",
-        ["VISUAL & CURSOR CUSTOMIZATION"] = "GORSEL VE IMLEC DUZENLEME",
-        ["SERVER HOPPING & MATCHMAKING"] = "SUNUCU DEGISTIRME VE ESLESME",
-        ["CONFIGURATION MANAGER"] = "YAPILANDIRMA YONETICISI",
-        ["LIVE EVENT ALERTS"] = "CANLI ETKINLIK UYARILARI",
-        ["SCREEN AMBIENCE"] = "EKRAN ATMOSFERI",
-        ["TOAST NOTIFICATIONS"] = "BILDIRIMLER",
-        ["CONFIRMATION PROMPTS"] = "ONAY ISTEMLERI",
-        ["Active HUD Mode"] = "Aktif HUD Modu",
-        ["Lock HUD Positions"] = "HUD Konumlarini Kilitle",
-        ["Reset HUD Positions"] = "HUD Konumlarini Sifirla",
-        ["Button Size"] = "Dugme Boyutu",
-        ["Corner Rounding (Shape)"] = "Kose Yuvarlama",
-        ["Background Transparency (%)"] = "Arka Plan Saydamligi (%)",
-        ["Multi-Language Support"] = "Coklu Dil Destegi",
-        ["Select Language"] = "Dil Secin",
-        ["Custom Cursor"] = "Ozel Imlec",
-        ["Cursor Style"] = "Imlec Stili",
-        ["Custom Cursor Image URL / ID"] = "Imlec Resim URL / ID",
-        ["Cursor Size"] = "Imlec Boyutu",
-        ["Window Background Image"] = "Pencere Arka Plan Resmi",
-        ["Window Transparency"] = "Pencere Saydamligi",
-        ["Atmosphere & Themes"] = "Atmosfer ve Temalar",
-        ["Selected Theme"] = "Secilen Tema",
-        ["Enable Smart ServerHop"] = "Akilli Sunucu Gecisi",
-        ["Server Hop Delay (s)"] = "Sunucu Gecis Gecikmesi (sn)",
-        ["Minimum Server Players"] = "Minimum Sunucu Oyuncusu",
-        ["Avoid Same Server"] = "Ayni Sunucudan Kacin",
-        ["Rejoin Server"] = "Sunucuya Yeniden Baglan",
-        ["Copy Server JobId"] = "Sunucu JobId Kopyala",
-        ["Discord Webhook URL"] = "Discord Webhook Baglantisi",
-        ["Discord Alerts"] = "Discord Bildirimleri",
-        ["Live Event Alerts"] = "Canli Etkinlik Uyarilari",
-        ["Config Name"] = "Yapilandirma Adi",
-        ["Saved Configs"] = "Kayitli Yapilandirmalar",
-        ["Save Config"] = "Yapilandirmayi Kaydet",
-        ["Load Config"] = "Yapilandirmayi Yukle",
-        ["Delete Config"] = "Yapilandirmayi Sil",
-        ["Autoload Selected Config"] = "Secilen Ayari Otomatik Yukle",
-        ["Autosave Config"] = "Otomatik Kaydet",
-        ["Auto Load Script on Teleport"] = "Isinlanmada Scripti Otomatik Yukle",
-        ["Nearby Players"] = "Yakindaki Oyuncular",
-        ["Active Keybinds"] = "Aktif Tuslar",
-        ["Grab Gun"] = "Silahi Al",
-        ["Shoot Murderer"] = "Katili Vur",
-        ["Aimbot"] = "Nisan Alma",
-        ["Silent Aim"] = "Sessiz Nisan",
-        ["Kill All"] = "Herkesi Oldur",
-        ["Throw Knife"] = "Bicak Firlat",
-        ["Noclip"] = "Duvarlardan Gecme",
-        ["Wall Hop"] = "Duvar Sicramasi",
-        ["Free X-Ray"] = "Ucretsiz X-Ray",
-        ["Fly"] = "Ucma",
-        ["Kill Sheriff"] = "Serifi Oldur",
-        ["Auto Prestige"] = "Otomatik Prestij",
-        ["WalkSpeed"] = "Yurume Hizi",
-        ["JumpPower"] = "Ziplama Gucu",
-        ["Infinite Jump"] = "Sonsuz Ziplama",
-        ["Anti AFK"] = "Anti AFK",
-        ["Fullbright"] = "Tam Parlaklik",
-        ["Low Graphics"] = "Dusuk Grafikler",
-        ["Remove Fog"] = "Sisi Kaldir",
-        ["FPS Cap"] = "FPS Siniri"
-    },
-    ["Vietnamese"] = {
-        ["Main"] = "Chinh",
-        ["Settings"] = "Cai dat",
-        ["Server"] = "May chu",
-        ["Player"] = "Nguoi choi",
-        ["Visual"] = "Hinh anh",
-        ["Visuals"] = "Hinh anh",
-        ["Combat"] = "Chien dau",
-        ["Misc"] = "Khac",
-        ["Keybinds"] = "Phim tat",
-        ["Keybinds & HUD"] = "Phim tat va HUD",
-        ["HUD DISPLAY MODE"] = "CHE DO HIEN THI HUD",
-        ["FLOATING BUTTONS CUSTOMIZATION"] = "TUY CHINH NUT NOI",
-        ["REGISTERED ACTIONS & TOGGLES"] = "HANH DONG VA NUT DA DANG KY",
-        ["VISUAL & CURSOR CUSTOMIZATION"] = "TUY CHINH HINH ANH VA CON TRO",
-        ["SERVER HOPPING & MATCHMAKING"] = "CHUYEN MAY CHU VA GHEP DOI",
-        ["CONFIGURATION MANAGER"] = "QUAN LY CAU HINH",
-        ["LIVE EVENT ALERTS"] = "CANH BAO SU KIEN TRUC TIEP",
-        ["SCREEN AMBIENCE"] = "HIEU UNG MOI TRUONG",
-        ["TOAST NOTIFICATIONS"] = "THONG BAO TOAST",
-        ["CONFIRMATION PROMPTS"] = "HOP THOAI XAC NHAN",
-        ["Active HUD Mode"] = "Che do HUD",
-        ["Lock HUD Positions"] = "Khoa vi tri HUD",
-        ["Reset HUD Positions"] = "Dat lai vi tri HUD",
-        ["Button Size"] = "Kich thuoc nut",
-        ["Corner Rounding (Shape)"] = "Bo goc",
-        ["Background Transparency (%)"] = "Do trong suot (%)",
-        ["Multi-Language Support"] = "Ho tro da ngon ngu",
-        ["Select Language"] = "Chon ngon ngu",
-        ["Custom Cursor"] = "Con tro tuy chinh",
-        ["Cursor Style"] = "Kieu con tro",
-        ["Custom Cursor Image URL / ID"] = "URL / ID anh con tro",
-        ["Cursor Size"] = "Kich thuoc con tro",
-        ["Window Background Image"] = "Anh nen cua so",
-        ["Window Transparency"] = "Do trong suot cua so",
-        ["Atmosphere & Themes"] = "Khong khi va chu de",
-        ["Selected Theme"] = "Chu de da chon",
-        ["Enable Smart ServerHop"] = "Bat chuyen may chu thong minh",
-        ["Server Hop Delay (s)"] = "Do tre chuyen (giay)",
-        ["Minimum Server Players"] = "Nguoi choi toi thieu",
-        ["Avoid Same Server"] = "Tranh may chu cu",
-        ["Rejoin Server"] = "Ket noi lai may chu",
-        ["Copy Server JobId"] = "Sao chep JobId may chu",
-        ["Discord Webhook URL"] = "Lien ket Discord Webhook",
-        ["Discord Alerts"] = "Thong bao Discord",
-        ["Live Event Alerts"] = "Canh bao su kien truc tiep",
-        ["Config Name"] = "Ten cau hinh",
-        ["Saved Configs"] = "Cau hinh da luu",
-        ["Save Config"] = "Luu cau hinh",
-        ["Load Config"] = "Tai cau hinh",
-        ["Delete Config"] = "Xoa cau hinh",
-        ["Autoload Selected Config"] = "Tu dong tai cau hinh",
-        ["Autosave Config"] = "Tu dong luu",
-        ["Auto Load Script on Teleport"] = "Tu dong tai script khi dich chuyen",
-        ["Nearby Players"] = "Nguoi choi gan day",
-        ["Active Keybinds"] = "Phim tat dang bat",
-        ["Grab Gun"] = "Nhat sung",
-        ["Shoot Murderer"] = "Ban sat thu",
-        ["Aimbot"] = "Tu ngam",
-        ["Silent Aim"] = "Ngam im lang",
-        ["Kill All"] = "Tieu diet tat ca",
-        ["Throw Knife"] = "Phong dao",
-        ["Noclip"] = "Di xuyen tuong",
-        ["Wall Hop"] = "Nhay tuong",
-        ["Free X-Ray"] = "X-Ray mien phi",
-        ["Fly"] = "Bay",
-        ["Kill Sheriff"] = "Tieu diet canh sat",
-        ["Auto Prestige"] = "Tu dong len cap",
-        ["WalkSpeed"] = "Toc do di chuyen",
-        ["JumpPower"] = "Suc nhay",
-        ["Infinite Jump"] = "Nhay vo han",
-        ["Anti AFK"] = "Chong AFK",
-        ["Fullbright"] = "Do sang toi da",
-        ["Low Graphics"] = "Do hoa thap",
-        ["Remove Fog"] = "Xoa suong mu",
-        ["FPS Cap"] = "Gioi han FPS"
-    }
-}
+Library.CustomTranslations = {}
+Library.TranslationCache = {}
+
+function Library:RegisterTranslations(lang, dict)
+    if type(lang) == "table" and not dict then
+        for l, d in pairs(lang) do
+            self.CustomTranslations[l] = self.CustomTranslations[l] or {}
+            for k, v in pairs(d) do
+                self.CustomTranslations[l][k] = v
+            end
+        end
+        return
+    end
+    if type(lang) == "string" and type(dict) == "table" then
+        self.CustomTranslations[lang] = self.CustomTranslations[lang] or {}
+        for k, v in pairs(dict) do
+            self.CustomTranslations[lang][k] = v
+        end
+    end
+end
 
 local LocalizationService = game:GetService("LocalizationService")
 local cachedTranslators = {}
+
+local localeMap = {
+    Spanish = {loc = "es-es", code = "es"},
+    Portuguese = {loc = "pt-br", code = "pt"},
+    Russian = {loc = "ru-ru", code = "ru"},
+    Turkish = {loc = "tr-tr", code = "tr"},
+    Vietnamese = {loc = "vi-vn", code = "vi"},
+    Indonesian = {loc = "id-id", code = "id"},
+    German = {loc = "de-de", code = "de"},
+    French = {loc = "fr-fr", code = "fr"},
+    Japanese = {loc = "ja-jp", code = "ja"},
+    Korean = {loc = "ko-kr", code = "ko"},
+    Chinese = {loc = "zh-cn", code = "zh-CN"}
+}
+
+local function fetchOnlineTranslation(text, targetCode)
+    local req = (syn and syn.request) or (http and http.request) or request
+    local url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=" .. targetCode .. "&dt=t&q=" .. HttpService:UrlEncode(text)
+    if req then
+        local ok, res = pcall(function() return req({Url = url, Method = "GET"}) end)
+        if ok and res and (res.StatusCode == 200 or res.Status == 200) then
+            local dok, data = pcall(function() return HttpService:JSONDecode(res.Body) end)
+            if dok and data and data[1] and data[1][1] and data[1][1][1] then
+                return data[1][1][1]
+            end
+        end
+    elseif game.HttpGet then
+        local ok, body = pcall(function() return game:HttpGet(url) end)
+        if ok and body and body ~= "" then
+            local dok, data = pcall(function() return HttpService:JSONDecode(body) end)
+            if dok and data and data[1] and data[1][1] and data[1][1][1] then
+                return data[1][1][1]
+            end
+        end
+    end
+    return nil
+end
 
 function Library:TranslateText(text, targetLang)
     if not text or type(text) ~= "string" or text == "" then return text end
     targetLang = targetLang or Library.Flags.language_selector or "Spanish"
     if targetLang == "English" then return text end
 
+    local meta = localeMap[targetLang]
+    if not meta then return text end
+
+    Library.TranslationCache[targetLang] = Library.TranslationCache[targetLang] or {}
+    if Library.TranslationCache[targetLang][text] then
+        return Library.TranslationCache[targetLang][text]
+    end
+
+    if Library.CustomTranslations[targetLang] and Library.CustomTranslations[targetLang][text] then
+        local res = Library.CustomTranslations[targetLang][text]
+        Library.TranslationCache[targetLang][text] = res
+        return res
+    end
+
     if text:sub(1, 3) == "== " and text:sub(-3) == " ==" then
         local inner = text:sub(4, -4)
         local transInner = Library:TranslateText(inner, targetLang)
-        return "== " .. string.upper(transInner) .. " =="
+        local res = "== " .. string.upper(transInner) .. " =="
+        Library.TranslationCache[targetLang][text] = res
+        return res
     end
 
-    if text:sub(1, 5) == "Show " then
-        local inner = text:sub(6)
-        local showPrefixes = {
-            Spanish = "Mostrar ",
-            Portuguese = "Mostrar ",
-            Russian = "Показать ",
-            Turkish = "Goster: ",
-            Vietnamese = "Hien "
-        }
-        local pfx = showPrefixes[targetLang] or "Show "
-        return pfx .. Library:TranslateText(inner, targetLang)
+    if not cachedTranslators[meta.loc] then
+        pcall(function()
+            cachedTranslators[meta.loc] = LocalizationService:GetTranslatorForLocaleAsync(meta.loc)
+        end)
     end
-
-    local dict = LanguageDictionary[targetLang]
-    if dict then
-        if dict[text] then return dict[text] end
-        local lower = string.lower(text)
-        if dict[lower] then return dict[lower] end
-    end
-
-    local localeMap = {
-        Spanish = "es-es",
-        Portuguese = "pt-br",
-        Russian = "ru-ru",
-        Turkish = "tr-tr",
-        Vietnamese = "vi-vn"
-    }
-    local loc = localeMap[targetLang]
-    if loc then
-        if not cachedTranslators[loc] then
-            pcall(function()
-                cachedTranslators[loc] = LocalizationService:GetTranslatorForLocaleAsync(loc)
-            end)
-        end
-        local trans = cachedTranslators[loc]
-        if trans then
-            local ok, res = pcall(function() return trans:Translate(game, text) end)
-            if ok and res and res ~= "" and res ~= text then return res end
+    local trans = cachedTranslators[meta.loc]
+    if trans then
+        local ok, r = pcall(function() return trans:Translate(game, text) end)
+        if ok and r and r ~= "" and r ~= text then
+            Library.TranslationCache[targetLang][text] = r
+            return r
         end
     end
+
+    local csl = CoreGui:FindFirstChild("CoreScriptLocalization")
+    if csl and csl:IsA("LocalizationTable") then
+        local ok, coreTrans = pcall(function() return csl:GetTranslator(meta.loc) end)
+        if ok and coreTrans then
+            local ok2, r2 = pcall(function() return coreTrans:Translate(CoreGui, text) end)
+            if ok2 and r2 and r2 ~= "" and r2 ~= text then
+                Library.TranslationCache[targetLang][text] = r2
+                return r2
+            end
+        end
+    end
+
+    local online = fetchOnlineTranslation(text, meta.code)
+    if online and online ~= "" then
+        Library.TranslationCache[targetLang][text] = online
+        return online
+    end
+
     return text
 end
 
@@ -2371,6 +2049,9 @@ function Library:SetMultiLanguage(enabled, targetLang)
     if Library.core then table.insert(containers, Library.core) end
     if Library.HudGui then table.insert(containers, Library.HudGui) end
     if genv.CloseUi and genv.CloseUi ~= Library.core then table.insert(containers, genv.CloseUi) end
+
+    local meta = localeMap[targetLang]
+    local pendingQueue = {}
 
     for _, root in ipairs(containers) do
         for _, elem in ipairs(root:GetDescendants()) do
@@ -2384,7 +2065,16 @@ function Library:SetMultiLanguage(enabled, targetLang)
                 end
                 if src and src ~= "" then
                     if Library.MultiLanguageEnabled then
-                        elem.Text = Library:TranslateText(src, targetLang)
+                        Library.TranslationCache[targetLang] = Library.TranslationCache[targetLang] or {}
+                        if Library.TranslationCache[targetLang][src] then
+                            elem.Text = Library.TranslationCache[targetLang][src]
+                        else
+                            local quick = Library:TranslateText(src, targetLang)
+                            elem.Text = quick
+                            if quick == src and meta and (syn or http or request or game.HttpGet) then
+                                table.insert(pendingQueue, {elem = elem, src = src})
+                            end
+                        end
                     else
                         elem.Text = src
                     end
@@ -2392,24 +2082,43 @@ function Library:SetMultiLanguage(enabled, targetLang)
             end
         end
     end
+
+    if Library.MultiLanguageEnabled and #pendingQueue > 0 and meta then
+        task.spawn(function()
+            for _, item in ipairs(pendingQueue) do
+                if not Library.MultiLanguageEnabled or Library.CurrentLanguage ~= targetLang then break end
+                if item.elem and item.elem.Parent then
+                    local online = fetchOnlineTranslation(item.src, meta.code)
+                    if online and online ~= "" then
+                        Library.TranslationCache[targetLang][item.src] = online
+                        if item.elem and item.elem.Parent and Library.MultiLanguageEnabled then
+                            item.elem.Text = online
+                        end
+                    end
+                end
+            end
+        end)
+    end
+
     if Library.Notify then
         if Library.MultiLanguageEnabled then
             Library:Notify({
                 Title = "Language",
-                Content = "Language switched to " .. targetLang,
+                Content = "Language set to " .. targetLang,
                 Duration = 2,
                 Type = "Info"
             })
         else
             Library:Notify({
                 Title = "Language",
-                Content = "Restored English source text",
+                Content = "Restored original text",
                 Duration = 2,
                 Type = "Info"
             })
         end
     end
 end
+
 
 local CursorGui = nil
 local CursorDot = nil
