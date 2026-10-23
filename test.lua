@@ -1950,6 +1950,9 @@ function Library:LoadConfig(name)
         end
     end
     self:SetActiveConfig(name)
+    if self.OnConfigLoaded then
+        pcall(self.OnConfigLoaded, name)
+    end
     Library:Notify({
         Title = "Config Loaded",
         Content = "Loaded config: " .. name,
@@ -1995,27 +1998,6 @@ function Library:DeleteConfig(name)
         Duration = 3,
         Type = "Info"
     })
-end
-
-function Library:SetAutoload(name, enabled)
-    local folder = self:GetConfigFolder()
-    ensureFolder(folder)
-    if enabled == nil then
-        enabled = (name ~= nil and name ~= "" and name ~= "None")
-    end
-    local payload = {
-        enabled = enabled and true or false,
-        config = name or ""
-    }
-    local ok, encoded = pcall(function() return HttpService:JSONEncode(payload) end)
-    if ok then
-        pcall(writefile, folder .. "/autoload.json", encoded)
-    end
-    self.Flags.autoload_config_toggle = payload.enabled
-    local toggleObj = self.Objects.autoload_config_toggle
-    if toggleObj and toggleObj.GetValue and toggleObj:GetValue() ~= payload.enabled then
-        pcall(function() toggleObj:SetValue(payload.enabled, true) end)
-    end
 end
 
 function Library:GetAutoload()
@@ -6703,6 +6685,13 @@ function Library.new(selfOrOpts, options)
         table.insert(genv.UIElements, scrollThumb)
         table.insert(allCustomScrollbars, {thumb = scrollThumb, track = scrollTrack, up = upArrowBtn, down = downArrowBtn})
 
+        local function safeClamp(val, minVal, maxVal)
+            if minVal > maxVal then minVal, maxVal = maxVal, minVal end
+            if val < minVal then return minVal end
+            if val > maxVal then return maxVal end
+            return val
+        end
+
         local function updateCustomScroll()
             local winH = itemsSection.AbsoluteWindowSize.Y
             local canH = itemsSection.CanvasSize.Y.Offset
@@ -6719,10 +6708,12 @@ function Library.new(selfOrOpts, options)
             upArrowIcon.ImageTransparency = 0
             downArrowIcon.ImageTransparency = 0
             local minThumb = math.min(20, trackH)
-            local thumbH = math.clamp((winH / canH) * trackH, minThumb, math.max(minThumb, trackH))
-            local maxScroll = canH - winH
-            local progress = math.clamp(itemsSection.CanvasPosition.Y / maxScroll, 0, 1)
-            local thumbY = 17 + progress * (trackH - thumbH)
+            local maxThumb = math.max(minThumb, trackH)
+            local rawH = (winH / canH) * trackH
+            local thumbH = safeClamp(rawH, minThumb, maxThumb)
+            local maxScroll = math.max(1, canH - winH)
+            local progress = safeClamp(itemsSection.CanvasPosition.Y / maxScroll, 0, 1)
+            local thumbY = 17 + progress * math.max(0, trackH - thumbH)
             scrollThumb.Size = UDim2.new(0, 6, 0, thumbH)
             scrollThumb.Position = UDim2.new(0.5, 0, 0, thumbY)
         end
@@ -6775,9 +6766,9 @@ function Library.new(selfOrOpts, options)
             local winH = itemsSection.AbsoluteWindowSize.Y
             local canH = itemsSection.CanvasSize.Y.Offset
             if canH > winH and trackH > 0 then
-                local relY = math.clamp(pos.Y - (customScrollBar.AbsolutePosition.Y + 17), 0, trackH)
+                local relY = safeClamp(pos.Y - (customScrollBar.AbsolutePosition.Y + 17), 0, trackH)
                 local ratio = relY / trackH
-                local maxScroll = canH - winH
+                local maxScroll = math.max(1, canH - winH)
                 TweenService:Create(itemsSection, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
                     CanvasPosition = Vector2.new(itemsSection.CanvasPosition.X, ratio * maxScroll)
                 }):Play()
@@ -6816,13 +6807,15 @@ function Library.new(selfOrOpts, options)
                         local winH = itemsSection.AbsoluteWindowSize.Y
                         local canH = itemsSection.CanvasSize.Y.Offset
                         if canH > winH and trackH > 0 then
-                            local thumbH = math.clamp((winH / canH) * trackH, 20, trackH)
+                            local minThumb = math.min(20, trackH)
+                            local maxThumb = math.max(minThumb, trackH)
+                            local thumbH = safeClamp((winH / canH) * trackH, minThumb, maxThumb)
                             local scrollableTrack = trackH - thumbH
                             if scrollableTrack > 0 then
                                 local deltaY = moveInput.Position.Y - dragStartY
-                                local maxScroll = canH - winH
+                                local maxScroll = math.max(1, canH - winH)
                                 local deltaScroll = (deltaY / scrollableTrack) * maxScroll
-                                itemsSection.CanvasPosition = Vector2.new(itemsSection.CanvasPosition.X, math.clamp(dragStartScrollY + deltaScroll, 0, maxScroll))
+                                itemsSection.CanvasPosition = Vector2.new(itemsSection.CanvasPosition.X, safeClamp(dragStartScrollY + deltaScroll, 0, maxScroll))
                             end
                         end
                     end
