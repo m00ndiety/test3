@@ -168,9 +168,10 @@ local function fetchSupportedGamesPlaying()
     end)
 end
 
+local Library = nil
 local function fetchScriptActiveUsers()
     task.spawn(function()
-        if Library.OnlineCount and Library.OnlineCount > 0 then
+        if Library and Library.OnlineCount and Library.OnlineCount > 0 then
             scriptActiveUsers = Library.OnlineCount
         else
             scriptActiveUsers = math.clamp(scriptActiveUsers + math.random(-2, 3), 270, 315)
@@ -2323,12 +2324,17 @@ function Library:SetAutoLoadScript(enabled)
     Library:SaveSettings()
 end
 
+local teleportQueued = false
 pcall(function()
     LocalPlayer.OnTeleport:Connect(function(state)
-        if Library.SavedSettings.universal_autoload_script ~= false then
-            local q = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
-            if q then
-                pcall(q, 'loadstring(game:HttpGet("https://moondiety.com/loader"))()')
+        if teleportQueued then return end
+        if state == Enum.TeleportState.Started then
+            teleportQueued = true
+            if Library.SavedSettings.universal_autoload_script ~= false then
+                local q = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
+                if q then
+                    pcall(q, 'loadstring(game:HttpGet("https://moondiety.com/loader"))()')
+                end
             end
         end
     end)
@@ -3333,6 +3339,9 @@ function Library:FinishLoading()
 end
 
 function Library.new(selfOrOpts, options)
+    if genv.MoondietyRunning and genv.CloseUi and genv.CloseUi.Parent then
+        return WindowController or {}
+    end
     Library:clear()
     Library:disconnect()
     local opts = (type(selfOrOpts) == "table" and selfOrOpts ~= Library) and selfOrOpts or (type(options) == "table" and options or {})
@@ -3351,6 +3360,14 @@ function Library.new(selfOrOpts, options)
     screen.Parent = getSafeGuiParent()
     Library.core = screen
     genv.CloseUi = screen
+    genv.MoondietyRunning = true
+    genv.MoondietyLoaded = true
+    screen.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            genv.MoondietyRunning = nil
+            genv.MoondietyLoaded = nil
+        end
+    end)
 
     local atmosphereHolder = new("Frame", {
         Name = "AtmosphereHolder",
