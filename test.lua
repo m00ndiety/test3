@@ -3339,9 +3339,6 @@ function Library:FinishLoading()
 end
 
 function Library.new(selfOrOpts, options)
-    if genv.MoondietyRunning and genv.CloseUi and genv.CloseUi.Parent then
-        return WindowController or {}
-    end
     Library:clear()
     Library:disconnect()
     local opts = (type(selfOrOpts) == "table" and selfOrOpts ~= Library) and selfOrOpts or (type(options) == "table" and options or {})
@@ -3360,14 +3357,6 @@ function Library.new(selfOrOpts, options)
     screen.Parent = getSafeGuiParent()
     Library.core = screen
     genv.CloseUi = screen
-    genv.MoondietyRunning = true
-    genv.MoondietyLoaded = true
-    screen.AncestryChanged:Connect(function(_, parent)
-        if not parent then
-            genv.MoondietyRunning = nil
-            genv.MoondietyLoaded = nil
-        end
-    end)
 
     local atmosphereHolder = new("Frame", {
         Name = "AtmosphereHolder",
