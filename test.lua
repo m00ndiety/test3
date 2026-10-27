@@ -125,8 +125,13 @@ local SupportedGames = {
 }
 
 local supportedGamesListeners = {}
-local scriptActiveUsers = 284
+local scriptActiveUsers = 3500
 local scriptUserListeners = {}
+
+local ONLINE_MIN = 3000
+local ONLINE_MAX = 4000
+local ONLINE_STEP = 40
+
 
 local function formatCount(n)
     if not n or n <= 0 then return "0" end
@@ -169,17 +174,48 @@ local function fetchSupportedGamesPlaying()
 end
 
 local Library = nil
-local function fetchScriptActiveUsers()
-    task.spawn(function()
-        if Library and Library.OnlineCount and Library.OnlineCount > 0 then
-            scriptActiveUsers = Library.OnlineCount
+
+local function fetchOnlineFromServer()
+    local fn = httpRequest or http_request or request
+    if not fn then return nil end
+    local ok, res = pcall(fn, {
+        Url = "http://c-pl-1.apexnodes.xyz:10002/count",
+        Method = "GET",
+    })
+    if ok and res and (res.StatusCode == 200 or res.Status == 200) then
+        local body = res.Body or res.body
+        local n = tonumber(body)
+        if n and n > 0 then
+            return math.clamp(math.floor(n), ONLINE_MIN, ONLINE_MAX)
+        end
+    end
+    return nil
+end
+
+local function stepOnline()
+    local real = fetchOnlineFromServer()
+
+    if real then
+        if Library then Library.OnlineCount = real end
+        local diff = real - scriptActiveUsers
+        if math.abs(diff) <= ONLINE_STEP then
+            scriptActiveUsers = real
         else
-            scriptActiveUsers = math.clamp(scriptActiveUsers + math.random(-2, 3), 270, 315)
+            scriptActiveUsers = scriptActiveUsers + (diff > 0 and ONLINE_STEP or -ONLINE_STEP)
         end
-        for _, fn in ipairs(scriptUserListeners) do
-            pcall(fn, scriptActiveUsers)
-        end
-    end)
+    else
+        if Library then Library.OnlineCount = 0 end
+        local drift = math.random(-ONLINE_STEP, ONLINE_STEP)
+        scriptActiveUsers = math.clamp(scriptActiveUsers + drift, ONLINE_MIN, ONLINE_MAX)
+    end
+
+    for _, fn in ipairs(scriptUserListeners) do
+        pcall(fn, scriptActiveUsers)
+    end
+end
+
+local function fetchScriptActiveUsers()
+    task.spawn(stepOnline)
 end
 
 task.delay(10, function()
@@ -187,11 +223,10 @@ task.delay(10, function()
 end)
 
 task.spawn(function()
-    while task.wait(30) do
-        fetchScriptActiveUsers()
+    while task.wait(1) do
+        stepOnline()
     end
 end)
-
 task.spawn(function()
     while task.wait(120) do
         fetchSupportedGamesPlaying()
@@ -2324,19 +2359,53 @@ function Library:SetAutoLoadScript(enabled)
     Library:SaveSettings()
 end
 
-local teleportQueued = false
+local LOADER_URL = "https://moondiety.com/loader"
+local LOADER_CODE = 'loadstring(game:HttpGet("' .. LOADER_URL .. '"))()'
+
+local queueAlreadySet = false
+local lastQueueSetTime = 0
+
+local function getQueueFn()
+    return queue_on_teleport
+        or queueonteleport
+        or (syn and syn.queue_on_teleport)
+        or (fluxus and fluxus.queue_on_teleport)
+        or (krnl and krnl.queue_on_teleport)
+end
+
+local function queueOnTeleport(force)
+    if Library.SavedSettings and Library.SavedSettings.universal_autoload_script == false then return end
+    if queueAlreadySet and not force then return end
+    if not force and (tick() - lastQueueSetTime) < 5 then return end
+    local q = getQueueFn()
+    if q then
+        local ok = pcall(q, LOADER_CODE)
+        if ok then
+            queueAlreadySet = true
+            lastQueueSetTime = tick()
+        end
+    end
+end
+
+queueOnTeleport()
+
 pcall(function()
     LocalPlayer.OnTeleport:Connect(function(state)
-        if teleportQueued then return end
-        if state == Enum.TeleportState.Started then
-            teleportQueued = true
-            if Library.SavedSettings.universal_autoload_script ~= false then
-                local q = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
-                if q then
-                    pcall(q, 'loadstring(game:HttpGet("https://moondiety.com/loader"))()')
-                end
-            end
+        if state == Enum.TeleportState.Started or state == Enum.TeleportState.InProgress then
+            queueOnTeleport()
         end
+    end)
+end)
+
+pcall(function()
+    TeleportService.TeleportInitFailed:Connect(function()
+        queueOnTeleport(true)
+    end)
+end)
+
+pcall(function()
+    game:BindToClose(function()
+        queueOnTeleport()
     end)
 end)
 
@@ -2933,11 +3002,27 @@ function Library:LoadConfig(name)
             end
         end
     end
-    self.isLoadingConfig = false
+     self.isLoadingConfig = false
     self:SetActiveConfig(name)
     if self.OnConfigLoaded then
         pcall(self.OnConfigLoaded, name)
     end
+
+    for flag, obj in pairs(self.Objects) do
+        if obj and obj.GetValue and not SystemSettings[flag] then
+            local ok, val = pcall(function() return obj:GetValue() end)
+            if ok and val ~= nil then
+                if obj.callback then
+                    task.spawn(function()
+                        pcall(obj.callback, val)
+                    end)
+                elseif obj.SetValue then
+                    pcall(function() obj:SetValue(val, false) end)
+                end
+            end
+        end
+    end
+
     Library:Notify({
         Title = "Config Loaded",
         Content = "Loaded config: " .. name,
@@ -4008,10 +4093,10 @@ function Library.new(selfOrOpts, options)
             ZIndex = 952,
         }, NotifCard)
 
-        local TitleLabel = new("TextLabel", {
+       local TitleLabel = new("TextLabel", {
             Name = "Title",
-            Position = UDim2.new(0, 38, 0, 14),
-            Size = UDim2.new(1, -68, 0, 16),
+            Position = UDim2.new(0, 58, 0, 14),
+            Size = UDim2.new(1, -88, 0, 16),
             BackgroundTransparency = 1,
             FontFace = font(Enum.FontWeight.SemiBold),
             Text = title,
@@ -4022,10 +4107,10 @@ function Library.new(selfOrOpts, options)
             ZIndex = 952,
         }, NotifCard)
 
-        local TextLabel = new("TextLabel", {
+      local TextLabel = new("TextLabel", {
             Name = "Text",
-            Position = UDim2.new(0, 38, 0, 35),
-            Size = UDim2.new(1, -54, 0, 0),
+            Position = UDim2.new(0, 58, 0, 35),
+            Size = UDim2.new(1, -74, 0, 0),
             BackgroundTransparency = 1,
             FontFace = font(Enum.FontWeight.Medium),
             Text = text,
@@ -4058,11 +4143,14 @@ function Library.new(selfOrOpts, options)
             accentBar = accentBar,
             nType = nType
         }
+            local textBounds = TextService:GetTextSize(text, 13, Enum.Font.GothamMedium, Vector2.new(224, 9999))
+            TextLabel.Size = UDim2.new(1, -74, 0, textBounds.Y)
 
-        local textBounds = TextService:GetTextSize(text, 13, Enum.Font.GothamMedium, Vector2.new(244, 9999))
-        TextLabel.Size = UDim2.new(1, -54, 0, textBounds.Y)
-        local targetHeight = math.max(62, 35 + textBounds.Y + 14)
+            local logoH = math.clamp(21 + textBounds.Y, 24, 64)
+            NotifLogo.Size = UDim2.new(0, logoH, 0, logoH)
+            NotifLogo.Position = UDim2.new(0, 16, 0, 14)
 
+            local targetHeight = math.max(62, 35 + textBounds.Y + 14)
         local slideIn = TweenService:Create(NotifCard, TweenInfo.new(0.5, Enum.EasingStyle.Circular, Enum.EasingDirection.Out), {
             Size = UDim2.new(1, 0, 0, targetHeight),
             Position = UDim2.new(0, 0, 0, 0),
@@ -4154,7 +4242,7 @@ function Library.new(selfOrOpts, options)
     local watermark = new("Frame", {
         Name = "Watermark",
         AnchorPoint = Vector2.new(1, 0),
-        Position = UDim2.new(1, -20, 0, 48),
+        Position = UDim2.new(1, -20, 0, 14),
         Size = UDim2.new(0, 0, 0, 28),
         AutomaticSize = Enum.AutomaticSize.X,
         BackgroundColor3 = genv.uicontainer or Color3.fromRGB(18, 19, 24),
@@ -4747,25 +4835,24 @@ function Library.new(selfOrOpts, options)
     Library.KeybindListFrame = keybindList
 
     local keybindHudRows = {}
-
-    local function updateKeybindHudStates()
-        for name, item in pairs(keybindHudRows) do
-            if item.switchTrack and item.switchTrack.Parent and item.switchKnob and item.switchKnob.Parent and item.getState then
-                local isChecked = item.getState() == true
-                if item.lastState ~= isChecked then
-                    item.lastState = isChecked
-                    local targetPos = isChecked and UDim2.new(1, -13, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
-                    local targetCol = isChecked and (genv.togglecoloron or genv.accent or Color3.fromRGB(168, 85, 247)) or (genv.togglecoloroff or Color3.fromRGB(38, 40, 50))
-                    TweenService:Create(item.switchKnob, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPos}):Play()
-                    TweenService:Create(item.switchTrack, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = targetCol}):Play()
-                    if item.rowStrk and item.rowStrk.Parent then
-                        local strkCol = isChecked and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(38, 40, 52)
-                        TweenService:Create(item.rowStrk, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Color = strkCol}):Play()
-                    end
+local function updateKeybindHudStates()
+    for name, item in pairs(keybindHudRows) do
+        if item.switchTrack and item.switchTrack.Parent and item.switchKnob and item.switchKnob.Parent and item.getState then
+            local isChecked = item.getState() == true
+            if item.lastState ~= isChecked then
+                item.lastState = isChecked
+                local targetPos = isChecked and UDim2.new(1, -13, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+                local targetCol = isChecked and (genv.togglecoloron or genv.accent or Color3.fromRGB(168, 85, 247)) or (genv.togglecoloroff or Color3.fromRGB(38, 40, 50))
+                TweenService:Create(item.switchKnob, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPos}):Play()
+                TweenService:Create(item.switchTrack, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = targetCol}):Play()
+                if item.rowStrk and item.rowStrk.Parent then
+                    local strkCol = isChecked and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(38, 40, 52)
+                    TweenService:Create(item.rowStrk, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Color = strkCol}):Play()
                 end
             end
         end
     end
+end
     Library.UpdateKeybindHudStates = updateKeybindHudStates
 
     local function refreshKeybindList()
@@ -4907,13 +4994,19 @@ function Library.new(selfOrOpts, options)
                     }, switchTrack)
                     pill(switchKnob)
 
-                    keybindHudRows[kb.name] = {
-                        switchTrack = switchTrack,
-                        switchKnob = switchKnob,
-                        rowStrk = rowStrk,
-                        rScale = rScale,
-                        getState = kb.getState
-                    }
+                  local initialChecked = false
+if kb.getState then
+    local okInit, valInit = pcall(kb.getState)
+    if okInit and valInit == true then initialChecked = true end
+end
+keybindHudRows[kb.name] = {
+    switchTrack = switchTrack,
+    switchKnob = switchKnob,
+    rowStrk = rowStrk,
+    rScale = rScale,
+    getState = kb.getState,
+    lastState = initialChecked
+}
 
                     local lastTog = 0
                     local function toggleRow()
@@ -5034,7 +5127,7 @@ function Library.new(selfOrOpts, options)
     }, island)
     new("UIPadding", {PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10)}, islandCompact)
 
-    local islandDot = new("Frame", {
+      local islandDot = new("Frame", {
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, 0, 0.5, 0),
         Size = UDim2.new(0, 7, 0, 7),
@@ -5070,42 +5163,25 @@ function Library.new(selfOrOpts, options)
         Name = "IslandVisualizer",
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, 0, 0.5, 0),
-        Size = UDim2.new(0, 44, 0, 20),
+        Size = UDim2.new(0, 28, 0, 16),
         BackgroundTransparency = 1,
         ZIndex = 852,
     }, islandCompact)
-
-    islandUserPfp = new("ImageLabel", {
-        Name = "IslandUserPfp",
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 0, 0.5, 0),
-        Size = UDim2.new(0, 18, 0, 18),
-        BackgroundColor3 = Color3.fromRGB(24, 26, 32),
-        BackgroundTransparency = 0,
-        BorderSizePixel = 0,
-        ZIndex = 853,
-    }, islandVisualizer)
-    pill(islandUserPfp)
-    stroke(islandUserPfp, genv.uiline or Color3.fromRGB(45, 48, 60), 1, 0.4)
-    islandMascot = islandUserPfp
-
-    task.spawn(function()
-        local ok, url = pcall(function()
-            return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
-        end)
-        if ok and url then islandUserPfp.Image = url end
-    end)
-
-    islandWifiIcon = new("ImageLabel", {
-        Name = "IslandWifi",
-        AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, 0, 0.5, 0),
-        Size = UDim2.new(0, 15, 0, 15),
-        BackgroundTransparency = 1,
-        Image = "rbxassetid://7743878148",
-        ImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
-        ZIndex = 853,
-    }, islandVisualizer)
+    
+    local eqBars = {}
+    for i = 1, 4 do
+        local bar = new("Frame", {
+            Name = "EqBar" .. i,
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, (i - 1) * 6, 0.5, 0),
+            Size = UDim2.new(0, 3, 0, 4),
+            BackgroundColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
+            BorderSizePixel = 0,
+            ZIndex = 853,
+        }, islandVisualizer)
+        corner(bar, 2)
+        table.insert(eqBars, bar)
+    end
 
     local islandExpanded = new("Frame", {
         Name = "ExpandedView",
@@ -5419,21 +5495,31 @@ function Library.new(selfOrOpts, options)
         TweenService:Create(restoreBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(26, 28, 38)}):Play()
         if restStrk then TweenService:Create(restStrk, TweenInfo.new(0.2), {Color = Color3.fromRGB(44, 48, 64)}):Play() end
     end)
-
     local islandExpandedState = false
     local function setIslandExpanded(state)
         islandExpandedState = state
         local targetSize = state and UDim2.new(0, 320, 0, 194) or UDim2.new(0, 204, 0, 32)
         local targetRadius = state and 22 or 17
+
+        local alpha = state and 1 or 0
+        TweenService:Create(islandTitle, TweenInfo.new(0.2), {TextTransparency = alpha}):Play()
+        TweenService:Create(islandLogo, TweenInfo.new(0.2), {ImageTransparency = alpha}):Play()
+        TweenService:Create(islandDot, TweenInfo.new(0.2), {BackgroundTransparency = alpha}):Play()
+        for _, bar in ipairs(eqBars) do
+            TweenService:Create(bar, TweenInfo.new(0.2), {BackgroundTransparency = (state and 1 or 0)}):Play()
+        end
+
         if state then
-            islandCompact.Visible = false
             islandExpanded.Visible = true
+            task.delay(0.2, function()
+                if islandExpandedState then islandCompact.Visible = false end
+            end)
             if islandUsername and islandUsername.Parent then
                 islandUsername.Text = "@" .. LocalPlayer.Name .. "  •  " .. getExecName()
             end
         else
-            islandExpanded.Visible = false
             islandCompact.Visible = true
+            islandExpanded.Visible = false
         end
         if islandCorner then
             TweenService:Create(islandCorner, TweenInfo.new(0.32, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {CornerRadius = UDim.new(0, targetRadius)}):Play()
@@ -5968,20 +6054,51 @@ function Library.new(selfOrOpts, options)
 
             wmPingText.Text = string.format("<font color=\"#ffffff\"><b>%d</b></font> <font color=\"#8e92a4\">ms</font>", ping)
 
-            if islandWifiIcon and islandWifiIcon.Parent then
-                local wifiCol = (ping <= 100) and (genv.accent or Color3.fromRGB(168, 85, 247)) or ((ping <= 180) and WARNING_COLOR or ERROR_COLOR)
-                islandWifiIcon.ImageColor3 = wifiCol
-            end
             wmFpsText.Text = string.format("<font color=\"#ffffff\"><b>%d</b></font> <font color=\"#8e92a4\">fps</font>", currentFps)
             wmPlrText.Text = string.format("<font color=\"#ffffff\"><b>%d</b></font> <font color=\"#8e92a4\">players</font>", playerCount)
 
-            local dotColor = (currentFps >= 45 and ping <= 120) and SUCCESS_COLOR or ((currentFps >= 25) and WARNING_COLOR or ERROR_COLOR)
-            islandDot.BackgroundColor3 = dotColor
+           
+            islandDot.BackgroundColor3 = (currentFps >= 45 and ping <= 120) and SUCCESS_COLOR or ((currentFps >= 25) and WARNING_COLOR or ERROR_COLOR)          
 
             if nearbyFrame and nearbyFrame.Visible then
                 updateNearbyPlayers()
             end
+            task.spawn(function()
+                while screen and screen.Parent do
+                    local ping = 0
+                    local okPing, pVal = pcall(function()
+                        return math.floor(LocalPlayer:GetNetworkPing() * 1000)
+                    end)
+                    if okPing and pVal and pVal > 0 then
+                        ping = pVal
+                    else
+                        local okStat, sVal = pcall(function()
+                            return math.floor(StatsService.Network.ServerStatsItem["Data Ping"]:GetValue())
+                        end)
+                        if okStat and sVal then ping = sVal end
+                    end
 
+                    if island.Visible and islandCompact.Visible then
+                        local eqColor = (ping <= 80) and Color3.fromRGB(52, 211, 153) or ((ping <= 150) and Color3.fromRGB(251, 191, 36) or Color3.fromRGB(248, 113, 113))
+                        local t = tick()
+                        for i, bar in ipairs(eqBars) do
+                            if bar and bar.Parent then
+                                local isActive = false
+                                if ping <= 80 then isActive = true
+                                elseif ping <= 150 then isActive = (i <= 3)
+                                else isActive = (i <= 1) end
+                                
+                                local baseH = 4 + (i * 2)
+                                local h = isActive and (baseH + math.sin(t * 8 + i * 1.5) * 3) or 3
+                                bar.Size = UDim2.new(0, 3, 0, math.max(2, h))
+                                bar.BackgroundColor3 = isActive and eqColor or Color3.fromRGB(40, 40, 45)
+                            end
+                        end
+                    end
+                    
+                    task.wait(0.03)
+                end
+            end)
             if modalData.infoModal and modalData.infoModal.Visible then
                 if modalData.pingVal then modalData.pingVal.Text = ping .. " ms" end
                 if modalData.fpsVal then modalData.fpsVal.Text = currentFps .. " fps" end
@@ -6033,6 +6150,9 @@ function Library.new(selfOrOpts, options)
         end
         if Library.UpdateKeybindList then
             Library:UpdateKeybindList()
+        end
+        if Library.UpdateKeybindHudStates then
+            Library:UpdateKeybindHudStates()
         end
     end
     Library.setHidden = setHidden
@@ -7956,12 +8076,17 @@ function Library.new(selfOrOpts, options)
             return frame
         end
 
-        local stickyLayerLeft = makeSticky("StickyLeft", 0.245, 0.36255, 50)
-        local stickyLayerRight = makeSticky("StickyRight", 0.62245, 0.36255, 50)
-        local stickyMerge = makeSticky("StickyMerge", 0.245, 0.74, 49)
+        local SECTION_X = 0.245
+local SECTION_W = 0.715
+local STICKY_W = LEFT_W * SECTION_W
+local STICKY_RIGHT_X = SECTION_X + RIGHT_X * SECTION_W
+
+local stickyLayerLeft = makeSticky("StickyLeft", SECTION_X, STICKY_W, 50)
+local stickyLayerRight = makeSticky("StickyRight", STICKY_RIGHT_X, STICKY_W, 50)
+local stickyMerge = makeSticky("StickyMerge", SECTION_X, SECTION_W, 49)
         local stickyLeftList, stickyRightList = {}, {}
 
-        local function updateSticky(list, layer)
+       local function updateSticky(list, layer)
             if not itemsSection.Visible or not itemsSection.Parent then
                 layer.Visible = false
                 for _, e in ipairs(list) do e.clone.Visible = false end
@@ -7975,16 +8100,16 @@ function Library.new(selfOrOpts, options)
                 if relTop >= 0 then
                     entry.clone.Visible = false
                 else
-                    local pushY = 0
                     local nextEntry = list[i + 1]
+                    local replaced = false
                     if nextEntry then
                         local nextTop = nextEntry.title.AbsolutePosition.Y - secTop
-                        if nextTop < h then pushY = nextTop - h end
+                        if nextTop < 0 then replaced = true end
                     end
-                    if pushY + h <= 7 then
+                    if replaced then
                         entry.clone.Visible = false
                     else
-                        entry.clone.Position = UDim2.new(0, 0, 0, pushY)
+                        entry.clone.Position = UDim2.new(0, 0, 0, 0)
                         entry.clone.Visible = true
                         anyStuck = true
                     end
@@ -8217,28 +8342,35 @@ function Library.new(selfOrOpts, options)
             end
             obj.Set = obj.SetValue
 
-            Library.Flags[cfg.flag] = obj.state
-            Library:RegisterObject(cfg.flag, obj)
-            obj:UpdateToggle(obj.state, true)
-            return obj
-        end
+               Library.Flags[cfg.flag] = obj.state
+    Library:RegisterObject(cfg.flag, obj)
+    obj:UpdateToggle(obj.state, true)
+
+    if obj.state and cfg.callback then
+        task.spawn(function()
+            pcall(cfg.callback, true)
+        end)
+    end
+
+    return obj
+end
 
         function Module:create_title(arg)
             local cfg = resolve(self, arg)
             local side = getSide(cfg)
-            local title = new("TextLabel", {
-                Name = "Title",
-                BackgroundTransparency = 1,
-                BorderSizePixel = 0,
-                Size = UDim2.new(1, 0, 0, 15),
-                ZIndex = 2,
-                FontFace = font(),
-                TextColor3 = WHITE,
-                TextScaled = true,
-                TextSize = 13,
-                Text = cfg.name or "",
-                TextXAlignment = Enum.TextXAlignment.Left,
-            }, itemsSection)
+           local title = new("TextLabel", {
+            Name = "Title",
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Size = UDim2.new(1, 0, 0, 15),
+            ZIndex = 2,
+            FontFace = font(),
+            TextColor3 = WHITE,
+            TextScaled = false,
+            TextSize = 13,
+            Text = cfg.name or "",
+            TextXAlignment = Enum.TextXAlignment.Left,
+        }, itemsSection)
             new("UIPadding", {PaddingLeft = UDim.new(0, 4)}, title)
             registerItem(title, side, 15, cfg.name)
 
@@ -8449,15 +8581,21 @@ function Library.new(selfOrOpts, options)
             end
             obj.Set = obj.SetValue
 
-            Library.Flags[cfg.flag] = obj.state
-            Library:RegisterObject(cfg.flag, obj)
-            obj:UpdateToggle(obj.state, true)
+               Library.Flags[cfg.flag] = obj.state
+    Library:RegisterObject(cfg.flag, obj)
+    obj:UpdateToggle(obj.state, true)
 
-            bindTap(checkbox, function()
-                obj:UpdateToggle()
-            end)
-            return obj
-        end
+    if obj.state and cfg.callback then
+        task.spawn(function()
+            pcall(cfg.callback, true)
+        end)
+    end
+
+    bindTap(checkbox, function()
+        obj:UpdateToggle()
+    end)
+    return obj
+end
 
         function Module:create_toggle_colorpicker(arg)
             local cfg = resolve(self, arg)
@@ -8774,21 +8912,27 @@ function Library.new(selfOrOpts, options)
 
             bindTap(CloseBtn, closePalette)
 
-            bindTap(toggle, function(pos)
-                local overSquare = false
-                if pos then
-                    local a, sz = ColorSquare.AbsolutePosition, ColorSquare.AbsoluteSize
-                    overSquare = pos.X >= a.X - 6 and pos.X <= a.X + sz.X + 6 and pos.Y >= a.Y - 6 and pos.Y <= a.Y + sz.Y + 6
-                end
-                if overSquare then
-                    if open then closePalette() else openPalette() end
-                else
-                    if open then closePalette() else obj:UpdateToggle() end
-                end
-            end)
-
-            return obj
+              bindTap(toggle, function(pos)
+        local overSquare = false
+        if pos then
+            local a, sz = ColorSquare.AbsolutePosition, ColorSquare.AbsoluteSize
+            overSquare = pos.X >= a.X - 6 and pos.X <= a.X + sz.X + 6 and pos.Y >= a.Y - 6 and pos.Y <= a.Y + sz.Y + 6
         end
+        if overSquare then
+            if open then closePalette() else openPalette() end
+        else
+            if open then closePalette() else obj:UpdateToggle() end
+        end
+    end)
+
+    if obj.state and cfg.callback then
+        task.spawn(function()
+            pcall(cfg.callback, true)
+        end)
+    end
+
+    return obj
+end
 
         function Module:create_note(arg)
             local cfg = resolve(self, arg)
@@ -9463,21 +9607,36 @@ function Library.new(selfOrOpts, options)
             KeyText.Text = displayOf(Library.Flags[cfg.flag])
 
             local kbState = false
+            local isButtonKb = (cfg.isButton == true) or (cfg.flag == "toggleui")
+
             local function toggleKb()
                 if cfg.flag == "toggleui" then
                     Library:visible()
+                    return
+                end
+                if isButtonKb then
+                    if cfg.callback then
+                        task.spawn(cfg.callback, nil, Library.Flags[cfg.flag])
+                    end
                     return
                 end
                 kbState = not kbState
                 if cfg.callback then task.spawn(cfg.callback, kbState, Library.Flags[cfg.flag]) end
                 if Library.UpdateKeybindList then Library:UpdateKeybindList() end
             end
-            Library:RegisterKeybind(cfg.flag, cfg.name, Library.Flags[cfg.flag], function()
-                if cfg.flag == "toggleui" then
-                    return not Library.hidden
-                end
-                return kbState
-            end, toggleKb, toggleKb)
+
+            Library:RegisterKeybind(
+                cfg.flag,
+                cfg.name,
+                Library.Flags[cfg.flag],
+                function()
+                    if isButtonKb then return nil end
+                    return kbState
+                end,
+                toggleKb,
+                toggleKb,
+                isButtonKb
+            )          
 
             local function updateSize()
                 Box.Size = UDim2.new(0, math.max(40, KeyText.TextBounds.X + 12), 0, 22)
