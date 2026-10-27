@@ -8188,45 +8188,51 @@ local stickyMerge = makeSticky("StickyMerge", SECTION_X, SECTION_W, 49)
             return currentSide or "left"
         end
 
-        local function row(rowName, themeKey, fallback)
-            local obj = new("TextButton", {
-                Name = rowName,
-                BackgroundColor3 = genv[themeKey] or fallback or Color3.fromRGB(27, 28, 33),
-                BorderSizePixel = 0,
-                AutoButtonColor = false,
-                Text = "",
-                ClipsDescendants = true,
-            }, itemsSection)
-            corner(obj, 10)
-            table.insert(genv.UIElements, obj)
+       local function row(rowName, themeKey, fallback, noPress)
+    local obj = new("TextButton", {
+        Name = rowName,
+        BackgroundColor3 = genv[themeKey] or fallback or Color3.fromRGB(27, 28, 33),
+        BorderSizePixel = 0,
+        AutoButtonColor = false,
+        Text = "",
+        ClipsDescendants = true,
+    }, itemsSection)
+    corner(obj, 10)
+    table.insert(genv.UIElements, obj)
 
-            local rScale = new("UIScale", {Scale = 1}, obj)
-            obj.MouseEnter:Connect(function()
-                local baseCol = genv[themeKey] or fallback or Color3.fromRGB(27, 28, 33)
-                TweenService:Create(obj, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {BackgroundColor3 = baseCol:lerp(WHITE, 0.06)}):Play()
-                TweenService:Create(rScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1.014}):Play()
-            end)
-            obj.MouseLeave:Connect(function()
-                local baseCol = genv[themeKey] or fallback or Color3.fromRGB(27, 28, 33)
-                TweenService:Create(obj, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {BackgroundColor3 = baseCol}):Play()
-                TweenService:Create(rScale, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {Scale = 1}):Play()
-            end)
-            obj.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    local baseCol = genv[themeKey] or fallback or Color3.fromRGB(27, 28, 33)
-                    TweenService:Create(obj, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = baseCol:lerp(WHITE, 0.1)}):Play()
-                    TweenService:Create(rScale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 0.98}):Play()
-                end
-            end)
-            obj.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    local baseCol = genv[themeKey] or fallback or Color3.fromRGB(27, 28, 33)
-                    TweenService:Create(obj, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {BackgroundColor3 = baseCol}):Play()
-                    TweenService:Create(rScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
-                end
-            end)
-            return obj
+    local rScale = new("UIScale", {Scale = 1}, obj)
+    obj.MouseEnter:Connect(function()
+        local baseCol = genv[themeKey] or fallback or Color3.fromRGB(27, 28, 33)
+        TweenService:Create(obj, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {BackgroundColor3 = baseCol:lerp(WHITE, 0.06)}):Play()
+        if not noPress then
+            TweenService:Create(rScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1.014}):Play()
         end
+    end)
+    obj.MouseLeave:Connect(function()
+        local baseCol = genv[themeKey] or fallback or Color3.fromRGB(27, 28, 33)
+        TweenService:Create(obj, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {BackgroundColor3 = baseCol}):Play()
+        if not noPress then
+            TweenService:Create(rScale, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {Scale = 1}):Play()
+        end
+    end)
+    if not noPress then
+        obj.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+                local baseCol = genv[themeKey] or fallback or Color3.fromRGB(27, 28, 33)
+                TweenService:Create(obj, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = baseCol:lerp(WHITE, 0.1)}):Play()
+                TweenService:Create(rScale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 0.98}):Play()
+            end
+        end)
+        obj.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+                local baseCol = genv[themeKey] or fallback or Color3.fromRGB(27, 28, 33)
+                TweenService:Create(obj, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {BackgroundColor3 = baseCol}):Play()
+                TweenService:Create(rScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+            end
+        end)
+    end
+    return obj
+end
 
         local function rowTexts(parent, rowTitle, rowDesc, rightPad)
             local hasDesc = rowDesc ~= nil and rowDesc ~= ""
@@ -8389,7 +8395,7 @@ end
         function Module:create_toggle(arg)
             local cfg = resolve(self, arg)
             local side = getSide(cfg)
-            local toggle = row("Toggle", "togglecolor")
+           local toggle = row("Toggle", "togglecolor", nil, true)
             local Switch, Circle = buildSwitch(toggle)
 
             local rightPad = 50
@@ -8603,7 +8609,7 @@ end
             local open = false
             local cflag = (cfg.flag or "colorpicker") .. "_color"
 
-            local toggle = row("Toggle", "togglecolor")
+            local toggle = row("Toggle", "togglecolor", nil, true)
             local Switch, Circle = buildSwitch(toggle)
             rowTexts(toggle, cfg.name, cfg.description, 110)
             attachTooltip(toggle, cfg.tooltip or cfg.desc)
