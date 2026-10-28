@@ -28,6 +28,100 @@ local delfile = delfile or function() end
 local copyclipboard = setclipboard or toclipboard or (syn and syn.write_clipboard)
 local httpRequest = (syn and syn.request) or (http and http.request) or request
 
+local Capabilities = (type(getgenv) == "function" and getgenv()._MoondietyCaps)
+if type(Capabilities) ~= "table" then
+    local function probeCapabilities()
+        local probe = {}
+
+        if type(hookfunction) == "function" then
+            probe.hookfunction = pcall(function()
+                local function dummy() return 1 end
+                local orig = hookfunction(dummy, function() return 2 end)
+                if type(orig) == "function" then hookfunction(dummy, orig) end
+            end)
+        else
+            probe.hookfunction = false
+        end
+
+        if type(hookmetamethod) == "function" then
+            probe.hookmetamethod = pcall(function()
+                local mt = {}
+                local obj = setmetatable({}, mt)
+                local orig = hookmetamethod(obj, "__index", function(_, k) return k end)
+                if orig then hookmetamethod(obj, "__index", orig) end
+            end)
+        else
+            probe.hookmetamethod = false
+        end
+
+        if type(getgc) == "function" then
+            local ok, res = pcall(getgc, true)
+            probe.getgc = ok and type(res) == "table"
+        else
+            probe.getgc = false
+        end
+
+        if type(setreadonly) == "function" and type(rawset) == "function" then
+            probe.setreadonly = pcall(function()
+                local t = {x = 1}
+                setreadonly(t, false)
+                rawset(t, "x", 2)
+                setreadonly(t, true)
+                return t.x == 2
+            end)
+        else
+            probe.setreadonly = false
+        end
+
+        if type(getrawmetatable) == "function" then
+            local ok, mt = pcall(getrawmetatable, game)
+            if ok and type(mt) == "table" and type(mt.__index) == "function" then
+                local okRO = pcall(setreadonly, mt, false)
+                probe.getrawmetatable = okRO == true
+                if okRO then pcall(setreadonly, mt, true) end
+            else
+                probe.getrawmetatable = false
+            end
+        else
+            probe.getrawmetatable = false
+        end
+
+        if type(debug) == "table" then
+            probe.debug = type(debug.getupvalue) == "function" and type(debug.getinfo) == "function"
+        else
+            probe.debug = false
+        end
+
+        if type(Drawing) == "table" and type(Drawing.new) == "function" then
+            local ok, obj = pcall(Drawing.new, "Square")
+            probe.Drawing = ok and obj ~= nil
+            if probe.Drawing and obj and obj.Remove then
+                pcall(function() obj:Remove() end)
+            end
+        else
+            probe.Drawing = false
+        end
+
+        probe.writefile = type(writefile) == "function"
+        probe.readfile = type(readfile) == "function"
+        probe.isfile = type(isfile) == "function"
+        probe.delfile = type(delfile) == "function"
+        probe.cloneref = type(cloneref) == "function"
+        probe.gethui = type(gethui) == "function"
+        probe.request = httpRequest ~= nil
+
+        probe.isWeak = not probe.hookfunction or not probe.getgc or not probe.setreadonly or not probe.debug
+        probe.canMemoryHack = (probe.getgc == true) and (probe.setreadonly == true) and (probe.debug == true)
+
+        return probe
+    end
+
+    Capabilities = probeCapabilities()
+    if type(getgenv) == "function" then
+        getgenv()._MoondietyCaps = Capabilities
+    end
+end
+
 local ROOT_FOLDER = "Moondiety/V2"
 local createdFolders = {}
 local function ensureFolder(path)
@@ -1355,6 +1449,12 @@ end
 
 Library = {
     IsMobile = IsMobile,
+    Caps = Capabilities,
+    IsWeak = Capabilities.isWeak,
+    CanMemoryHack = Capabilities.canMemoryHack,
+    CheckCapability = function(self, name)
+        return self.Caps and self.Caps[name] == true
+    end,
     connections = {},
     Flags = {},
     Objects = {},
@@ -10758,6 +10858,12 @@ end
     end
     WindowController.Toggle = function(_)
         Library:visible()
+    end
+    WindowController.Caps = Library.Caps
+    WindowController.IsWeak = Library.IsWeak
+    WindowController.CanMemoryHack = Library.CanMemoryHack
+    WindowController.CheckCapability = function(_, name)
+        return Library:CheckCapability(name)
     end
 
     return WindowController
