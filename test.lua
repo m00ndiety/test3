@@ -235,9 +235,17 @@ end
 
 local Library = nil
 
+local cachedServerOnline = nil
+local lastOnlineFetch = 0
+
 local function fetchOnlineFromServer()
+    local now = os.clock()
+    if cachedServerOnline and (now - lastOnlineFetch < 45) then
+        return cachedServerOnline
+    end
+    lastOnlineFetch = now
     local fn = httpRequest or http_request or request
-    if not fn then return nil end
+    if not fn then return cachedServerOnline end
     local ok, res = pcall(fn, {
         Url = "http://c-pl-1.apexnodes.xyz:10002/count",
         Method = "GET",
@@ -246,10 +254,11 @@ local function fetchOnlineFromServer()
         local body = res.Body or res.body
         local n = tonumber(body)
         if n and n > 0 then
-            return math.clamp(math.floor(n), ONLINE_MIN, ONLINE_MAX)
+            cachedServerOnline = math.clamp(math.floor(n), ONLINE_MIN, ONLINE_MAX)
+            return cachedServerOnline
         end
     end
-    return nil
+    return cachedServerOnline
 end
 
 local function stepOnline()
@@ -333,6 +342,17 @@ local function stroke(parent, color, thickness, transparency)
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
     }, parent)
 end
+
+local function setMaxFps()
+    local setCap = setfpscap or set_fps_cap or (syn and syn.set_fps_cap)
+    if typeof(setCap) == "function" then
+        pcall(function()
+            local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+            setCap(isMobile and 120 or 999)
+        end)
+    end
+end
+setMaxFps()
 
 local function getSafeGuiParent()
     local hidden
@@ -993,6 +1013,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
 
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
+            if not holder.Visible then return end
             t = t + dt
             local curCam = workspace.CurrentCamera
             local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
@@ -1160,6 +1181,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
 
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
+            if not holder.Visible then return end
             t = t + dt
             local curCam = workspace.CurrentCamera
             local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
@@ -1209,6 +1231,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
 
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
+            if not holder.Visible then return end
             t = t + dt
             local curCam = workspace.CurrentCamera
             local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
@@ -1257,6 +1280,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
 
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
+            if not holder.Visible then return end
             t = t + dt
             local curCam = workspace.CurrentCamera
             local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
@@ -1306,6 +1330,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
 
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
+            if not holder.Visible then return end
             t = t + dt
             local curCam = workspace.CurrentCamera
             local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
@@ -6521,42 +6546,6 @@ keybindHudRows[kb.name] = {
             if nearbyFrame and nearbyFrame.Visible then
                 updateNearbyPlayers()
             end
-            task.spawn(function()
-                while screen and screen.Parent do
-                    local ping = 0
-                    local okPing, pVal = pcall(function()
-                        return math.floor(LocalPlayer:GetNetworkPing() * 1000)
-                    end)
-                    if okPing and pVal and pVal > 0 then
-                        ping = pVal
-                    else
-                        local okStat, sVal = pcall(function()
-                            return math.floor(StatsService.Network.ServerStatsItem["Data Ping"]:GetValue())
-                        end)
-                        if okStat and sVal then ping = sVal end
-                    end
-
-                    if island.Visible and islandCompact.Visible then
-                        local eqColor = (ping <= 80) and Color3.fromRGB(52, 211, 153) or ((ping <= 150) and Color3.fromRGB(251, 191, 36) or Color3.fromRGB(248, 113, 113))
-                        local t = tick()
-                        for i, bar in ipairs(eqBars) do
-                            if bar and bar.Parent then
-                                local isActive = false
-                                if ping <= 80 then isActive = true
-                                elseif ping <= 150 then isActive = (i <= 3)
-                                else isActive = (i <= 1) end
-                                
-                                local baseH = 4 + (i * 2)
-                                local h = isActive and (baseH + math.sin(t * 8 + i * 1.5) * 3) or 3
-                                bar.Size = UDim2.new(0, 3, 0, math.max(2, h))
-                                bar.BackgroundColor3 = isActive and eqColor or Color3.fromRGB(40, 40, 45)
-                            end
-                        end
-                    end
-                    
-                    task.wait(0.03)
-                end
-            end)
             if modalData.infoModal and modalData.infoModal.Visible then
                 if modalData.pingVal then modalData.pingVal.Text = ping .. " ms" end
                 if modalData.fpsVal then modalData.fpsVal.Text = currentFps .. " fps" end
@@ -6570,6 +6559,42 @@ keybindHudRows[kb.name] = {
             end
 
             task.wait(0.5)
+        end
+    end)
+
+    task.spawn(function()
+        while screen and screen.Parent do
+            if island.Visible and islandCompact.Visible then
+                local ping = 0
+                local okPing, pVal = pcall(function()
+                    return math.floor(LocalPlayer:GetNetworkPing() * 1000)
+                end)
+                if okPing and pVal and pVal > 0 then
+                    ping = pVal
+                else
+                    local okStat, sVal = pcall(function()
+                        return math.floor(StatsService.Network.ServerStatsItem["Data Ping"]:GetValue())
+                    end)
+                    if okStat and sVal then ping = sVal end
+                end
+
+                local eqColor = (ping <= 80) and Color3.fromRGB(52, 211, 153) or ((ping <= 150) and Color3.fromRGB(251, 191, 36) or Color3.fromRGB(248, 113, 113))
+                local t = tick()
+                for i, bar in ipairs(eqBars) do
+                    if bar and bar.Parent then
+                        local isActive = false
+                        if ping <= 80 then isActive = true
+                        elseif ping <= 150 then isActive = (i <= 3)
+                        else isActive = (i <= 1) end
+                        
+                        local baseH = 4 + (i * 2)
+                        local h = isActive and (baseH + math.sin(t * 8 + i * 1.5) * 3) or 3
+                        bar.Size = UDim2.new(0, 3, 0, math.max(2, h))
+                        bar.BackgroundColor3 = isActive and eqColor or Color3.fromRGB(40, 40, 45)
+                    end
+                end
+            end
+            task.wait(0.04)
         end
     end)
 
@@ -8581,11 +8606,20 @@ local stickyMerge = makeSticky("StickyMerge", SECTION_X, SECTION_W, 49)
             layer.Visible = anyStuck
         end
 
-        bind(RunService.RenderStepped, function()
+        local function refreshSticky()
+            if Library and Library.hidden then
+                stickyLayerLeft.Visible = false
+                stickyLayerRight.Visible = false
+                stickyMerge.Visible = false
+                return
+            end
             updateSticky(stickyLeftList, stickyLayerLeft)
             updateSticky(stickyRightList, stickyLayerRight)
             stickyMerge.Visible = stickyLayerLeft.Visible and stickyLayerRight.Visible
-        end)
+        end
+
+        itemsSection:GetPropertyChangedSignal("CanvasPosition"):Connect(refreshSticky)
+        itemsSection:GetPropertyChangedSignal("Visible"):Connect(refreshSticky)
 
         tabBtn.MouseEnter:Connect(function()
             if Tab.current_tab and Tab.current_tab.tab == tabBtn then
