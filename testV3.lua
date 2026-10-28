@@ -1695,6 +1695,16 @@ local function ApplyTheme(name, customAccent)
     if Library.UpdateHUDThemes then
         Library.UpdateHUDThemes()
     end
+    if Library.ActionButtons then
+        local cContainer = genv.uicontainer or Color3.fromRGB(18, 19, 24)
+        local cLine = genv.uiline or Color3.fromRGB(42, 45, 56)
+        local cAccent = genv.accent or Color3.fromRGB(168, 85, 247)
+        for _, ab in pairs(Library.ActionButtons) do
+            if ab and ab.UpdateTheme then
+                ab:UpdateTheme(cContainer, cLine, cAccent)
+            end
+        end
+    end
 end
 
 Library.Icons = {
@@ -2535,7 +2545,7 @@ end
 function Library:SetHudButtonStyle(name)
     Library.HudButtonStyle = name or "Card"
     for _, item in pairs(Library.ActionButtons) do
-        if not item.cfg.style and item.SetStyle then
+        if item.SetStyle then
             item:SetStyle(Library.HudButtonStyle)
         end
     end
@@ -2615,7 +2625,7 @@ function Library:RegisterActionButton(cfg)
         btnGui.IgnoreGuiInset = true
         btnGui.DisplayOrder = 99999
         btnGui.Enabled = (Library.FloatingButtonsVisible ~= false)
-        btnGui.Parent = (gethui and gethui()) or CoreGui
+        btnGui.Parent = getSafeGuiParent()
         Library.HudGui = btnGui
     end
 
@@ -2780,7 +2790,7 @@ function Library:RegisterActionButton(cfg)
         state = activeState,
         hovered = false,
         size = size,
-        styleName = cfg.style or Library.HudButtonStyle or "Card",
+        styleName = Library.HudButtonStyle or cfg.style or "Card",
         accentColor = genv.accent or cfg.color or Color3.fromRGB(168, 85, 247),
     }
 
@@ -2860,11 +2870,13 @@ function Library:RegisterActionButton(cfg)
     function item:Resize(newSize)
         item.size = newSize or Library.HudButtonSize or 58
         item:Layout()
+        paint(false)
     end
 
     function item:SetStyle(name)
-        item.styleName = name or "Card"
+        item.styleName = name or Library.HudButtonStyle or "Card"
         item:Layout()
+        paint(false)
     end
 
     local function paint(animate, cContainer, cLine, cAccent)
@@ -2873,19 +2885,19 @@ function Library:RegisterActionButton(cfg)
         cLine = cLine or genv.uiline or Color3.fromRGB(42, 45, 56)
         item.accentColor = cAccent
         local on = item.state
-        local faceColor = on and style.faceOn or (item.hovered and style.faceHover or cContainer)
+        local faceColor = on and cContainer:lerp(cAccent, 0.14) or (item.hovered and cContainer:lerp(WHITE, 0.05) or cContainer)
         local strokeColor = (on or item.hovered) and cAccent or cLine
-        local strokeAlpha = on and 0.1 or (item.hovered and 0.3 or 0.4)
+        local strokeAlpha = on and 0.1 or (item.hovered and 0.25 or 0.4)
         local list = {
             {face, {BackgroundColor3 = faceColor}},
             {faceStroke, {Color = strokeColor, Transparency = strokeAlpha}},
-            {wash, {BackgroundColor3 = cAccent, BackgroundTransparency = on and 0.8 or 1}},
+            {wash, {BackgroundColor3 = cAccent, BackgroundTransparency = on and 0.82 or 1}},
             {topLine, {BackgroundColor3 = on and cAccent or cLine, BackgroundTransparency = on and 0.2 or 0.6}},
-            {icon, {ImageColor3 = on and cAccent or style.iconOff}},
-            {label, {TextColor3 = on and WHITE or style.textOff}},
+            {icon, {ImageColor3 = on and cAccent or (item.hovered and WHITE or Color3.fromRGB(150, 155, 172))}},
+            {label, {TextColor3 = on and WHITE or (item.hovered and WHITE or Color3.fromRGB(158, 163, 180))}},
         }
         if dot then
-            table.insert(list, {dot, {BackgroundColor3 = on and cAccent or style.dotOff}})
+            table.insert(list, {dot, {BackgroundColor3 = on and cAccent or cLine:lerp(cContainer, 0.5)}})
         end
         local glowEnabled = Library.HudGlowEnabled ~= false
         local intensity = Library.HudGlowIntensity or 1
@@ -3502,10 +3514,33 @@ function Library:disconnect()
         pcall(function() connection:Disconnect() end)
         Library.connections[index] = nil
     end
+    if Library.HudGui then
+        pcall(function() Library.HudGui:Destroy() end)
+        Library.HudGui = nil
+    end
+    Library.ActionButtons = {}
+end
+
+function Library:Unload()
+    Library:disconnect()
+    if Library.HudGui then
+        pcall(function() Library.HudGui:Destroy() end)
+        Library.HudGui = nil
+    end
+    Library.ActionButtons = {}
+    if Library.core then
+        pcall(function() Library.core:Destroy() end)
+        Library.core = nil
+    end
 end
 
 function Library:clear()
     Library.Keybinds = {}
+    if Library.HudGui then
+        pcall(function() Library.HudGui:Destroy() end)
+        Library.HudGui = nil
+    end
+    Library.ActionButtons = {}
     local parentGui = getSafeGuiParent()
     for _, object in ipairs(parentGui:GetChildren()) do
         if object.Name == "Moondiety" or object.Name == "MoondietyHUD" then
@@ -3737,6 +3772,14 @@ function Library.new(selfOrOpts, options)
     screen.Parent = getSafeGuiParent()
     Library.core = screen
     genv.CloseUi = screen
+    screen.Destroying:Connect(function()
+        Library:disconnect()
+        if Library.HudGui then
+            pcall(function() Library.HudGui:Destroy() end)
+            Library.HudGui = nil
+        end
+        Library.ActionButtons = {}
+    end)
 
     local atmosphereHolder = new("Frame", {
         Name = "AtmosphereHolder",
@@ -6464,6 +6507,11 @@ keybindHudRows[kb.name] = {
             Danger = true,
             OnConfirm = function()
                 Library:disconnect()
+                if Library.HudGui then
+                    pcall(function() Library.HudGui:Destroy() end)
+                    Library.HudGui = nil
+                end
+                Library.ActionButtons = {}
                 pcall(function() screen:Destroy() end)
             end,
         })
