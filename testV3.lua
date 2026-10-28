@@ -2480,6 +2480,10 @@ function Library:UpdateHudVisibility()
     end
 end
 
+Library.HudButtonStyle = "Card"
+Library.HudGlowEnabled = true
+Library.HudGlowIntensity = 1
+
 Library.HudStyle = {
     iconOff = Color3.fromRGB(150, 155, 172),
     textOff = Color3.fromRGB(158, 163, 180),
@@ -2524,10 +2528,15 @@ function Library:SetHudButtonRounding(radius)
     radius = tonumber(radius) or 16
     Library.HudButtonRounding = radius
     for _, item in pairs(Library.ActionButtons) do
-        if item.corners then
-            for _, c in ipairs(item.corners) do
-                c.CornerRadius = UDim.new(0, radius)
-            end
+        if item.Layout then item:Layout() end
+    end
+end
+
+function Library:SetHudButtonStyle(name)
+    Library.HudButtonStyle = name or "Card"
+    for _, item in pairs(Library.ActionButtons) do
+        if not item.cfg.style and item.SetStyle then
+            item:SetStyle(Library.HudButtonStyle)
         end
     end
 end
@@ -2537,6 +2546,21 @@ function Library:SetHudButtonTransparency(trans)
     Library.HudButtonTransparency = trans
     for _, item in pairs(Library.ActionButtons) do
         if item.face then item.face.BackgroundTransparency = trans end
+    end
+end
+
+function Library:SetHudGlowEnabled(enabled)
+    Library.HudGlowEnabled = (enabled == true)
+    for _, item in pairs(Library.ActionButtons) do
+        if item.UpdateGlow then item:UpdateGlow() end
+    end
+end
+
+function Library:SetHudGlowIntensity(intensity)
+    intensity = tonumber(intensity) or 1
+    Library.HudGlowIntensity = math.clamp(intensity, 0, 1)
+    for _, item in pairs(Library.ActionButtons) do
+        if item.UpdateGlow then item:UpdateGlow() end
     end
 end
 
@@ -2551,7 +2575,7 @@ function Library:ResetHudPositions()
             delfile("Moondiety/hud_positions.json")
         end
     end)
-    for id, item in pairs(Library.ActionButtons) do
+    for _, item in pairs(Library.ActionButtons) do
         local def = item.cfg.defaultPos or UDim2.new(0.85, 0, 0.5, 0)
         item.btn.Position = def
     end
@@ -2600,6 +2624,9 @@ function Library:RegisterActionButton(cfg)
         previous.btn:Destroy()
     end
 
+    local isMobileUser = (Library.IsMobile ~= nil) and Library.IsMobile or IsMobile
+    local touchOnly = isMobileUser or (UserInputService.TouchEnabled and not UserInputService.MouseEnabled)
+    local margin = touchOnly and 14 or 6
     local hasFlag = cfg.flag ~= nil
     local isToggle = (cfg.isToggle == true) or hasFlag
     local hasGetter = type(cfg.getState) == "function"
@@ -2625,30 +2652,42 @@ function Library:RegisterActionButton(cfg)
     }, btnGui)
     local rootScale = new("UIScale", {Scale = 0.7}, root)
 
-    new("ImageLabel", {
-        Name = "Shadow",
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = UDim2.new(1, 28, 1, 28),
-        BackgroundTransparency = 1,
-        Image = "rbxassetid://17290899982",
-        ImageColor3 = genv.shadowcolor or Color3.fromRGB(0, 0, 0),
-        ImageTransparency = 0.62,
-        ZIndex = 1,
-    }, root)
+    local ringOff = {0.8, 0.88, 0.93, 0.96, 0.985}
+    local ringOn = {0.6, 0.76, 0.87, 0.94, 0.975}
+    local glowRings = {}
+    for index, grow in {0, 2, 4, 6, 8} do
+        local ring = new("Frame", {
+            Name = "Glow" .. index,
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 2),
+            Size = UDim2.new(1, grow * 2, 1, grow * 2),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ZIndex = 1,
+        }, root)
+        table.insert(glowRings, {
+            frame = ring,
+            corner = corner(ring, rounding + grow),
+            stroke = stroke(ring, genv.shadowcolor or Color3.fromRGB(0, 0, 0), 2, ringOff[index]),
+            grow = grow,
+            index = index,
+        })
+    end
 
-    local face = new("TextButton", {
+    local face = new("Frame", {
         Name = "Face",
         Size = UDim2.fromScale(1, 1),
         BackgroundColor3 = genv.uicontainer or Color3.fromRGB(18, 19, 24),
         BackgroundTransparency = Library.HudButtonTransparency or 0.2,
         BorderSizePixel = 0,
-        AutoButtonColor = false,
-        Text = "",
         ZIndex = 2,
     }, root)
     local faceCorner = corner(face, rounding)
     local faceStroke = stroke(face, genv.uiline or Color3.fromRGB(42, 45, 56), 1.2, 0.4)
+    new("UIGradient", {
+        Rotation = 90,
+        Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(190, 190, 204)),
+    }, face)
 
     local wash = new("Frame", {
         Name = "Wash",
@@ -2659,7 +2698,7 @@ function Library:RegisterActionButton(cfg)
         ZIndex = 3,
     }, face)
     local washCorner = corner(wash, rounding)
-    new("UIGradient", {
+    local washGradient = new("UIGradient", {
         Rotation = 90,
         Transparency = NumberSequence.new({
             NumberSequenceKeypoint.new(0, 0),
@@ -2717,28 +2756,115 @@ function Library:RegisterActionButton(cfg)
         pill(dot)
     end
 
+    local hit = new("TextButton", {
+        Name = "Hit",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(1, 16, 1, 16),
+        BackgroundTransparency = 1,
+        AutoButtonColor = false,
+        Text = "",
+        ZIndex = 10,
+    }, root)
+
     local item = {
         btn = root,
         face = face,
+        hit = hit,
         cfg = cfg,
         icon = icon,
         label = label,
         corners = {faceCorner, washCorner},
+        glowRings = glowRings,
         isToggle = isToggle,
         state = activeState,
         hovered = false,
+        size = size,
+        styleName = cfg.style or Library.HudButtonStyle or "Card",
         accentColor = genv.accent or cfg.color or Color3.fromRGB(168, 85, 247),
     }
 
+    function item:Layout()
+        local s = item.size or Library.HudButtonSize or 58
+        local mode = string.lower(item.styleName or "card")
+        local w, h = s, s
+        local radius = Library.HudButtonRounding or 16
+        if mode == "capsule" then
+            h = math.max(46, math.floor(s * 0.74))
+            w = math.max(h * 2, math.floor(s * 2.3))
+            radius = h / 2
+        elseif mode == "orb" then
+            radius = s / 2
+        end
+        root.Size = UDim2.fromOffset(w, h)
+        for _, c in ipairs(item.corners) do
+            c.CornerRadius = UDim.new(0, radius)
+        end
+        for _, ring in ipairs(glowRings) do
+            ring.corner.CornerRadius = UDim.new(0, radius + ring.grow)
+        end
+        topLine.Visible = mode ~= "capsule" and mode ~= "orb"
+        washGradient.Rotation = mode == "capsule" and 0 or 90
+        if mode == "capsule" then
+            local pad = math.floor(h * 0.32)
+            local iconSize = math.floor(h * 0.48)
+            local textSize = math.max(10, math.floor(h * 0.27))
+            local textX = pad + iconSize + math.floor(h * 0.2)
+            local rightPad = stateful and math.floor(h * 0.62) or pad
+            icon.AnchorPoint = Vector2.new(0, 0.5)
+            icon.Position = UDim2.new(0, pad, 0.5, 0)
+            icon.Size = UDim2.fromOffset(iconSize, iconSize)
+            label.Visible = true
+            label.AnchorPoint = Vector2.new(0, 0.5)
+            label.Position = UDim2.new(0, textX, 0.5, 0)
+            label.Size = UDim2.new(1, -(textX + rightPad), 0, textSize + 4)
+            label.TextSize = textSize
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            if dot then
+                dot.AnchorPoint = Vector2.new(1, 0.5)
+                dot.Position = UDim2.new(1, -pad, 0.5, 0)
+                dot.Size = UDim2.fromOffset(8, 8)
+            end
+        elseif mode == "orb" then
+            local iconSize = math.floor(s * 0.48)
+            icon.AnchorPoint = Vector2.new(0.5, 0.5)
+            icon.Position = UDim2.new(0.5, 0, 0.5, 0)
+            icon.Size = UDim2.fromOffset(iconSize, iconSize)
+            label.Visible = false
+            if dot then
+                local off = math.floor(s * 0.35)
+                dot.AnchorPoint = Vector2.new(0.5, 0.5)
+                dot.Position = UDim2.new(0.5, off, 0.5, -off)
+                dot.Size = UDim2.fromOffset(8, 8)
+            end
+        else
+            local iconSize = math.floor(s * 0.4)
+            local textSize = math.max(8, math.floor(s * 0.15))
+            icon.AnchorPoint = Vector2.new(0.5, 0.5)
+            icon.Position = UDim2.new(0.5, 0, 0.42, 0)
+            icon.Size = UDim2.fromOffset(iconSize, iconSize)
+            label.Visible = true
+            label.AnchorPoint = Vector2.new(0.5, 0.5)
+            label.TextSize = textSize
+            label.TextXAlignment = Enum.TextXAlignment.Center
+            label.Size = UDim2.new(1, -8, 0, textSize + 2)
+            label.Position = UDim2.new(0.5, 0, 1, -math.floor(s * 0.17))
+            if dot then
+                dot.AnchorPoint = Vector2.new(1, 0)
+                dot.Position = UDim2.new(1, -7, 0, 7)
+                dot.Size = UDim2.fromOffset(6, 6)
+            end
+        end
+    end
+
     function item:Resize(newSize)
-        newSize = newSize or Library.HudButtonSize or 58
-        local iconSize = math.floor(newSize * 0.4)
-        local textSize = math.max(8, math.floor(newSize * 0.15))
-        root.Size = UDim2.fromOffset(newSize, newSize)
-        icon.Size = UDim2.fromOffset(iconSize, iconSize)
-        label.TextSize = textSize
-        label.Size = UDim2.new(1, -8, 0, textSize + 2)
-        label.Position = UDim2.new(0.5, 0, 1, -math.floor(newSize * 0.17))
+        item.size = newSize or Library.HudButtonSize or 58
+        item:Layout()
+    end
+
+    function item:SetStyle(name)
+        item.styleName = name or "Card"
+        item:Layout()
     end
 
     local function paint(animate, cContainer, cLine, cAccent)
@@ -2761,7 +2887,24 @@ function Library:RegisterActionButton(cfg)
         if dot then
             table.insert(list, {dot, {BackgroundColor3 = on and cAccent or style.dotOff}})
         end
+        local glowEnabled = Library.HudGlowEnabled ~= false
+        local intensity = Library.HudGlowIntensity or 1
+        for _, ring in ipairs(glowRings) do
+            local baseAlpha = (on and ringOn or ringOff)[ring.index]
+            local targetAlpha = 1
+            if glowEnabled then
+                targetAlpha = math.clamp(1 - (1 - baseAlpha) * intensity, 0, 1)
+            end
+            table.insert(list, {ring.stroke, {
+                Color = on and cAccent or (genv.shadowcolor or Color3.fromRGB(0, 0, 0)),
+                Transparency = targetAlpha,
+            }})
+        end
         Library:ApplyHudProps(list, animate)
+    end
+
+    function item:UpdateGlow()
+        paint(true)
     end
 
     function item:SetState(newState)
@@ -2801,7 +2944,21 @@ function Library:RegisterActionButton(cfg)
     local scaleIn = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     local scaleOut = TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
-    face.MouseEnter:Connect(function()
+    local function pointerOf(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            return Vector2.new(input.Position.X, input.Position.Y)
+        end
+        return UserInputService:GetMouseLocation()
+    end
+
+    local function centerOf()
+        local view = btnGui.AbsoluteSize
+        local p = root.Position
+        return Vector2.new(p.X.Scale * view.X + p.X.Offset, p.Y.Scale * view.Y + p.Y.Offset)
+    end
+
+    hit.MouseEnter:Connect(function()
+        if touchOnly then return end
         item.hovered = true
         paint(true)
         if not drag.active then
@@ -2809,7 +2966,8 @@ function Library:RegisterActionButton(cfg)
         end
     end)
 
-    face.MouseLeave:Connect(function()
+    hit.MouseLeave:Connect(function()
+        if touchOnly then return end
         item.hovered = false
         paint(true)
         if not drag.active then
@@ -2817,7 +2975,7 @@ function Library:RegisterActionButton(cfg)
         end
     end)
 
-    face.InputBegan:Connect(function(input)
+    hit.InputBegan:Connect(function(input)
         if drag.active then return end
         local kind = input.UserInputType
         if kind ~= Enum.UserInputType.MouseButton1 and kind ~= Enum.UserInputType.Touch then return end
@@ -2825,8 +2983,11 @@ function Library:RegisterActionButton(cfg)
         drag.moved = false
         drag.cancelled = false
         drag.input = input
-        drag.origin = input.Position
-        drag.center = root.AbsolutePosition + root.AbsoluteSize * 0.5
+        drag.slop = kind == Enum.UserInputType.Touch and 10 or 6
+        drag.origin = pointerOf(input)
+        drag.center = centerOf()
+        drag.current = drag.center
+        drag.target = nil
         TweenService:Create(rootScale, scaleIn, {Scale = 0.92}):Play()
     end)
 
@@ -2837,21 +2998,36 @@ function Library:RegisterActionButton(cfg)
         elseif input.UserInputType ~= Enum.UserInputType.MouseMovement then
             return
         end
-        local delta = input.Position - drag.origin
+        local delta = pointerOf(input) - drag.origin
         if Library.HudPositionsLocked then
-            if delta.Magnitude > 12 then drag.cancelled = true end
+            if delta.Magnitude > drag.slop * 2 then drag.cancelled = true end
             return
         end
         if not drag.moved then
-            if delta.Magnitude <= 8 then return end
+            if delta.Magnitude <= drag.slop then return end
             drag.moved = true
+            TweenService:Create(rootScale, scaleOut, {Scale = 1.1}):Play()
         end
         local view = btnGui.AbsoluteSize
-        local half = root.AbsoluteSize * 0.5
-        local cx = math.clamp(drag.center.X + delta.X, half.X + 6, view.X - half.X - 6)
-        local cy = math.clamp(drag.center.Y + delta.Y, half.Y + 6, view.Y - half.Y - 6)
-        root.Position = UDim2.fromScale(cx / view.X, cy / view.Y)
+        local half = Vector2.new(root.Size.X.Offset, root.Size.Y.Offset) * 0.55
+        drag.target = Vector2.new(
+            math.clamp(drag.center.X + delta.X, half.X + margin, view.X - half.X - margin),
+            math.clamp(drag.center.Y + delta.Y, half.Y + margin, view.Y - half.Y - margin)
+        )
     end)
+
+    local follow
+    follow = RunService.RenderStepped:Connect(function(dt)
+        if not root.Parent then
+            follow:Disconnect()
+            return
+        end
+        if not drag.active or not drag.target then return end
+        local view = btnGui.AbsoluteSize
+        drag.current = drag.current:Lerp(drag.target, 1 - math.exp(-dt * 26))
+        root.Position = UDim2.fromScale(drag.current.X / view.X, drag.current.Y / view.Y)
+    end)
+    table.insert(Library.connections, follow)
 
     bind(UserInputService.InputEnded, function(input)
         if not drag.active then return end
@@ -2863,6 +3039,10 @@ function Library:RegisterActionButton(cfg)
         drag.active = false
         TweenService:Create(rootScale, scaleOut, {Scale = item.hovered and 1.05 or 1}):Play()
         if drag.moved then
+            if drag.target then
+                local view = btnGui.AbsoluteSize
+                root.Position = UDim2.fromScale(drag.target.X / view.X, drag.target.Y / view.Y)
+            end
             local p = root.Position
             Library.HudPositions[id] = {p.X.Scale, p.X.Offset, p.Y.Scale, p.Y.Offset}
             Library:SaveHudPositions()
@@ -2871,7 +3051,7 @@ function Library:RegisterActionButton(cfg)
         end
     end)
 
-    item:Resize(size)
+    item:Layout()
     paint(false)
     TweenService:Create(rootScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
 
@@ -2964,6 +3144,16 @@ function Library:BuildKeybindsAndHudTab(tab)
     })
 
     tab.create_title({ name = "== FLOATING BUTTONS CUSTOMIZATION ==", section = "right" })
+    tab.create_dropdown({
+        name = "Global Button Style",
+        flag = "hud_button_style",
+        section = "right",
+        option = Library.HudButtonStyle or "Card",
+        options = {"Card", "Capsule", "Orb"},
+        callback = function(val)
+            Library:SetHudButtonStyle(val)
+        end
+    })
     tab.create_slider({
         name = "Button Size",
         flag = "hud_button_size",
@@ -2995,6 +3185,26 @@ function Library:BuildKeybindsAndHudTab(tab)
         maximum_value = 80,
         callback = function(val)
             Library:SetHudButtonTransparency(val / 100)
+        end
+    })
+    tab.create_toggle({
+        name = "Ambient Button Glow",
+        flag = "hud_button_glow",
+        section = "right",
+        enabled = Library.HudGlowEnabled ~= false,
+        callback = function(state)
+            Library:SetHudGlowEnabled(state)
+        end
+    })
+    tab.create_slider({
+        name = "Glow Intensity (%)",
+        flag = "hud_button_glow_intensity",
+        section = "right",
+        value = math.floor((Library.HudGlowIntensity or 1) * 100),
+        minimum_value = 10,
+        maximum_value = 100,
+        callback = function(val)
+            Library:SetHudGlowIntensity(val / 100)
         end
     })
 
