@@ -182,6 +182,8 @@ local SupportedGames = {
     { Name = "Steal an Egg", UniverseId = 10563114921, PlaceId = 107778070777162, Playing = 1832000 },
     { Name = "Land or Die!", UniverseId = 9312646406, PlaceId = 75547400568620, Playing = 4300 },
     { Name = "Murder Mystery 2", UniverseId = 66654135, PlaceId = 142823291, Playing = 249800 },
+    { Name = "Feed a Mosquito", UniverseId = 10747719434, PlaceId = 125310131519813, Playing = 24400 },
+    { Name = "Sniper Arena", UniverseId = 9534705677, PlaceId = 122446657157717, Playing = 16100 },
 }
 
 local supportedGamesListeners = {}
@@ -6773,6 +6775,7 @@ keybindHudRows[kb.name] = {
         BackgroundColor3 = Color3.fromRGB(18, 19, 24),
         BackgroundTransparency = 0,
         BorderSizePixel = 0,
+        Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=100&h=100",
         ZIndex = 21,
     }, userCard)
     corner(avatar, 8)
@@ -6883,6 +6886,11 @@ keybindHudRows[kb.name] = {
         openInfoModal = function()
             if isModalOpen then return end
             isModalOpen = true
+            if avatar and avatar.Image ~= "" and modalAvatar.Image ~= avatar.Image then
+                modalAvatar.Image = avatar.Image
+            elseif modalAvatar.Image == "" then
+                modalAvatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=100&h=100"
+            end
             if updateHUDThemes then updateHUDThemes() end
             infoModalOverlay.Visible = true
             infoModal.Visible = true
@@ -6939,6 +6947,7 @@ keybindHudRows[kb.name] = {
             Size = UDim2.new(0, 36, 0, 36),
             BackgroundColor3 = Color3.fromRGB(28, 30, 38),
             BorderSizePixel = 0,
+            Image = (avatar and avatar.Image ~= "") and avatar.Image or ("rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=100&h=100"),
             ZIndex = 893,
         }, modalHeader)
         corner(modalAvatar, 8)
@@ -6948,7 +6957,7 @@ keybindHudRows[kb.name] = {
             local ok, content = pcall(function()
                 return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
             end)
-            if ok and content then modalAvatar.Image = content end
+            if ok and content and content ~= "" then modalAvatar.Image = content end
         end)
 
         new("TextLabel", {
@@ -7520,6 +7529,30 @@ keybindHudRows[kb.name] = {
             }, suppTitleRow)
             modalData.suppHeaderIcon = suppHeaderIcon
 
+            local isUnivMode = (options.SubName and tostring(options.SubName):lower():find("universal")) ~= nil or (genv.hubsubname and tostring(genv.hubsubname):lower():find("universal")) ~= nil
+            local gamesList = {}
+            for _, g in ipairs(SupportedGames) do
+                table.insert(gamesList, g)
+            end
+            if isUnivMode then
+                local alreadyListed = false
+                for _, g in ipairs(gamesList) do
+                    if (g.UniverseId and game.GameId == g.UniverseId) or (g.PlaceId and game.PlaceId == g.PlaceId) then
+                        alreadyListed = true
+                        break
+                    end
+                end
+                if not alreadyListed then
+                    table.insert(gamesList, 1, {
+                        Name = "Universal",
+                        UniverseId = game.GameId,
+                        PlaceId = game.PlaceId,
+                        Playing = #Players:GetPlayers(),
+                        IsUniversal = true,
+                    })
+                end
+            end
+
             new("TextLabel", {
                 BackgroundTransparency = 1,
                 AnchorPoint = Vector2.new(0, 0.5),
@@ -7529,7 +7562,7 @@ keybindHudRows[kb.name] = {
                 TextColor3 = WHITE,
                 TextSize = 11,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                Text = "Supported Games (" .. tostring(#SupportedGames) .. ")",
+                Text = "Supported Games (" .. tostring(#gamesList) .. ")",
                 ZIndex = 894,
             }, suppTitleRow)
 
@@ -7591,8 +7624,8 @@ keybindHudRows[kb.name] = {
                 Padding = UDim.new(0, 5),
             }, gamesContainer)
 
-            for idx, gInfo in ipairs(SupportedGames) do
-                local isCurrent = (gInfo.UniverseId and game.GameId == gInfo.UniverseId) or (gInfo.PlaceId and game.PlaceId == gInfo.PlaceId)
+            for idx, gInfo in ipairs(gamesList) do
+                local isCurrent = gInfo.IsUniversal or (gInfo.UniverseId and game.GameId == gInfo.UniverseId) or (gInfo.PlaceId and game.PlaceId == gInfo.PlaceId)
                 local gRow = new("Frame", {
                     BackgroundColor3 = isCurrent and Color3.fromRGB(32, 28, 42) or Color3.fromRGB(20, 21, 28),
                     BorderSizePixel = 0,
@@ -7603,9 +7636,9 @@ keybindHudRows[kb.name] = {
                 corner(gRow, 7)
                 local gRowStrk = stroke(gRow, isCurrent and (genv.accent or Color3.fromRGB(168, 85, 247)) or (genv.uiline or Color3.fromRGB(38, 40, 50)), 1, isCurrent and 0.3 or 0.6)
 
-                local thumbUri = (gInfo.UniverseId and gInfo.UniverseId > 0)
+                local thumbUri = gInfo.IsUniversal and "rbxassetid://133495621202705" or ((gInfo.UniverseId and gInfo.UniverseId > 0)
                     and ("rbxthumb://type=GameIcon&id=" .. tostring(gInfo.UniverseId) .. "&w=150&h=150")
-                    or ("rbxthumb://type=AutoGameIcon&id=" .. tostring(gInfo.PlaceId) .. "&w=150&h=150")
+                    or ("rbxthumb://type=AutoGameIcon&id=" .. tostring(gInfo.PlaceId) .. "&w=150&h=150"))
                 local gThumb = new("ImageLabel", {
                     AnchorPoint = Vector2.new(0, 0.5),
                     Position = UDim2.new(0, 6, 0.5, 0),
@@ -7631,6 +7664,7 @@ keybindHudRows[kb.name] = {
                     ZIndex = 895,
                 }, gRow)
 
+                local playText = gInfo.IsUniversal and "<font color=\"#4ade80\">●</font> Universal active" or string.format("<font color=\"#4ade80\">●</font> %s playing", formatCount(gInfo.Playing))
                 local gPlayingLabel = new("TextLabel", {
                     BackgroundTransparency = 1,
                     Position = UDim2.new(0, 38, 0, 18),
@@ -7640,15 +7674,17 @@ keybindHudRows[kb.name] = {
                     TextSize = 10,
                     RichText = true,
                     TextXAlignment = Enum.TextXAlignment.Left,
-                    Text = string.format("<font color=\"#4ade80\">●</font> %s playing", formatCount(gInfo.Playing)),
+                    Text = playText,
                     ZIndex = 895,
                 }, gRow)
 
-                table.insert(supportedGamesListeners, function()
-                    if gPlayingLabel and gPlayingLabel.Parent then
-                        gPlayingLabel.Text = string.format("<font color=\"#4ade80\">●</font> %s playing", formatCount(gInfo.Playing))
-                    end
-                end)
+                if not gInfo.IsUniversal then
+                    table.insert(supportedGamesListeners, function()
+                        if gPlayingLabel and gPlayingLabel.Parent then
+                            gPlayingLabel.Text = string.format("<font color=\"#4ade80\">●</font> %s playing", formatCount(gInfo.Playing))
+                        end
+                    end)
+                end
 
                 if isCurrent then
                     local activeBadge = new("Frame", {
