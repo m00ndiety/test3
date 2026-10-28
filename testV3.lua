@@ -2298,9 +2298,10 @@ function Library:SetCustomCursor(enabled, style, size, color, assetUrl)
                 local getAsset = getsynasset or getcustomasset
                 if getAsset and writefile then
                     local res = game:HttpGet(targetUrl)
-                    if not isfolder("Moondiety") and makefolder then makefolder("Moondiety") end
-                    writefile("Moondiety/custom_cursor.png", res)
-                    CursorDot.Image = getAsset("Moondiety/custom_cursor.png")
+                    ensureFolder(ROOT_FOLDER)
+                    local cursorPath = ROOT_FOLDER .. "/custom_cursor.png"
+                    writefile(cursorPath, res)
+                    CursorDot.Image = getAsset(cursorPath)
                 end
             end)
         elseif targetUrl:match("^%d+$") then
@@ -2326,8 +2327,10 @@ function Library:SetWindowBg(enabled, assetIdOrUrl, transparency)
             local getAsset = getsynasset or getcustomasset
             if getAsset and writefile then
                 local res = game:HttpGet(assetIdOrUrl)
-                writefile("Moondiety/custom_bg.png", res)
-                Library.WindowBgImage.Image = getAsset("Moondiety/custom_bg.png")
+                ensureFolder(ROOT_FOLDER)
+                local bgPath = ROOT_FOLDER .. "/custom_bg.png"
+                writefile(bgPath, res)
+                Library.WindowBgImage.Image = getAsset(bgPath)
             end
         end)
     else
@@ -2426,7 +2429,7 @@ function Library:GetHudPositionsFile()
     if not gId or gId == 0 then
         gId = game.PlaceId or 0
     end
-    return "Moondiety/hud_positions_" .. tostring(gId) .. ".json"
+    return ROOT_FOLDER .. "/Positions/hud_positions_" .. tostring(gId) .. ".json"
 end
 Library.HudPositionsFile = Library:GetHudPositionsFile()
 Library.HudMode = "Both"
@@ -2437,7 +2440,8 @@ Library.HudPositionsLocked = false
 
 function Library:SaveHudPositions()
     pcall(function()
-        if not isfolder("Moondiety") and makefolder then makefolder("Moondiety") end
+        local posFolder = ROOT_FOLDER .. "/Positions"
+        ensureFolder(posFolder)
         if writefile then
             local targetFile = Library:GetHudPositionsFile()
             writefile(targetFile, HttpService:JSONEncode(Library.HudPositions))
@@ -2448,9 +2452,19 @@ end
 function Library:LoadHudPositions()
     pcall(function()
         local targetFile = Library:GetHudPositionsFile()
+        local gId = game.GameId
+        if not gId or gId == 0 then
+            gId = game.PlaceId or 0
+        end
         local filePath = nil
         if isfile and isfile(targetFile) then
             filePath = targetFile
+        elseif isfile and isfile(ROOT_FOLDER .. "/hud_positions_" .. tostring(gId) .. ".json") then
+            filePath = ROOT_FOLDER .. "/hud_positions_" .. tostring(gId) .. ".json"
+        elseif isfile and isfile(ROOT_FOLDER .. "/hud_positions.json") then
+            filePath = ROOT_FOLDER .. "/hud_positions.json"
+        elseif isfile and isfile("Moondiety/hud_positions_" .. tostring(gId) .. ".json") then
+            filePath = "Moondiety/hud_positions_" .. tostring(gId) .. ".json"
         elseif isfile and isfile("Moondiety/hud_positions.json") then
             filePath = "Moondiety/hud_positions.json"
         end
@@ -2578,8 +2592,21 @@ function Library:ResetHudPositions()
     table.clear(Library.HudPositions)
     pcall(function()
         local targetFile = Library:GetHudPositionsFile()
+        local gId = game.GameId
+        if not gId or gId == 0 then
+            gId = game.PlaceId or 0
+        end
         if isfile and isfile(targetFile) and delfile then
             delfile(targetFile)
+        end
+        if isfile and isfile(ROOT_FOLDER .. "/hud_positions_" .. tostring(gId) .. ".json") and delfile then
+            delfile(ROOT_FOLDER .. "/hud_positions_" .. tostring(gId) .. ".json")
+        end
+        if isfile and isfile(ROOT_FOLDER .. "/hud_positions.json") and delfile then
+            delfile(ROOT_FOLDER .. "/hud_positions.json")
+        end
+        if isfile and isfile("Moondiety/hud_positions_" .. tostring(gId) .. ".json") and delfile then
+            delfile("Moondiety/hud_positions_" .. tostring(gId) .. ".json")
         end
         if isfile and isfile("Moondiety/hud_positions.json") and delfile then
             delfile("Moondiety/hud_positions.json")
