@@ -6949,6 +6949,8 @@ keybindHudRows[kb.name] = {
 
     local function initModal()
         local isModalOpen = false
+        local lastModalOpened = 0
+        local modalAvatar = nil
         local infoModalOverlay = new("TextButton", {
             Name = "InfoModalOverlay",
             BackgroundColor3 = Color3.fromRGB(0, 0, 0),
@@ -6986,12 +6988,15 @@ keybindHudRows[kb.name] = {
         openInfoModal = function()
             if isModalOpen then return end
             isModalOpen = true
-            if avatar and avatar.Image ~= "" and modalAvatar.Image ~= avatar.Image then
-                modalAvatar.Image = avatar.Image
-            elseif modalAvatar.Image == "" then
-                modalAvatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=100&h=100"
+            lastModalOpened = os.clock()
+            if modalAvatar then
+                if avatar and avatar.Image ~= "" and modalAvatar.Image ~= avatar.Image then
+                    modalAvatar.Image = avatar.Image
+                elseif modalAvatar.Image == "" then
+                    modalAvatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=100&h=100"
+                end
             end
-            if updateHUDThemes then updateHUDThemes() end
+            if updateHUDThemes then pcall(updateHUDThemes) end
             infoModalOverlay.Visible = true
             infoModal.Visible = true
             modalScale.Scale = 0.88
@@ -7016,11 +7021,10 @@ keybindHudRows[kb.name] = {
         end
 
         infoModalOverlay.MouseButton1Click:Connect(closeInfoModal)
-        userCard.MouseButton1Click:Connect(openInfoModal)
-        userCard.TouchTap:Connect(openInfoModal)
+        bindTap(userCard, openInfoModal)
 
         UserInputService.InputBegan:Connect(function(input)
-            if not isModalOpen then return end
+            if not isModalOpen or (os.clock() - lastModalOpened < 0.25) then return end
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 local mousePos = input.Position
                 local modalPos = infoModal.AbsolutePosition
@@ -7040,7 +7044,7 @@ keybindHudRows[kb.name] = {
             ZIndex = 892,
         }, infoModal)
 
-        local modalAvatar = new("ImageLabel", {
+        modalAvatar = new("ImageLabel", {
             Name = "ModalAvatar",
             AnchorPoint = Vector2.new(0, 0.5),
             Position = UDim2.new(0, 0, 0.5, 0),
