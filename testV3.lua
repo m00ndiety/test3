@@ -28,6 +28,27 @@ local delfile = delfile or function() end
 local copyclipboard = setclipboard or toclipboard or (syn and syn.write_clipboard)
 local httpRequest = (syn and syn.request) or (http and http.request) or request
 
+local ROOT_FOLDER = "Moondiety/V2"
+local createdFolders = {}
+local function ensureFolder(path)
+    if not path or path == "" then return end
+    if createdFolders[path] then return end
+    local parts = path:split("/")
+    local current = ""
+    for _, part in ipairs(parts) do
+        current = (current == "") and part or (current .. "/" .. part)
+        if not createdFolders[current] then
+            local exists = false
+            pcall(function() exists = isfolder(current) end)
+            if not exists then
+                pcall(makefolder, current)
+            end
+            createdFolders[current] = true
+        end
+    end
+    createdFolders[path] = true
+end
+
 local genv = getgenv()
 genv.UIElements = {}
 
@@ -48,6 +69,44 @@ local function onGameNameResolved(name, icon)
     end
 end
 
+local function loadGameMetadataCache()
+    local cacheFile = ROOT_FOLDER .. "/Cache/games.json"
+    if not (isfile and isfile(cacheFile) and readfile) then return end
+    local ok, data = pcall(function() return HttpService:JSONDecode(readfile(cacheFile)) end)
+    if ok and type(data) == "table" then
+        local entry = data[tostring(game.PlaceId)]
+        if type(entry) == "table" and entry.name and #entry.name > 0 then
+            detectedGameName = entry.name
+            if entry.icon and #entry.icon > 0 then
+                detectedGameIcon = entry.icon
+            end
+            onGameNameResolved(detectedGameName, detectedGameIcon)
+            return true
+        end
+    end
+end
+
+local function saveGameMetadataCache(name, icon)
+    pcall(function()
+        local cacheFolder = ROOT_FOLDER .. "/Cache"
+        ensureFolder(cacheFolder)
+        local cacheFile = cacheFolder .. "/games.json"
+        local data = {}
+        if isfile and isfile(cacheFile) and readfile then
+            local ok, decoded = pcall(function() return HttpService:JSONDecode(readfile(cacheFile)) end)
+            if ok and type(decoded) == "table" then
+                data = decoded
+            end
+        end
+        data[tostring(game.PlaceId)] = {name = name, icon = icon}
+        if writefile then
+            writefile(cacheFile, HttpService:JSONEncode(data))
+        end
+    end)
+end
+
+loadGameMetadataCache()
+
 task.spawn(function()
     local okName, gName = pcall(function() return game.Name end)
     if okName and type(gName) == "string" and #gName > 0 and gName ~= "Game" then
@@ -59,6 +118,7 @@ task.spawn(function()
     if ok and type(info) == "table" and info.Name and #info.Name > 0 then
         local gIcon = (info.IconImageAssetId and info.IconImageAssetId > 0) and ("rbxassetid://" .. tostring(info.IconImageAssetId)) or detectedGameIcon
         onGameNameResolved(info.Name, gIcon)
+        saveGameMetadataCache(info.Name, gIcon)
         return
     end
     if RunService:IsStudio() then
@@ -1798,30 +1858,9 @@ local SystemSettings = {
     hud_lock_positions = true
 }
 
-local ROOT_FOLDER = "Moondiety/V2"
 local SETTINGS_FILE = ROOT_FOLDER .. "/settings.json"
 local THEME_FILE = ROOT_FOLDER .. "/theme.txt"
 local ACCENT_FILE = ROOT_FOLDER .. "/accent.txt"
-
-local createdFolders = {}
-local function ensureFolder(path)
-    if not path or path == "" then return end
-    if createdFolders[path] then return end
-    local parts = path:split("/")
-    local current = ""
-    for _, part in ipairs(parts) do
-        current = (current == "") and part or (current .. "/" .. part)
-        if not createdFolders[current] then
-            local exists = false
-            pcall(function() exists = isfolder(current) end)
-            if not exists then
-                pcall(makefolder, current)
-            end
-            createdFolders[current] = true
-        end
-    end
-    createdFolders[path] = true
-end
 
 Library.ActiveConfig = "None"
 Library.DefaultAutoSave = false
@@ -1967,6 +2006,41 @@ end
 Library.CustomTranslations = {}
 Library.TranslationCache = {}
 
+local loadedTranslationLangs = {}
+local function loadTranslationCache(lang)
+    if not lang or loadedTranslationLangs[lang] then return end
+    loadedTranslationLangs[lang] = true
+    Library.TranslationCache[lang] = Library.TranslationCache[lang] or {}
+    local filePath = ROOT_FOLDER .. "/Cache/Translations/" .. tostring(lang) .. ".json"
+    if isfile and isfile(filePath) and readfile then
+        local ok, data = pcall(function() return HttpService:JSONDecode(readfile(filePath)) end)
+        if ok and type(data) == "table" then
+            for k, v in pairs(data) do
+                if type(k) == "string" and type(v) == "string" then
+                    Library.TranslationCache[lang][k] = v
+                end
+            end
+        end
+    end
+end
+
+local saveTranslationPending = {}
+local function saveTranslationCache(lang)
+    if not lang or saveTranslationPending[lang] then return end
+    saveTranslationPending[lang] = true
+    task.delay(1, function()
+        saveTranslationPending[lang] = false
+        pcall(function()
+            local folder = ROOT_FOLDER .. "/Cache/Translations"
+            ensureFolder(folder)
+            local filePath = folder .. "/" .. tostring(lang) .. ".json"
+            if writefile and Library.TranslationCache[lang] then
+                writefile(filePath, HttpService:JSONEncode(Library.TranslationCache[lang]))
+            end
+        end)
+    end)
+end
+
 function Library:RegisterTranslations(lang, dict)
     if type(lang) == "table" and not dict then
         for l, d in pairs(lang) do
@@ -2033,6 +2107,8 @@ function Library:TranslateText(text, targetLang)
     local meta = localeMap[targetLang]
     if not meta then return text end
 
+    loadTranslationCache(targetLang)
+
     Library.TranslationCache[targetLang] = Library.TranslationCache[targetLang] or {}
     if Library.TranslationCache[targetLang][text] then
         return Library.TranslationCache[targetLang][text]
@@ -2041,6 +2117,7 @@ function Library:TranslateText(text, targetLang)
     if Library.CustomTranslations[targetLang] and Library.CustomTranslations[targetLang][text] then
         local res = Library.CustomTranslations[targetLang][text]
         Library.TranslationCache[targetLang][text] = res
+        saveTranslationCache(targetLang)
         return res
     end
 
@@ -2049,6 +2126,7 @@ function Library:TranslateText(text, targetLang)
         local transInner = Library:TranslateText(inner, targetLang)
         local res = "== " .. string.upper(transInner) .. " =="
         Library.TranslationCache[targetLang][text] = res
+        saveTranslationCache(targetLang)
         return res
     end
 
@@ -2062,6 +2140,7 @@ function Library:TranslateText(text, targetLang)
         local ok, r = pcall(function() return trans:Translate(game, text) end)
         if ok and r and r ~= "" and r ~= text then
             Library.TranslationCache[targetLang][text] = r
+            saveTranslationCache(targetLang)
             return r
         end
     end
@@ -2073,6 +2152,7 @@ function Library:TranslateText(text, targetLang)
             local ok2, r2 = pcall(function() return coreTrans:Translate(CoreGui, text) end)
             if ok2 and r2 and r2 ~= "" and r2 ~= text then
                 Library.TranslationCache[targetLang][text] = r2
+                saveTranslationCache(targetLang)
                 return r2
             end
         end
@@ -2081,6 +2161,7 @@ function Library:TranslateText(text, targetLang)
     local online = fetchOnlineTranslation(text, meta.code)
     if online and online ~= "" then
         Library.TranslationCache[targetLang][text] = online
+        saveTranslationCache(targetLang)
         return online
     end
 
@@ -2108,6 +2189,10 @@ function Library:SetMultiLanguage(enabled, targetLang)
         if str:match("^MouseButton%d+$") then return false end
         if str:match("^%d+%.?%d*[km]?%s") then return false end
         return true
+    end
+
+    if Library.MultiLanguageEnabled then
+        loadTranslationCache(targetLang)
     end
 
     for _, root in ipairs(containers) do
@@ -2162,6 +2247,7 @@ function Library:SetMultiLanguage(enabled, targetLang)
                     local online = fetchOnlineTranslation(targetStr, meta.code)
                     if online and online ~= "" then
                         Library.TranslationCache[targetLang][targetStr] = online
+                        saveTranslationCache(targetLang)
                         local elList = pendingMap[targetStr]
                         if elList and Library.MultiLanguageEnabled and Library.CurrentLanguage == targetLang then
                             for _, el in ipairs(elList) do
