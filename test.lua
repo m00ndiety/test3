@@ -1978,6 +1978,7 @@ local SystemSettings = {
     setting_ambience_opacity = true,
     setting_ambience_hide = true,
     universal_autoload_script = true,
+    autoload_script_hop = true,
     multi_language_toggle = true,
     language_selector = true,
     custom_cursor_toggle = true,
@@ -2678,7 +2679,8 @@ function Library:SetAutoLoadScript(enabled)
     if not self.SavedSettings then self.SavedSettings = {} end
     self.SavedSettings.universal_autoload_script = state
     self.Flags.universal_autoload_script = state
-    local toggleObj = self.Objects.universal_autoload_script
+    self.Flags.autoload_script_hop = state
+    local toggleObj = self.Objects.universal_autoload_script or self.Objects.autoload_script_hop
     if toggleObj and toggleObj.GetValue and toggleObj:GetValue() ~= state then
         pcall(function() toggleObj:SetValue(state, true) end)
     end
@@ -8988,7 +8990,7 @@ end
         local function makeToggleObject(cfg, Switch, Circle)
             local obj = {state = false, callback = cfg.callback, flag = cfg.flag}
             if cfg.flag and SystemSettings[cfg.flag] then
-                if cfg.flag == "universal_autoload_script" then
+                if cfg.flag == "universal_autoload_script" or cfg.flag == "autoload_script_hop" then
                     obj.state = Library:GetAutoLoadScript()
                 elseif Library.SavedSettings and Library.SavedSettings[cfg.flag] ~= nil then
                     obj.state = (Library.SavedSettings[cfg.flag] == true)
