@@ -3710,23 +3710,70 @@ function Library:GetAutoload()
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
     if ok and type(data) == "table" then
         local cfg = tostring(data.config or "")
+        if cfg == "true" or cfg == "false" then
+            local list = selfObj:ListConfigs()
+            if #list > 0 and list[1] ~= "None" then
+                cfg = list[1]
+            else
+                cfg = "default"
+            end
+        end
         local isEnabled = (data.enabled == true) and (cfg ~= "" and cfg ~= "None")
         return cfg, isEnabled
     end
     return "", false
 end
 
-function Library:SetAutoload(name, enabled)
+function Library:SetAutoload(nameOrEnabled, enabledOrName)
     local selfObj = (self and type(self) == "table") and self or Library
     local folder = selfObj:GetConfigFolder()
     ensureFolder(folder)
-    if enabled == nil then
-        enabled = (name ~= nil and name ~= "" and name ~= "None")
+
+    local targetName = nil
+    local targetEnabled = nil
+
+    if type(nameOrEnabled) == "boolean" then
+        targetEnabled = nameOrEnabled
+        if type(enabledOrName) == "string" and enabledOrName ~= "" and enabledOrName ~= "None" and enabledOrName ~= "true" and enabledOrName ~= "false" then
+            targetName = enabledOrName
+        end
+    elseif type(enabledOrName) == "boolean" then
+        targetEnabled = enabledOrName
+        if type(nameOrEnabled) == "string" and nameOrEnabled ~= "" and nameOrEnabled ~= "None" and nameOrEnabled ~= "true" and nameOrEnabled ~= "false" then
+            targetName = nameOrEnabled
+        end
+    elseif type(nameOrEnabled) == "string" then
+        if nameOrEnabled ~= "" and nameOrEnabled ~= "None" and nameOrEnabled ~= "true" and nameOrEnabled ~= "false" then
+            targetName = nameOrEnabled
+            targetEnabled = true
+        else
+            targetName = "default"
+            targetEnabled = false
+        end
     end
+
+    if targetEnabled == nil then
+        targetEnabled = false
+    end
+
+    if not targetName or targetName == "" or targetName == "None" or targetName == "true" or targetName == "false" then
+        local curCfg, curEnabled = selfObj:GetAutoload()
+        if curCfg and curCfg ~= "" and curCfg ~= "None" and curCfg ~= "true" and curCfg ~= "false" then
+            targetName = curCfg
+        elseif selfObj.ActiveConfig and selfObj.ActiveConfig ~= "" and selfObj.ActiveConfig ~= "None" then
+            targetName = selfObj.ActiveConfig
+        elseif selfObj.Flags and selfObj.Flags.configname_input and selfObj.Flags.configname_input ~= "" and selfObj.Flags.configname_input ~= "None" then
+            targetName = selfObj.Flags.configname_input
+        else
+            targetName = "default"
+        end
+    end
+
     local payload = {
-        enabled = enabled and true or false,
-        config = name or ""
+        enabled = (targetEnabled == true),
+        config = tostring(targetName)
     }
+
     local ok, encoded = pcall(function() return HttpService:JSONEncode(payload) end)
     if ok then
         pcall(writefile, folder .. "/autoload.json", encoded)
@@ -8999,6 +9046,8 @@ end
                 elseif cfg.enabled ~= nil then
                     obj.state = (cfg.enabled == true)
                 end
+            elseif cfg.flag == "autoload_config_toggle" then
+                obj.state = (select(2, Library:GetAutoload()) == true)
             elseif Library.savedFlags and type(Library.savedFlags[cfg.flag]) == "boolean" then
                 obj.state = Library.savedFlags[cfg.flag]
             elseif cfg.enabled ~= nil then
@@ -9043,7 +9092,7 @@ end
             Library:RegisterObject(cfg.flag, obj)
             obj:UpdateToggle(obj.state, true)
 
-            if obj.state and cfg.callback and (not (cfg.flag and SystemSettings[cfg.flag])) then
+            if obj.state and cfg.callback and (not (cfg.flag and (SystemSettings[cfg.flag] or cfg.flag == "autoload_config_toggle" or cfg.flag == "autosave_config_toggle"))) then
                 task.spawn(function()
                     pcall(cfg.callback, true)
                 end)
@@ -9085,6 +9134,9 @@ end
 
         function Module:create_toggle(arg)
             local cfg = resolve(self, arg)
+            if cfg.flag == "autoload_config_toggle" or cfg.name == "Auto Load on Execution" then
+                cfg.name = "Auto Load Config on Execution"
+            end
             local side = getSide(cfg)
            local toggle = row("Toggle", "togglecolor", nil, true)
             local Switch, Circle = buildSwitch(toggle)
