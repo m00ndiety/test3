@@ -2002,7 +2002,43 @@ local ACCENT_FILE = ROOT_FOLDER .. "/accent.txt"
 Library.ActiveConfig = "None"
 Library.DefaultAutoSave = false
 
-ApplyTheme("Eclipse")
+ensureFolder(ROOT_FOLDER)
+Library.SavedSettings = {}
+if isfile(SETTINGS_FILE) then
+    local ok, decoded = pcall(function() return HttpService:JSONDecode(readfile(SETTINGS_FILE)) end)
+    if ok and type(decoded) == "table" then
+        Library.SavedSettings = decoded
+        if decoded.themeselector and Themes[decoded.themeselector] then
+            Library.Theme = decoded.themeselector
+        end
+        if decoded.custom_accent_color and type(decoded.custom_accent_color) == "table" then
+            local c = decoded.custom_accent_color
+            if #c >= 3 then
+                Library.CustomAccent = Color3.fromRGB(c[1], c[2], c[3])
+                genv.accent = Library.CustomAccent
+            end
+        end
+    end
+end
+if not Library.Theme then
+    if isfile(THEME_FILE) then
+        local ok, themeName = pcall(readfile, THEME_FILE)
+        if ok and themeName and Themes[themeName] then
+            Library.Theme = themeName
+        else
+            Library.Theme = "Eclipse"
+        end
+    else
+        Library.Theme = "Eclipse"
+    end
+end
+if not Library.CustomAccent and isfile(ACCENT_FILE) then
+    local ok, hex = pcall(readfile, ACCENT_FILE)
+    if ok and hex and #hex >= 6 then
+        Library.CustomAccent = hexToColor(hex, nil)
+    end
+end
+ApplyTheme(Library.Theme, Library.CustomAccent)
 
 function Library:SetTheme(name)
     local isCustom = false
@@ -2085,6 +2121,11 @@ end
 
 function Library:SaveSettings()
     local data = {}
+    if type(self.SavedSettings) == "table" then
+        for k, v in pairs(self.SavedSettings) do
+            data[k] = v
+        end
+    end
     for flag, obj in pairs(self.Objects) do
         if SystemSettings[flag] and obj.GetValue then
             local ok, val = pcall(function() return obj:GetValue() end)
@@ -2098,6 +2139,7 @@ function Library:SaveSettings()
             data[flag] = self.Flags[flag]
         end
     end
+    self.SavedSettings = data
     ensureFolder(ROOT_FOLDER)
     local ok, encoded = pcall(function() return HttpService:JSONEncode(data) end)
     if ok then
@@ -2116,7 +2158,7 @@ function Library:LoadSettings()
             self.Flags[flag] = value
             local obj = self.Objects[flag]
             if obj and obj.SetValue then
-                pcall(function() obj:SetValue(value) end)
+                pcall(function() obj:SetValue(value, true) end)
             end
         end
     end
@@ -2587,13 +2629,24 @@ task.spawn(function()
     end
 end)
 
-function Library:SetAutoLoadScript(enabled)
-    Library.SavedSettings.universal_autoload_script = enabled and true or false
-    Library:SaveSettings()
+function Library:GetAutoLoadScript()
+    if self.SavedSettings and self.SavedSettings.universal_autoload_script ~= nil then
+        return self.SavedSettings.universal_autoload_script == true
+    end
+    if self.Flags and self.Flags.universal_autoload_script ~= nil then
+        return self.Flags.universal_autoload_script == true
+    end
+    if isfile(SETTINGS_FILE) then
+        local ok, data = pcall(function() return HttpService:JSONDecode(readfile(SETTINGS_FILE)) end)
+        if ok and type(data) == "table" and data.universal_autoload_script ~= nil then
+            return data.universal_autoload_script == true
+        end
+    end
+    return true
 end
 
 local LOADER_URL = "https://moondiety.com/loader"
-local LOADER_CODE = 'loadstring(game:HttpGet("' .. LOADER_URL .. '"))()'
+local LOADER_CODE = 'pcall(function() local p="Moondiety/V2/settings.json" if isfile and isfile(p) then local ok,d=pcall(function() return game:GetService("HttpService"):JSONDecode(readfile(p)) end) if ok and type(d)=="table" and d.universal_autoload_script==false then return end end loadstring(game:HttpGet("' .. LOADER_URL .. '"))() end)'
 
 local queueAlreadySet = false
 local lastQueueSetTime = 0
@@ -2607,7 +2660,7 @@ local function getQueueFn()
 end
 
 local function queueOnTeleport(force)
-    if Library.SavedSettings and Library.SavedSettings.universal_autoload_script == false then return end
+    if not Library:GetAutoLoadScript() then return end
     if queueAlreadySet and not force then return end
     if not force and (tick() - lastQueueSetTime) < 5 then return end
     local q = getQueueFn()
@@ -2620,25 +2673,46 @@ local function queueOnTeleport(force)
     end
 end
 
+function Library:SetAutoLoadScript(enabled)
+    local state = (enabled == true)
+    if not self.SavedSettings then self.SavedSettings = {} end
+    self.SavedSettings.universal_autoload_script = state
+    self.Flags.universal_autoload_script = state
+    local toggleObj = self.Objects.universal_autoload_script
+    if toggleObj and toggleObj.GetValue and toggleObj:GetValue() ~= state then
+        pcall(function() toggleObj:SetValue(state, true) end)
+    end
+    self:SaveSettings()
+    if state then
+        queueOnTeleport(true)
+    end
+end
+
 queueOnTeleport()
 
 pcall(function()
     LocalPlayer.OnTeleport:Connect(function(state)
         if state == Enum.TeleportState.Started or state == Enum.TeleportState.InProgress then
-            queueOnTeleport()
+            if Library:GetAutoLoadScript() then
+                queueOnTeleport()
+            end
         end
     end)
 end)
 
 pcall(function()
     TeleportService.TeleportInitFailed:Connect(function()
-        queueOnTeleport(true)
+        if Library:GetAutoLoadScript() then
+            queueOnTeleport(true)
+        end
     end)
 end)
 
 pcall(function()
     game:BindToClose(function()
-        queueOnTeleport()
+        if Library:GetAutoLoadScript() then
+            queueOnTeleport()
+        end
     end)
 end)
 
@@ -3717,43 +3791,9 @@ function Library:SetAutosave(enabled)
     end
 end
 
-ensureFolder(ROOT_FOLDER)
-Library.SavedSettings = {}
-if isfile(SETTINGS_FILE) then
-    local ok, decoded = pcall(function() return HttpService:JSONDecode(readfile(SETTINGS_FILE)) end)
-    if ok and type(decoded) == "table" then
-        Library.SavedSettings = decoded
-        if decoded.themeselector and Themes[decoded.themeselector] then
-            Library.Theme = decoded.themeselector
-        end
-        if decoded.custom_accent_color and type(decoded.custom_accent_color) == "table" then
-            local c = decoded.custom_accent_color
-            if #c >= 3 then
-                Library.CustomAccent = Color3.fromRGB(c[1], c[2], c[3])
-                genv.accent = Library.CustomAccent
-            end
-        end
-    end
+if not Library.SavedSettings then
+    Library.SavedSettings = {}
 end
-if not Library.Theme then
-    if isfile(THEME_FILE) then
-        local ok, themeName = pcall(readfile, THEME_FILE)
-        if ok and themeName and Themes[themeName] then
-            Library.Theme = themeName
-        else
-            Library.Theme = "Eclipse"
-        end
-    else
-        Library.Theme = "Eclipse"
-    end
-end
-if not Library.CustomAccent and isfile(ACCENT_FILE) then
-    local ok, hex = pcall(readfile, ACCENT_FILE)
-    if ok and hex and #hex >= 6 then
-        Library.CustomAccent = hexToColor(hex, nil)
-    end
-end
-ApplyTheme(Library.Theme, Library.CustomAccent)
 
 function Library:disconnect()
     cleanupAtmosphere()
@@ -8946,9 +8986,21 @@ end
         end
 
         local function makeToggleObject(cfg, Switch, Circle)
-            local obj = {state = cfg.enabled or false, callback = cfg.callback, flag = cfg.flag}
-            if Library.savedFlags and type(Library.savedFlags[cfg.flag]) == "boolean" then
+            local obj = {state = false, callback = cfg.callback, flag = cfg.flag}
+            if cfg.flag and SystemSettings[cfg.flag] then
+                if cfg.flag == "universal_autoload_script" then
+                    obj.state = Library:GetAutoLoadScript()
+                elseif Library.SavedSettings and Library.SavedSettings[cfg.flag] ~= nil then
+                    obj.state = (Library.SavedSettings[cfg.flag] == true)
+                elseif Library.Flags and Library.Flags[cfg.flag] ~= nil then
+                    obj.state = (Library.Flags[cfg.flag] == true)
+                elseif cfg.enabled ~= nil then
+                    obj.state = (cfg.enabled == true)
+                end
+            elseif Library.savedFlags and type(Library.savedFlags[cfg.flag]) == "boolean" then
                 obj.state = Library.savedFlags[cfg.flag]
+            elseif cfg.enabled ~= nil then
+                obj.state = (cfg.enabled == true)
             end
 
             function obj:UpdateToggle(newState, skipCallback)
@@ -8985,18 +9037,18 @@ end
             end
             obj.Set = obj.SetValue
 
-               Library.Flags[cfg.flag] = obj.state
-    Library:RegisterObject(cfg.flag, obj)
-    obj:UpdateToggle(obj.state, true)
+            Library.Flags[cfg.flag] = obj.state
+            Library:RegisterObject(cfg.flag, obj)
+            obj:UpdateToggle(obj.state, true)
 
-    if obj.state and cfg.callback then
-        task.spawn(function()
-            pcall(cfg.callback, true)
-        end)
-    end
+            if obj.state and cfg.callback and (not (cfg.flag and SystemSettings[cfg.flag])) then
+                task.spawn(function()
+                    pcall(cfg.callback, true)
+                end)
+            end
 
-    return obj
-end
+            return obj
+        end
 
         function Module:create_title(arg)
             local cfg = resolve(self, arg)
