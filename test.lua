@@ -2647,7 +2647,7 @@ function Library:GetAutoLoadScript()
 end
 
 local LOADER_URL = "https://moondiety.com/loader"
-local LOADER_CODE = 'pcall(function() local p="Moondiety/V2/settings.json" if isfile and isfile(p) then local ok,d=pcall(function() return game:GetService("HttpService"):JSONDecode(readfile(p)) end) if ok and type(d)=="table" and d.universal_autoload_script==false then return end end loadstring(game:HttpGet("' .. LOADER_URL .. '"))() end)'
+local LOADER_CODE = 'pcall(function() local p="Moondiety/V2/settings.json" if isfile and isfile(p) then local ok,d=pcall(function() return game:GetService("HttpService"):JSONDecode(readfile(p)) end) if ok and type(d)=="table" and d.universal_autoload_script==false then return end end if getgenv then getgenv()._MoondietyServerHop=true end shared._MoondietyServerHop=true loadstring(game:HttpGet("' .. LOADER_URL .. '"))() end)'
 
 local queueAlreadySet = false
 local lastQueueSetTime = 0
@@ -2687,6 +2687,12 @@ function Library:SetAutoLoadScript(enabled)
     self:SaveSettings()
     if state then
         queueOnTeleport(true)
+    else
+        local q = getQueueFn()
+        if q then
+            pcall(q, "")
+        end
+        queueAlreadySet = false
     end
 end
 
@@ -2696,7 +2702,11 @@ pcall(function()
     LocalPlayer.OnTeleport:Connect(function(state)
         if state == Enum.TeleportState.Started or state == Enum.TeleportState.InProgress then
             if Library:GetAutoLoadScript() then
-                queueOnTeleport()
+                pcall(function()
+                    ensureFolder(ROOT_FOLDER .. "/Cache")
+                    writefile(ROOT_FOLDER .. "/Cache/hop.txt", tostring(os.time()))
+                end)
+                queueOnTeleport(true)
             end
         end
     end)
@@ -2704,16 +2714,13 @@ end)
 
 pcall(function()
     TeleportService.TeleportInitFailed:Connect(function()
+        pcall(function()
+            if isfile(ROOT_FOLDER .. "/Cache/hop.txt") then
+                delfile(ROOT_FOLDER .. "/Cache/hop.txt")
+            end
+        end)
         if Library:GetAutoLoadScript() then
             queueOnTeleport(true)
-        end
-    end)
-end)
-
-pcall(function()
-    game:BindToClose(function()
-        if Library:GetAutoLoadScript() then
-            queueOnTeleport()
         end
     end)
 end)
@@ -3632,7 +3639,8 @@ function Library:LoadConfig(name)
             end
         end
     end
-     self.isLoadingConfig = false
+    self.savedFlags = data
+    self.isLoadingConfig = false
     self:SetActiveConfig(name)
     if self.OnConfigLoaded then
         pcall(self.OnConfigLoaded, name)
@@ -3906,17 +3914,28 @@ local function doSave()
     if not Library.exist() then return end
     if not Library:GetAutosave() then return end
     local data = {}
+    for flag, value in pairs(Library.Flags) do
+        if not SystemSettings[flag] and flag ~= "configname_input" and flag ~= "savedconfigs" and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" and value ~= nil then
+            data[flag] = value
+        end
+    end
     for flag, obj in pairs(Library.Objects) do
         if flag ~= "savedconfigs" and flag ~= "configname_input" and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" and not SystemSettings[flag] and obj.GetValue then
             local ok, value = pcall(function() return obj:GetValue() end)
             if ok and value ~= nil then data[flag] = value end
         end
     end
+    for flag, kb in pairs(Library.Keybinds) do
+        if not SystemSettings[flag] and kb.key and kb.key ~= "" then
+            data[flag] = kb.key
+        end
+    end
     local ok, encoded = pcall(function() return HttpService:JSONEncode(data) end)
     if not ok then return end
     local dataFolder = ROOT_FOLDER .. "/Data"
     ensureFolder(dataFolder)
-    writefile(dataFolder .. "/" .. game.GameId .. ".json", encoded)
+    pcall(writefile, dataFolder .. "/" .. game.GameId .. ".json", encoded)
+    Library.savedFlags = data
     if Library.ActiveConfig and Library.ActiveConfig ~= "None" and Library.ActiveConfig ~= "" then
         local cfgFolder = Library:GetConfigFolder()
         ensureFolder(cfgFolder)
@@ -4092,6 +4111,7 @@ end
 function Library.new(selfOrOpts, options)
     Library:clear()
     Library:disconnect()
+    hasFinishedLoading = false
     local opts = (type(selfOrOpts) == "table" and selfOrOpts ~= Library) and selfOrOpts or (type(options) == "table" and options or {})
     options = opts
     if opts.AutoSave ~= nil then
@@ -9137,6 +9157,7 @@ end
             if cfg.flag == "autoload_config_toggle" or cfg.name == "Auto Load on Execution" then
                 cfg.name = "Auto Load Config on Execution"
             end
+            cfg.flag = cfg.flag or cfg.name or "toggle"
             local side = getSide(cfg)
            local toggle = row("Toggle", "togglecolor", nil, true)
             local Switch, Circle = buildSwitch(toggle)
@@ -9156,6 +9177,12 @@ end
                 local kbFlag = kbOpts.flag or ((cfg.flag or "toggle") .. "_bind")
                 local rawKey = kbOpts.default or kbOpts.keycode or "None"
                 local defaultKey = (typeof(rawKey) == "EnumItem" and rawKey.Name) or tostring(rawKey)
+                local activeKey = defaultKey
+                if Library.savedFlags and Library.savedFlags[kbFlag] ~= nil and Library.savedFlags[kbFlag] ~= "" then
+                    activeKey = tostring(Library.savedFlags[kbFlag])
+                elseif Library.Flags and Library.Flags[kbFlag] ~= nil and Library.Flags[kbFlag] ~= "" then
+                    activeKey = tostring(Library.Flags[kbFlag])
+                end
 
                 local Box = new("TextButton", {
                     Name = "InlineKeybindBox",
@@ -9177,12 +9204,12 @@ end
                     TextColor3 = WHITE,
                     FontFace = font(),
                     TextSize = 10,
-                    Text = defaultKey,
+                    Text = activeKey,
                     ZIndex = 5,
                 }, Box)
 
-                Library.Flags[kbFlag] = defaultKey
-                Library:RegisterKeybind(kbFlag, cfg.name or kbFlag, defaultKey, function()
+                Library.Flags[kbFlag] = activeKey
+                Library:RegisterKeybind(kbFlag, cfg.name or kbFlag, activeKey, function()
                     return obj:GetValue()
                 end, function()
                     obj:UpdateToggle(not obj:GetValue())
@@ -9193,9 +9220,10 @@ end
                 local kbObj = {flag = kbFlag}
                 function kbObj:GetValue() return Library.Flags[kbFlag] end
                 function kbObj:SetValue(v)
-                    Library.Flags[kbFlag] = v
-                    Library:UpdateKeybind(kbFlag, v)
-                    KeyText.Text = tostring(v or "None")
+                    local strVal = tostring(v or "None")
+                    Library.Flags[kbFlag] = strVal
+                    Library:UpdateKeybind(kbFlag, strVal)
+                    KeyText.Text = strVal
                 end
                 Library:RegisterObject(kbFlag, kbObj)
 
@@ -9206,11 +9234,17 @@ end
                     KeyText.Text = "..."
                     local conn
                     conn = UserInputService.InputBegan:Connect(function(input)
-                        local pressed = input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode.Name
+                        local pressed
+                        if input.UserInputType == Enum.UserInputType.Keyboard then
+                            pressed = input.KeyCode.Name
+                        elseif input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then
+                            pressed = input.UserInputType.Name
+                        end
                         if not pressed then return end
                         Library.Flags[kbFlag] = pressed
                         Library:UpdateKeybind(kbFlag, pressed)
                         KeyText.Text = pressed
+                        Library.save_flags(kbFlag)
                         setting = false
                         conn:Disconnect()
                     end)
@@ -9218,7 +9252,15 @@ end
 
                 bind(UserInputService.InputBegan, function(input, processed)
                     if processed or setting then return end
-                    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode.Name == Library.Flags[kbFlag] then
+                    local current = Library.Flags[kbFlag]
+                    if not current or current == "None" or current == "" then return end
+                    local pressed
+                    if input.UserInputType == Enum.UserInputType.Keyboard then
+                        pressed = input.KeyCode.Name
+                    elseif input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then
+                        pressed = input.UserInputType.Name
+                    end
+                    if pressed and pressed == current then
                         obj:UpdateToggle()
                         if kbOpts.callback then kbOpts.callback(obj:GetValue()) end
                     end
@@ -9841,6 +9883,12 @@ end
                 local kbFlag = kbOpts.flag or ((cfg.flag or cfg.name or "button") .. "_bind")
                 local rawKey = kbOpts.default or kbOpts.keycode or "None"
                 local defaultKey = (typeof(rawKey) == "EnumItem" and rawKey.Name) or tostring(rawKey)
+                local activeKey = defaultKey
+                if Library.savedFlags and Library.savedFlags[kbFlag] ~= nil and Library.savedFlags[kbFlag] ~= "" then
+                    activeKey = tostring(Library.savedFlags[kbFlag])
+                elseif Library.Flags and Library.Flags[kbFlag] ~= nil and Library.Flags[kbFlag] ~= "" then
+                    activeKey = tostring(Library.Flags[kbFlag])
+                end
 
                 local Box = new("TextButton", {
                     Name = "InlineKeybindBox",
@@ -9862,12 +9910,22 @@ end
                     TextColor3 = WHITE,
                     FontFace = font(),
                     TextSize = 10,
-                    Text = defaultKey,
+                    Text = activeKey,
                     ZIndex = 5,
                 }, Box)
 
-                Library.Flags[kbFlag] = defaultKey
-                Library:RegisterKeybind(kbFlag, cfg.name or kbFlag, defaultKey, nil, fireButton, fireButton, true)
+                Library.Flags[kbFlag] = activeKey
+                Library:RegisterKeybind(kbFlag, cfg.name or kbFlag, activeKey, nil, fireButton, fireButton, true)
+
+                local kbObj = {flag = kbFlag}
+                function kbObj:GetValue() return Library.Flags[kbFlag] end
+                function kbObj:SetValue(v)
+                    local strVal = tostring(v or "None")
+                    Library.Flags[kbFlag] = strVal
+                    Library:UpdateKeybind(kbFlag, strVal)
+                    KeyText.Text = strVal
+                end
+                Library:RegisterObject(kbFlag, kbObj)
 
                 local setting = false
                 bindTap(Box, function()
@@ -9876,11 +9934,17 @@ end
                     KeyText.Text = "..."
                     local conn
                     conn = UserInputService.InputBegan:Connect(function(input)
-                        local pressed = input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode.Name
+                        local pressed
+                        if input.UserInputType == Enum.UserInputType.Keyboard then
+                            pressed = input.KeyCode.Name
+                        elseif input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then
+                            pressed = input.UserInputType.Name
+                        end
                         if not pressed then return end
                         Library.Flags[kbFlag] = pressed
                         Library:UpdateKeybind(kbFlag, pressed)
                         KeyText.Text = pressed
+                        Library.save_flags(kbFlag)
                         setting = false
                         conn:Disconnect()
                     end)
@@ -9888,7 +9952,15 @@ end
 
                 bind(UserInputService.InputBegan, function(input, processed)
                     if processed or setting then return end
-                    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode.Name == Library.Flags[kbFlag] then
+                    local current = Library.Flags[kbFlag]
+                    if not current or current == "None" or current == "" then return end
+                    local pressed
+                    if input.UserInputType == Enum.UserInputType.Keyboard then
+                        pressed = input.KeyCode.Name
+                    elseif input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then
+                        pressed = input.UserInputType.Name
+                    end
+                    if pressed and pressed == current then
                         fireButton()
                     end
                 end)
@@ -10407,7 +10479,7 @@ end
                     if not pressed then return end
                     Library.Flags[cfg.flag] = pressed
                     Library:UpdateKeybind(cfg.flag, pressed)
-                    Library.save_flags()
+                    Library.save_flags(cfg.flag)
                     KeyText.Text = displayOf(pressed)
                     updateSize()
                     setting = false
