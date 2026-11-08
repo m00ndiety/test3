@@ -2971,7 +2971,9 @@ function Library:SetHudButtonSize(newSize)
     Library.HudButtonSize = newSize
     Library.Flags["hud_button_size"] = newSize
     for _, item in pairs(Library.ActionButtons) do
-        if item.Resize then item:Resize(newSize) end
+        if item.Resize then
+            pcall(function() item:Resize(newSize) end)
+        end
     end
     Library:UpdateToggleBarCustomization()
     Library:save_settings_auto()
@@ -3350,19 +3352,21 @@ function Library:RegisterActionButton(cfg)
         end
     end
 
+    local paint
+
     function item:Resize(newSize)
         item.size = newSize or Library.HudButtonSize or 58
         item:Layout()
-        paint(false)
+        if paint then paint(false) end
     end
 
     function item:SetStyle(name)
         item.styleName = name or Library.HudButtonStyle or "Card"
         item:Layout()
-        paint(false)
+        if paint then paint(false) end
     end
 
-    local function paint(animate, cContainer, cLine, cAccent)
+    paint = function(animate, cContainer, cLine, cAccent)
         cAccent = cAccent or genv.accent or cfg.color or Color3.fromRGB(168, 85, 247)
         cContainer = cContainer or genv.uicontainer or Color3.fromRGB(18, 19, 24)
         cLine = cLine or genv.uiline or Color3.fromRGB(42, 45, 56)
