@@ -1476,6 +1476,7 @@ Library = {
     ToggleBarEnabled = true,
     ToggleBarPlatform = "Both",
     ToggleBarStyle = "Floating Button",
+    ToggleBarSize = 40,
     GameName = "Roblox",
     savedFlags = {},
     activeTaps = {},
@@ -2918,9 +2919,9 @@ end
 function Library:UpdateToggleBarCustomization()
     local btn = Library.ToggleBarBtn
     if not btn or not btn.Parent then return end
-    local s = tonumber(Library.HudButtonSize) or 48
+    local s = tonumber(Library.ToggleBarSize) or 40
     local mode = string.lower(Library.HudButtonStyle or "card")
-    local radius = tonumber(Library.HudButtonRounding) or 14
+    local radius = tonumber(Library.HudButtonRounding) or 10
     local trans = tonumber(Library.HudButtonTransparency) or 0
     local glowEnabled = Library.HudGlowEnabled ~= false
     local intensity = tonumber(Library.HudGlowIntensity) or 1
@@ -2928,11 +2929,13 @@ function Library:UpdateToggleBarCustomization()
 
     local w, h = s, s
     if mode == "capsule" then
-        h = math.max(38, math.floor(s * 0.74))
-        w = math.max(h * 1.8, math.floor(s * 1.6))
+        h = math.max(30, math.floor(s * 0.75))
+        w = math.max(h * 1.6, math.floor(s * 1.5))
         radius = h / 2
     elseif mode == "orb" then
         radius = s / 2
+    else
+        radius = math.min(radius, math.floor(s * 0.28))
     end
 
     btn.Size = UDim2.new(0, w, 0, h)
@@ -2943,7 +2946,7 @@ function Library:UpdateToggleBarCustomization()
     end
 
     if Library.ToggleBarIcon then
-        local iconSize = math.floor(math.min(w, h) * 0.54)
+        local iconSize = math.floor(math.min(w, h) * 0.52)
         Library.ToggleBarIcon.Size = UDim2.new(0, iconSize, 0, iconSize)
     end
 
@@ -2954,16 +2957,25 @@ function Library:UpdateToggleBarCustomization()
             Library.ToggleBarDot.Position = UDim2.new(0.5, off, 0.5, -off)
         else
             Library.ToggleBarDot.AnchorPoint = Vector2.new(1, 0)
-            Library.ToggleBarDot.Position = UDim2.new(1, -6, 0, 6)
+            Library.ToggleBarDot.Position = UDim2.new(1, -5, 0, 5)
         end
+        Library.ToggleBarDot.Size = UDim2.fromOffset(4, 4)
     end
 
     if Library.ToggleBarStroke then
         local alpha = glowEnabled and math.clamp(0.4 * (1 - intensity * 0.7), 0, 0.8) or 0.7
         Library.ToggleBarStroke.Transparency = alpha
-        Library.ToggleBarStroke.Thickness = glowEnabled and (1.5 + intensity * 1.5) or 1.2
+        Library.ToggleBarStroke.Thickness = glowEnabled and (1.2 + intensity * 1.0) or 1.0
         Library.ToggleBarStroke.Color = cAccent
     end
+end
+
+function Library:SetToggleBarSize(newSize)
+    newSize = tonumber(newSize) or 40
+    Library.ToggleBarSize = newSize
+    Library.Flags["hud_logo_toggle_size"] = newSize
+    Library:UpdateToggleBarCustomization()
+    Library:save_settings_auto()
 end
 
 function Library:SetHudButtonSize(newSize)
@@ -3650,6 +3662,17 @@ function Library:BuildKeybindsAndHudTab(tab)
         enabled = (Library.ToggleBarEnabled ~= false),
         callback = function(state)
             Library:SetToggleBarVisible(state)
+        end
+    })
+    tab.create_slider({
+        name = "UI Toggle Size",
+        flag = "hud_logo_toggle_size",
+        section = "left",
+        value = Library.ToggleBarSize or 40,
+        minimum_value = 32,
+        maximum_value = 60,
+        callback = function(val)
+            Library:SetToggleBarSize(val)
         end
     })
     tab.create_dropdown({
@@ -7143,7 +7166,7 @@ keybindHudRows[kb.name] = {
         Name = "ToggleBar",
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, 16, 0.5, 0),
-        Size = UDim2.new(0, 48, 0, 48),
+        Size = UDim2.new(0, 40, 0, 40),
         BackgroundColor3 = genv.uicontainer or Color3.fromRGB(18, 19, 25),
         BackgroundTransparency = Library.HudButtonTransparency or 0,
         BorderSizePixel = 0,
@@ -7152,16 +7175,16 @@ keybindHudRows[kb.name] = {
         Visible = false,
         ZIndex = 800,
     }, screen)
-    local toggleCorner = corner(ToggleBtn, 14)
-    local toggleStroke = stroke(ToggleBtn, genv.accent or Color3.fromRGB(168, 85, 247), 1.5, 0.3)
+    local toggleCorner = corner(ToggleBtn, 10)
+    local toggleStroke = stroke(ToggleBtn, genv.accent or Color3.fromRGB(168, 85, 247), 1.2, 0.3)
     Library.ToggleBarBtn = ToggleBtn
     Library.ToggleBarCorner = toggleCorner
     Library.ToggleBarStroke = toggleStroke
 
     local toggleDot = new("Frame", {
         AnchorPoint = Vector2.new(1, 0),
-        Position = UDim2.new(1, -6, 0, 6),
-        Size = UDim2.new(0, 5, 0, 5),
+        Position = UDim2.new(1, -5, 0, 5),
+        Size = UDim2.new(0, 4, 0, 4),
         BackgroundColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
         BorderSizePixel = 0,
         ZIndex = 802,
@@ -7182,7 +7205,7 @@ keybindHudRows[kb.name] = {
     local toggleIcon = new("ImageLabel", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = UDim2.new(0, 26, 0, 26),
+        Size = UDim2.new(0, 22, 0, 22),
         BackgroundTransparency = 1,
         Image = "rbxassetid://133495621202705",
         ImageColor3 = WHITE,
