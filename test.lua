@@ -1473,7 +1473,7 @@ Library = {
     IslandDraggable = true,
     WatermarkEnabled = true,
     KeybindListEnabled = not IsMobile,
-    ToggleBarEnabled = false,
+    ToggleBarEnabled = true,
     ToggleBarPlatform = "Both",
     ToggleBarStyle = "Floating Button",
     GameName = "Roblox",
@@ -3640,6 +3640,36 @@ function Library:BuildKeybindsAndHudTab(tab)
                 Duration = 2,
                 Type = "Info"
             })
+        end
+    })
+
+    tab.create_toggle({
+        name = "UI Toggle Button (Logo)",
+        flag = "hud_show_logo_toggle",
+        section = "left",
+        enabled = (Library.ToggleBarEnabled ~= false),
+        callback = function(state)
+            Library:SetToggleBarVisible(state)
+        end
+    })
+    tab.create_dropdown({
+        name = "UI Toggle Style",
+        flag = "hud_logo_toggle_style",
+        section = "left",
+        option = Library.ToggleBarStyle or "Floating Button",
+        options = {"Floating Button", "Top Notch", "Disabled"},
+        callback = function(val)
+            Library:SetToggleBarStyle(val)
+        end
+    })
+    tab.create_dropdown({
+        name = "UI Toggle Platform",
+        flag = "hud_logo_toggle_platform",
+        section = "left",
+        option = Library.ToggleBarPlatform or "Both",
+        options = {"Both", "Mobile Only", "PC Only"},
+        callback = function(val)
+            Library:SetToggleBarPlatform(val)
         end
     })
 
