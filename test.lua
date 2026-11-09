@@ -278,6 +278,7 @@ local SupportedGames = {
     { Name = "Murder Mystery 2", UniverseId = 66654135, PlaceId = 142823291, Playing = 249800 },
     { Name = "Feed a Mosquito", UniverseId = 10747719434, PlaceId = 125310131519813, Playing = 24400 },
     { Name = "Sniper Arena", UniverseId = 9534705677, PlaceId = 122446657157717, Playing = 16100 },
+    { Name = "Throw Food For Animals", UniverseId = 10766972131, PlaceId = 120219252362013, Playing = 18500 },
 }
 
 local supportedGamesListeners = {}
@@ -1528,15 +1529,8 @@ local writeFileFn = (typeof(writefile) == "function" and writefile) or (type(wri
 local makeFolderFn = (typeof(makefolder) == "function" and makefolder) or (type(makefolder) == "function" and makefolder)
 local isFolderFn = (typeof(isfolder) == "function" and isfolder) or (type(isfolder) == "function" and isfolder)
 
-local isUserPremium = (LRM_KeyTier == "premium") or (genv and genv._MoondietyPremium == true)
-if not isUserPremium and isFileFn and isFileFn("Moondiety/V2/Cache/key.txt") then
-    local kOk, kContent = pcall(readFileFn, "Moondiety/V2/Cache/key.txt")
-    if kOk and type(kContent) == "string" and #kContent:match("^%s*(.-)%s*$") > 0 then
-        isUserPremium = true
-        if genv then genv._MoondietyPremium = true end
-    end
-end
-Library.IsPremium = isUserPremium
+local isUserPremium = (LRM_KeyTier == "premium") or (LRM_IsUserPremium == true) or (genv and (genv._MoondietyPremium == true or genv._MoondietyVerifiedPremium == true))
+Library.IsPremium = (isUserPremium == true)
 
 local CONTAINER_SIZE = UDim2.new(0.44, 0, 0.44, 0)
 local CONTAINER_SIZE_TOUCH = UDim2.new(0.92, 0, 0.78, 0)
@@ -5767,10 +5761,12 @@ function Library.new(selfOrOpts, options)
             })
         end)
 
+        local isVerifying = false
         bindTap(checkBtn, function()
+            if isVerifying then return end
             local raw = textBox.Text or ""
             local trimmed = raw:match("^%s*(.-)%s*$")
-            if not trimmed or #trimmed < 4 then
+            if not trimmed or #trimmed < 6 then
                 statusLabel.TextColor3 = Color3.fromRGB(244, 63, 94)
                 statusLabel.Text = "Please enter a valid license key."
                 TweenService:Create(inputStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(244, 63, 94), Transparency = 0}):Play()
@@ -5780,6 +5776,51 @@ function Library.new(selfOrOpts, options)
                     end
                 end)
                 shakeCard()
+                return
+            end
+
+            if genv and typeof(genv._MoondietyValidateAndActivateKey) == "function" then
+                isVerifying = true
+                checkBtn.Text = "Verifying..."
+                TweenService:Create(checkBtn, TweenInfo.new(0.2), {
+                    BackgroundColor3 = Color3.fromRGB(210, 115, 35),
+                }):Play()
+                statusLabel.TextColor3 = Color3.fromRGB(230, 235, 245)
+                statusLabel.Text = "Authenticating with FlowAuth servers..."
+
+                genv._MoondietyValidateAndActivateKey(trimmed, function(success, msg)
+                    isVerifying = false
+                    if success then
+                        self:UnlockAll()
+                        checkBtn.Text = "Activated!"
+                        TweenService:Create(checkBtn, TweenInfo.new(0.2), {
+                            BackgroundColor3 = Color3.fromRGB(34, 197, 94),
+                        }):Play()
+                        statusLabel.TextColor3 = Color3.fromRGB(52, 211, 153)
+                        statusLabel.Text = "Key verified! All exclusive features unlocked."
+                        Library:Notify({
+                            Title = "Moondiety Premium",
+                            Content = "Key activated! All features unlocked.",
+                            Duration = 4,
+                            Type = "Success",
+                        })
+                        task.delay(0.45, dismiss)
+                    else
+                        checkBtn.Text = "Activate Key"
+                        TweenService:Create(checkBtn, TweenInfo.new(0.2), {
+                            BackgroundColor3 = genv.accent or Color3.fromRGB(220, 45, 85),
+                        }):Play()
+                        statusLabel.TextColor3 = Color3.fromRGB(244, 63, 94)
+                        statusLabel.Text = msg or "Invalid or expired license key."
+                        TweenService:Create(inputStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(244, 63, 94), Transparency = 0}):Play()
+                        task.delay(1.5, function()
+                            if inputStroke and inputStroke.Parent then
+                                TweenService:Create(inputStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(48, 52, 68), Transparency = 0.5}):Play()
+                            end
+                        end)
+                        shakeCard()
+                    end
+                end)
                 return
             end
 
@@ -5795,23 +5836,15 @@ function Library.new(selfOrOpts, options)
                 pcall(wrtF, cacheFolder .. "/key.txt", trimmed)
             end
 
-            self:UnlockAll()
-
-            checkBtn.Text = "Activated!"
-            TweenService:Create(checkBtn, TweenInfo.new(0.2), {
-                BackgroundColor3 = Color3.fromRGB(34, 197, 94),
-            }):Play()
-            statusLabel.TextColor3 = Color3.fromRGB(52, 211, 153)
-            statusLabel.Text = "Key activated! All exclusive features unlocked."
-
+            statusLabel.TextColor3 = Color3.fromRGB(245, 165, 35)
+            statusLabel.Text = "Key saved. Re-run via Moondiety loader to authenticate."
             Library:Notify({
                 Title = "Moondiety Premium",
-                Content = "Key activated! All features unlocked.",
+                Content = "Key saved. Please execute via Moondiety loader to verify.",
                 Duration = 4,
-                Type = "Success",
+                Type = "Warning",
             })
-
-            task.delay(0.45, dismiss)
+            task.delay(1.5, dismiss)
         end)
     end
 
