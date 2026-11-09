@@ -5078,34 +5078,7 @@ function Library.new(selfOrOpts, options)
             end
         end
 
-        if self.UserCardTierTag and self.UserCardTierTag.Parent then
-            local tagBtn = self.UserCardTierTag
-            local tagLabel = tagBtn:FindFirstChild("TierLabel")
-            local tagStroke = tagBtn:FindFirstChildOfClass("UIStroke")
-            if isPrem then
-                tagBtn.Size = UDim2.new(0, 58, 0, 16)
-                tagBtn.BackgroundColor3 = Color3.fromRGB(45, 18, 58)
-                if tagStroke then
-                    tagStroke.Color = genv.accent or Color3.fromRGB(168, 85, 247)
-                    tagStroke.Transparency = 0.2
-                end
-                if tagLabel then
-                    tagLabel.Text = "PREMIUM"
-                    tagLabel.TextColor3 = Color3.fromRGB(230, 200, 255)
-                end
-            else
-                tagBtn.Size = UDim2.new(0, 42, 0, 16)
-                tagBtn.BackgroundColor3 = Color3.fromRGB(26, 28, 38)
-                if tagStroke then
-                    tagStroke.Color = Color3.fromRGB(52, 56, 74)
-                    tagStroke.Transparency = 0.35
-                end
-                if tagLabel then
-                    tagLabel.Text = "FREE"
-                    tagLabel.TextColor3 = Color3.fromRGB(156, 163, 185)
-                end
-            end
-        end
+
 
         if self.UserAvatarStatusDot and self.UserAvatarStatusDot.Parent then
             self.UserAvatarStatusDot.BackgroundColor3 = isPrem and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(34, 197, 94)
@@ -5304,7 +5277,7 @@ function Library.new(selfOrOpts, options)
             Name = "Root",
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(0, 470, 0, 286),
+            Size = UDim2.new(0, 460, 0, 268),
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             ZIndex = 5001,
@@ -5317,8 +5290,8 @@ function Library.new(selfOrOpts, options)
         local shadow = new("ImageLabel", {
             Name = "Shadow",
             AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.new(0.5, 0, 0.5, 6),
-            Size = UDim2.new(1, 74, 1, 74),
+            Position = UDim2.new(0.5, 0, 0.5, 5),
+            Size = UDim2.new(1, 64, 1, 64),
             BackgroundTransparency = 1,
             Image = "rbxassetid://17290899982",
             ImageColor3 = Color3.fromRGB(0, 0, 0),
@@ -5330,117 +5303,35 @@ function Library.new(selfOrOpts, options)
             Name = "AmbientGlow",
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(1, 24, 1, 24),
+            Size = UDim2.new(1, 18, 1, 18),
             BackgroundColor3 = genv.accent or Color3.fromRGB(244, 63, 94),
-            BackgroundTransparency = 0.86,
+            BackgroundTransparency = 0.88,
             BorderSizePixel = 0,
             ZIndex = 5001,
         }, root)
-        corner(ambientGlow, 26)
+        corner(ambientGlow, 22)
 
-        local card = new("CanvasGroup", {
+        local card = new("Frame", {
             Name = "Card",
             Size = UDim2.new(1, 0, 1, 0),
-            BackgroundColor3 = Color3.fromRGB(16, 17, 23),
+            BackgroundColor3 = Color3.fromRGB(18, 19, 26),
             BorderSizePixel = 0,
-            GroupTransparency = 0,
             ZIndex = 5002,
         }, root)
-        corner(card, 16)
-
-        new("UIGradient", {
-            Color = ColorSequence.new({
-                ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 25, 34)),
-                ColorSequenceKeypoint.new(0.55, Color3.fromRGB(15, 16, 21)),
-                ColorSequenceKeypoint.new(1, Color3.fromRGB(11, 12, 16)),
-            }),
-            Rotation = 60,
-        }, card)
+        corner(card, 14)
+        local cardStroke = stroke(card, genv.accent or Color3.fromRGB(244, 63, 94), 1.2, 0.45)
 
         local watermark = new("ImageLabel", {
             Name = "Watermark",
             AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.new(0.86, 0, 0.55, 0),
-            Size = UDim2.new(0, 200, 0, 200),
+            Position = UDim2.new(0.88, 0, 0.52, 0),
+            Size = UDim2.new(0, 190, 0, 190),
             BackgroundTransparency = 1,
             Image = "rbxassetid://133495621202705",
             ImageColor3 = genv.accent or Color3.fromRGB(244, 63, 94),
-            ImageTransparency = 0.94,
+            ImageTransparency = 0.95,
             ZIndex = 5003,
         }, card)
-
-        local rim = stroke(card, WHITE, 1.4, 0)
-        new("UIGradient", {
-            Color = ColorSequence.new(genv.accent or Color3.fromRGB(244, 63, 94), Color3.fromRGB(45, 48, 62)),
-            Transparency = NumberSequence.new({
-                NumberSequenceKeypoint.new(0, 0.08),
-                NumberSequenceKeypoint.new(0.25, 0.75),
-                NumberSequenceKeypoint.new(0.5, 0.15),
-                NumberSequenceKeypoint.new(0.75, 0.75),
-                NumberSequenceKeypoint.new(1, 0.08),
-            }),
-        }, rim)
-
-        local embers = {}
-        local isTouchDevice = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-        local emberCount = isTouchDevice and 5 or 8
-        for i = 1, emberCount do
-            local sz = (i % 2 == 0) and 3 or 2
-            local ember = new("Frame", {
-                Name = "Ember",
-                AnchorPoint = Vector2.new(0.5, 0.5),
-                Position = UDim2.new(math.random(4, 96) / 100, 0, math.random(5, 95) / 100, 0),
-                Size = UDim2.new(0, sz, 0, sz),
-                BackgroundColor3 = (i % 3 == 0) and WHITE or (genv.accent or Color3.fromRGB(244, 63, 94)),
-                BackgroundTransparency = 0.55,
-                BorderSizePixel = 0,
-                ZIndex = 5003,
-            }, card)
-            pill(ember)
-            table.insert(embers, {
-                frame = ember,
-                speedY = math.random(18, 38) / 1000,
-                driftX = math.random(8, 18) / 1000,
-                seed = math.random(1, 1000),
-                baseAlpha = math.random(45, 75) / 100,
-            })
-        end
-
-        local tAccum = 0
-        local emberConn = RunService.Heartbeat:Connect(function(dt)
-            tAccum += dt
-            for _, emb in ipairs(embers) do
-                local f = emb.frame
-                if f and f.Parent then
-                    local curX = f.Position.X.Scale
-                    local curY = f.Position.Y.Scale
-                    local nextY = curY - emb.speedY * dt
-                    if nextY < -0.05 then
-                        nextY = 1.05
-                        curX = math.random(4, 96) / 100
-                    end
-                    local sway = math.sin(tAccum * 1.5 + emb.seed) * emb.driftX * dt
-                    f.Position = UDim2.new(math.clamp(curX + sway, 0.02, 0.98), 0, nextY, 0)
-                    f.BackgroundTransparency = math.clamp(emb.baseAlpha + math.sin(tAccum * 2 + emb.seed) * 0.15, 0.2, 0.92)
-                end
-            end
-        end)
-
-        local bottomAccent = new("Frame", {
-            Name = "BottomAccentLine",
-            Position = UDim2.new(0, 0, 1, -2),
-            Size = UDim2.new(1, 0, 0, 2),
-            BackgroundColor3 = genv.accent or Color3.fromRGB(244, 63, 94),
-            BorderSizePixel = 0,
-            ZIndex = 5008,
-        }, card)
-        new("UIGradient", {
-            Transparency = NumberSequence.new({
-                NumberSequenceKeypoint.new(0, 1),
-                NumberSequenceKeypoint.new(0.5, 0.15),
-                NumberSequenceKeypoint.new(1, 1),
-            }),
-        }, bottomAccent)
 
         local header = new("Frame", {
             Name = "Header",
@@ -5571,13 +5462,13 @@ function Library.new(selfOrOpts, options)
         local infoCard = new("Frame", {
             Name = "InfoCard",
             Position = UDim2.new(0, 16, 0, 58),
-            Size = UDim2.new(1, -32, 0, 94),
-            BackgroundColor3 = Color3.fromRGB(20, 22, 30),
+            Size = UDim2.new(1, -32, 0, 68),
+            BackgroundColor3 = Color3.fromRGB(25, 27, 36),
             BorderSizePixel = 0,
             ZIndex = 5004,
         }, card)
-        corner(infoCard, 9)
-        stroke(infoCard, Color3.fromRGB(38, 41, 54), 1, 0.5)
+        corner(infoCard, 8)
+        stroke(infoCard, Color3.fromRGB(48, 52, 68), 1, 0.5)
 
         local accentBar = new("Frame", {
             Name = "AccentBar",
@@ -5605,93 +5496,28 @@ function Library.new(selfOrOpts, options)
         new("TextLabel", {
             Name = "InfoDesc",
             Position = UDim2.new(0, 14, 0, 26),
-            Size = UDim2.new(1, -24, 0, 28),
+            Size = UDim2.new(1, -24, 0, 34),
             BackgroundTransparency = 1,
             FontFace = font(Enum.FontWeight.Medium),
-            Text = "Permanent license unlocks all exclusive features across every script and update.\nInstant automated delivery: cards, crypto & more at moondiety.com/shop",
-            TextColor3 = Color3.fromRGB(160, 166, 182),
-            TextSize = 10.5,
+            Text = "Permanent key unlocks all locked features across every game & update.\nInstant delivery: PayPal, Cards, Crypto & more at moondiety.com/shop",
+            TextColor3 = Color3.fromRGB(180, 185, 200),
+            TextSize = 11,
             TextWrapped = true,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Top,
             ZIndex = 5005,
         }, infoCard)
 
-        local chipsHolder = new("Frame", {
-            Name = "FeatureChips",
-            Position = UDim2.new(0, 14, 0, 64),
-            Size = UDim2.new(1, -24, 0, 22),
-            BackgroundTransparency = 1,
-            ZIndex = 5005,
-        }, infoCard)
-
-        new("UIListLayout", {
-            FillDirection = Enum.FillDirection.Horizontal,
-            Padding = UDim.new(0, 7),
-            VerticalAlignment = Enum.VerticalAlignment.Center,
-        }, chipsHolder)
-
-        local chipData = {
-            {text = "All Games Included", color = Color3.fromRGB(52, 211, 153)},
-            {text = "Lifetime Access", color = genv.accent or Color3.fromRGB(244, 63, 94)},
-            {text = "Instant Delivery", color = Color3.fromRGB(56, 189, 248)},
-        }
-
-        for _, cd in ipairs(chipData) do
-            local chip = new("Frame", {
-                Name = "Chip",
-                Size = UDim2.new(0, 0, 0, 20),
-                AutomaticSize = Enum.AutomaticSize.X,
-                BackgroundColor3 = Color3.fromRGB(26, 28, 38),
-                BorderSizePixel = 0,
-                ZIndex = 5006,
-            }, chipsHolder)
-            pill(chip)
-            stroke(chip, Color3.fromRGB(48, 52, 68), 1, 0.35)
-
-            new("UIPadding", {
-                PaddingLeft = UDim.new(0, 7),
-                PaddingRight = UDim.new(0, 8),
-            }, chip)
-
-            new("UIListLayout", {
-                FillDirection = Enum.FillDirection.Horizontal,
-                Padding = UDim.new(0, 5),
-                VerticalAlignment = Enum.VerticalAlignment.Center,
-            }, chip)
-
-            local chipDot = new("Frame", {
-                Name = "Dot",
-                Size = UDim2.new(0, 5, 0, 5),
-                BackgroundColor3 = cd.color,
-                BorderSizePixel = 0,
-                ZIndex = 5007,
-            }, chip)
-            pill(chipDot)
-
-            new("TextLabel", {
-                Name = "Label",
-                Size = UDim2.new(0, 0, 1, 0),
-                AutomaticSize = Enum.AutomaticSize.X,
-                BackgroundTransparency = 1,
-                FontFace = font(Enum.FontWeight.Bold),
-                Text = cd.text,
-                TextColor3 = Color3.fromRGB(220, 225, 238),
-                TextSize = 9,
-                ZIndex = 5007,
-            }, chip)
-        end
-
         local inputContainer = new("Frame", {
             Name = "InputContainer",
-            Position = UDim2.new(0, 16, 0, 160),
+            Position = UDim2.new(0, 16, 0, 136),
             Size = UDim2.new(1, -32, 0, 40),
-            BackgroundColor3 = Color3.fromRGB(20, 22, 30),
+            BackgroundColor3 = Color3.fromRGB(25, 27, 36),
             BorderSizePixel = 0,
             ZIndex = 5004,
         }, card)
         corner(inputContainer, 8)
-        local inputStroke = stroke(inputContainer, Color3.fromRGB(42, 45, 60), 1, 0.45)
+        local inputStroke = stroke(inputContainer, Color3.fromRGB(48, 52, 68), 1, 0.5)
 
         local inputIcon = new("ImageLabel", {
             Name = "InputIcon",
@@ -5700,7 +5526,7 @@ function Library.new(selfOrOpts, options)
             Position = UDim2.new(0, 12, 0.5, 0),
             BackgroundTransparency = 1,
             Image = "rbxassetid://134724289526879",
-            ImageColor3 = Color3.fromRGB(150, 155, 170),
+            ImageColor3 = Color3.fromRGB(160, 165, 180),
             ZIndex = 5005,
         }, inputContainer)
 
@@ -5709,11 +5535,11 @@ function Library.new(selfOrOpts, options)
             AnchorPoint = Vector2.new(1, 0.5),
             Position = UDim2.new(1, -6, 0.5, 0),
             Size = UDim2.new(0, 54, 0, 28),
-            BackgroundColor3 = Color3.fromRGB(30, 33, 44),
+            BackgroundColor3 = Color3.fromRGB(36, 40, 54),
             BorderSizePixel = 0,
             FontFace = font(Enum.FontWeight.SemiBold),
             Text = "Paste",
-            TextColor3 = Color3.fromRGB(215, 220, 235),
+            TextColor3 = Color3.fromRGB(230, 235, 245),
             TextSize = 11,
             AutoButtonColor = false,
             ZIndex = 5006,
@@ -5727,7 +5553,7 @@ function Library.new(selfOrOpts, options)
             BackgroundTransparency = 1,
             FontFace = font(Enum.FontWeight.Regular),
             PlaceholderText = "Paste license key here...",
-            PlaceholderColor3 = Color3.fromRGB(105, 110, 125),
+            PlaceholderColor3 = Color3.fromRGB(115, 120, 135),
             Text = "",
             TextColor3 = WHITE,
             TextSize = 12,
@@ -5741,15 +5567,15 @@ function Library.new(selfOrOpts, options)
             TweenService:Create(inputIcon, TweenInfo.new(0.2), {ImageColor3 = genv.accent or Color3.fromRGB(244, 63, 94)}):Play()
         end)
         textBox.FocusLost:Connect(function()
-            TweenService:Create(inputStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(42, 45, 60), Transparency = 0.45}):Play()
-            TweenService:Create(inputIcon, TweenInfo.new(0.2), {ImageColor3 = Color3.fromRGB(150, 155, 170)}):Play()
+            TweenService:Create(inputStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(48, 52, 68), Transparency = 0.5}):Play()
+            TweenService:Create(inputIcon, TweenInfo.new(0.2), {ImageColor3 = Color3.fromRGB(160, 165, 180)}):Play()
         end)
 
         pasteBtn.MouseEnter:Connect(function()
-            TweenService:Create(pasteBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(44, 48, 62)}):Play()
+            TweenService:Create(pasteBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(48, 52, 70)}):Play()
         end)
         pasteBtn.MouseLeave:Connect(function()
-            TweenService:Create(pasteBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(30, 33, 44)}):Play()
+            TweenService:Create(pasteBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(36, 40, 54)}):Play()
         end)
         bindTap(pasteBtn, function()
             local clip = nil
@@ -5765,7 +5591,7 @@ function Library.new(selfOrOpts, options)
 
         local statusLabel = new("TextLabel", {
             Name = "StatusLabel",
-            Position = UDim2.new(0, 18, 0, 206),
+            Position = UDim2.new(0, 18, 0, 182),
             Size = UDim2.new(1, -36, 0, 16),
             BackgroundTransparency = 1,
             FontFace = font(Enum.FontWeight.Medium),
@@ -5792,7 +5618,7 @@ function Library.new(selfOrOpts, options)
 
         local btnContainer = new("Frame", {
             Name = "ButtonContainer",
-            Position = UDim2.new(0, 16, 0, 228),
+            Position = UDim2.new(0, 16, 0, 204),
             Size = UDim2.new(1, -32, 0, 42),
             BackgroundTransparency = 1,
             ZIndex = 5004,
@@ -5835,7 +5661,7 @@ function Library.new(selfOrOpts, options)
         local buyBtn = new("TextButton", {
             Name = "BuyKeyButton",
             Size = UDim2.new(0.5, -5, 1, 0),
-            BackgroundColor3 = Color3.fromRGB(26, 28, 38),
+            BackgroundColor3 = Color3.fromRGB(30, 33, 46),
             BorderSizePixel = 0,
             FontFace = font(Enum.FontWeight.Bold),
             Text = "Buy Key",
@@ -5845,15 +5671,15 @@ function Library.new(selfOrOpts, options)
             ZIndex = 5005,
         }, btnContainer)
         corner(buyBtn, 8)
-        local buyStroke = stroke(buyBtn, Color3.fromRGB(48, 52, 68), 1, 0.4)
+        local buyStroke = stroke(buyBtn, Color3.fromRGB(56, 60, 80), 1, 0.45)
 
         buyBtn.MouseEnter:Connect(function()
-            TweenService:Create(buyBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(36, 40, 54)}):Play()
+            TweenService:Create(buyBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(40, 44, 60)}):Play()
             TweenService:Create(buyStroke, TweenInfo.new(0.15), {Color = genv.accent or Color3.fromRGB(244, 63, 94), Transparency = 0.2}):Play()
         end)
         buyBtn.MouseLeave:Connect(function()
-            TweenService:Create(buyBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(26, 28, 38)}):Play()
-            TweenService:Create(buyStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(48, 52, 68), Transparency = 0.4}):Play()
+            TweenService:Create(buyBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(30, 33, 46)}):Play()
+            TweenService:Create(buyStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(56, 60, 80), Transparency = 0.45}):Play()
         end)
 
         TweenService:Create(promptGui, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -5867,10 +5693,6 @@ function Library.new(selfOrOpts, options)
         local function dismiss()
             if isClosing then return end
             isClosing = true
-            if emberConn then
-                emberConn:Disconnect()
-                emberConn = nil
-            end
             local tBackdrop = TweenService:Create(promptGui, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 BackgroundTransparency = 1,
             })
@@ -5932,7 +5754,7 @@ function Library.new(selfOrOpts, options)
                 if buyBtn and buyBtn.Parent then
                     buyBtn.Text = "Buy Key"
                     buyBtn.TextColor3 = Color3.fromRGB(240, 244, 252)
-                    TweenService:Create(buyStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(48, 52, 68), Transparency = 0.4}):Play()
+                    TweenService:Create(buyStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(56, 60, 80), Transparency = 0.45}):Play()
                 end
             end)
             statusLabel.TextColor3 = Color3.fromRGB(52, 211, 153)
@@ -5954,7 +5776,7 @@ function Library.new(selfOrOpts, options)
                 TweenService:Create(inputStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(244, 63, 94), Transparency = 0}):Play()
                 task.delay(1, function()
                     if inputStroke and inputStroke.Parent then
-                        TweenService:Create(inputStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(42, 45, 60), Transparency = 0.45}):Play()
+                        TweenService:Create(inputStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(48, 52, 68), Transparency = 0.5}):Play()
                     end
                 end)
                 shakeCard()
@@ -8295,8 +8117,8 @@ keybindHudRows[kb.name] = {
     local nickLabel = new("TextLabel", {
         BackgroundTransparency = 1,
         AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 50, 0.32, 0),
-        Size = UDim2.new(1, -72, 0, 15),
+        Position = UDim2.new(0, 50, 0.35, 0),
+        Size = UDim2.new(1, -72, 0, 16),
         FontFace = font(Enum.FontWeight.Bold),
         TextColor3 = Color3.fromRGB(242, 244, 250),
         TextSize = 12,
@@ -8308,72 +8130,21 @@ keybindHudRows[kb.name] = {
     nickLabel:SetAttribute("ThemeText", true)
     table.insert(genv.UIElements, nickLabel)
 
-    local cardTierTag = new("TextButton", {
-        Name = "UserCardTierTag",
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 50, 0.72, 0),
-        Size = isPremCard and UDim2.new(0, 58, 0, 16) or UDim2.new(0, 42, 0, 16),
-        BackgroundColor3 = isPremCard and Color3.fromRGB(45, 18, 58) or Color3.fromRGB(26, 28, 38),
-        BorderSizePixel = 0,
-        AutoButtonColor = false,
-        Text = "",
-        ZIndex = 22,
-    }, userCard)
-    corner(cardTierTag, 4)
-    local cardTierStroke = stroke(cardTierTag, isPremCard and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(52, 56, 74), 1, isPremCard and 0.2 or 0.35)
-
-    local cardTierLabel = new("TextLabel", {
-        Name = "TierLabel",
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = UDim2.new(1, 0, 1, 0),
+    local userLabel = new("TextLabel", {
         BackgroundTransparency = 1,
-        FontFace = font(Enum.FontWeight.Bold),
-        TextColor3 = isPremCard and Color3.fromRGB(230, 200, 255) or Color3.fromRGB(156, 163, 185),
-        TextSize = 9,
-        Text = isPremCard and "PREMIUM" or "FREE",
-        TextXAlignment = Enum.TextXAlignment.Center,
-        ZIndex = 23,
-    }, cardTierTag)
-
-    cardTierTag.MouseEnter:Connect(function()
-        local premNow = (Library.IsPremium == true) or (genv and genv._MoondietyPremium == true)
-        if not premNow then
-            TweenService:Create(cardTierTag, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(38, 40, 54)}):Play()
-            if cardTierStroke then
-                TweenService:Create(cardTierStroke, TweenInfo.new(0.18), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.2}):Play()
-            end
-            cardTierLabel.Text = "UPGRADE"
-            cardTierLabel.TextColor3 = WHITE
-        else
-            TweenService:Create(cardTierTag, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(60, 24, 76)}):Play()
-        end
-    end)
-
-    cardTierTag.MouseLeave:Connect(function()
-        local premNow = (Library.IsPremium == true) or (genv and genv._MoondietyPremium == true)
-        if not premNow then
-            TweenService:Create(cardTierTag, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(26, 28, 38)}):Play()
-            if cardTierStroke then
-                TweenService:Create(cardTierStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(52, 56, 74), Transparency = 0.35}):Play()
-            end
-            cardTierLabel.Text = "FREE"
-            cardTierLabel.TextColor3 = Color3.fromRGB(156, 163, 185)
-        else
-            TweenService:Create(cardTierTag, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 18, 58)}):Play()
-            if cardTierStroke then
-                TweenService:Create(cardTierStroke, TweenInfo.new(0.2), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.2}):Play()
-            end
-        end
-    end)
-
-    cardTierTag.MouseButton1Click:Connect(function()
-        if not Library.IsPremium and Library.ShowPremiumPrompt then
-            Library:ShowPremiumPrompt()
-        end
-    end)
-
-    Library.UserCardTierTag = cardTierTag
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0, 50, 0.65, 0),
+        Size = UDim2.new(1, -72, 0, 14),
+        FontFace = font(Enum.FontWeight.Regular),
+        TextColor3 = Color3.fromRGB(145, 150, 165),
+        TextSize = 11,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "@" .. LocalPlayer.Name,
+        ZIndex = 21,
+    }, userCard)
+    userLabel:SetAttribute("ThemeText", true)
+    table.insert(genv.UIElements, userLabel)
 
     local userChevron = new("ImageLabel", {
         Name = "UserChevron",
