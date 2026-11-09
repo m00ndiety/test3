@@ -1518,6 +1518,7 @@ Library = {
     IsPremium = false,
     LockedElements = {},
     LockedObjects = {},
+    PremiumOnlyTabs = {},
 }
 genv.Moondiety = Library
 
@@ -1924,6 +1925,9 @@ local function ApplyTheme(name, customAccent)
     end
     if Library.UpdateToggleBarCustomization then
         Library:UpdateToggleBarCustomization()
+    end
+    if Library.UpdateTierTags then
+        Library:UpdateTierTags()
     end
 end
 
@@ -4540,11 +4544,12 @@ function Library.new(selfOrOpts, options)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Position = UDim2.new(0.0338, 34, subName and 0.6 or 0.8, 0),
-        Size = UDim2.new(1 - positionX, -34, 0, 16),
+        Size = UDim2.new(1, -220, 0, 16),
         FontFace = font(),
         Text = mainName,
         TextColor3 = WHITE,
         TextSize = 16,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         TextXAlignment = Enum.TextXAlignment.Left,
         ZIndex = 99,
     }, Top)
@@ -4555,15 +4560,94 @@ function Library.new(selfOrOpts, options)
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             Position = UDim2.new(0.0338, 34, 1.15, 0),
-            Size = UDim2.new(1 - positionX, -34, 0, 14),
+            Size = UDim2.new(1, -220, 0, 14),
             FontFace = font(),
             Text = subName,
             TextColor3 = Color3.fromRGB(170, 170, 170),
             TextSize = 12,
+            TextTruncate = Enum.TextTruncate.AtEnd,
             TextXAlignment = Enum.TextXAlignment.Left,
             ZIndex = 99,
         }, Top)
     end
+
+    local isPremHeader = (Library.IsPremium == true) or (genv and genv._MoondietyPremium == true)
+    local headerTierTag = new("TextButton", {
+        Name = "HeaderTierTag",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -78, 0.5, 0),
+        Size = isPremHeader and UDim2.new(0, 72, 0, 22) or UDim2.new(0, 50, 0, 22),
+        BackgroundColor3 = isPremHeader and Color3.fromRGB(45, 18, 58) or Color3.fromRGB(24, 26, 34),
+        BorderSizePixel = 0,
+        AutoButtonColor = false,
+        Text = "",
+        ZIndex = 100,
+    }, Top)
+    corner(headerTierTag, 11)
+    local headerTierStroke = stroke(headerTierTag, isPremHeader and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(55, 58, 74), 1, isPremHeader and 0.2 or 0.4)
+
+    local headerTierLabel = new("TextLabel", {
+        Name = "TierLabel",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        FontFace = font(Enum.FontWeight.Bold),
+        Text = isPremHeader and "PREMIUM" or "FREE",
+        TextColor3 = isPremHeader and Color3.fromRGB(230, 200, 255) or Color3.fromRGB(156, 163, 185),
+        TextSize = 10,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        ZIndex = 101,
+    }, headerTierTag)
+
+    headerTierTag.MouseEnter:Connect(function()
+        local premNow = (Library.IsPremium == true) or (genv and genv._MoondietyPremium == true)
+        if not premNow then
+            TweenService:Create(headerTierTag, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(36, 38, 50)}):Play()
+            if headerTierStroke then
+                TweenService:Create(headerTierStroke, TweenInfo.new(0.18), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.2}):Play()
+            end
+            headerTierLabel.Text = "UPGRADE"
+            headerTierLabel.TextColor3 = WHITE
+        else
+            TweenService:Create(headerTierTag, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(60, 24, 76)}):Play()
+            if headerTierStroke then
+                TweenService:Create(headerTierStroke, TweenInfo.new(0.18), {Transparency = 0}):Play()
+            end
+        end
+    end)
+    headerTierTag.MouseLeave:Connect(function()
+        local premNow = (Library.IsPremium == true) or (genv and genv._MoondietyPremium == true)
+        if not premNow then
+            TweenService:Create(headerTierTag, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(24, 26, 34)}):Play()
+            if headerTierStroke then
+                TweenService:Create(headerTierStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(55, 58, 74), Transparency = 0.4}):Play()
+            end
+            headerTierLabel.Text = "FREE"
+            headerTierLabel.TextColor3 = Color3.fromRGB(156, 163, 185)
+        else
+            TweenService:Create(headerTierTag, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 18, 58)}):Play()
+            if headerTierStroke then
+                TweenService:Create(headerTierStroke, TweenInfo.new(0.2), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.2}):Play()
+            end
+            headerTierLabel.Text = "PREMIUM"
+            headerTierLabel.TextColor3 = Color3.fromRGB(230, 200, 255)
+        end
+    end)
+
+    headerTierTag.MouseButton1Click:Connect(function()
+        if not Library.IsPremium then
+            Library:ShowPremiumPrompt()
+        else
+            Library:Notify({
+                Title = "Moondiety Premium",
+                Content = "Lifetime permanent premium license active.",
+                Duration = 2,
+                Type = "Success"
+            })
+        end
+    end)
+    Library.HeaderTierTag = headerTierTag
 
     local controls = new("Frame", {
         Name = "Controls",
@@ -4961,6 +5045,77 @@ function Library.new(selfOrOpts, options)
         end)
     end
 
+    function Library:UpdateTierTags()
+        local isPrem = (self.IsPremium == true) or (genv and genv._MoondietyPremium == true)
+        self.IsPremium = isPrem
+
+        if self.HeaderTierTag and self.HeaderTierTag.Parent then
+            local tagBtn = self.HeaderTierTag
+            local tagLabel = tagBtn:FindFirstChild("TierLabel")
+            local tagStroke = tagBtn:FindFirstChildOfClass("UIStroke")
+            if isPrem then
+                tagBtn.Size = UDim2.new(0, 72, 0, 22)
+                tagBtn.BackgroundColor3 = Color3.fromRGB(45, 18, 58)
+                if tagStroke then
+                    tagStroke.Color = genv.accent or Color3.fromRGB(168, 85, 247)
+                    tagStroke.Transparency = 0.2
+                end
+                if tagLabel then
+                    tagLabel.Text = "PREMIUM"
+                    tagLabel.TextColor3 = Color3.fromRGB(230, 200, 255)
+                end
+            else
+                tagBtn.Size = UDim2.new(0, 50, 0, 22)
+                tagBtn.BackgroundColor3 = Color3.fromRGB(24, 26, 34)
+                if tagStroke then
+                    tagStroke.Color = Color3.fromRGB(55, 58, 74)
+                    tagStroke.Transparency = 0.4
+                end
+                if tagLabel then
+                    tagLabel.Text = "FREE"
+                    tagLabel.TextColor3 = Color3.fromRGB(156, 163, 185)
+                end
+            end
+        end
+
+        if self.UserCardTierTag and self.UserCardTierTag.Parent then
+            local tagBtn = self.UserCardTierTag
+            local tagLabel = tagBtn:FindFirstChild("TierLabel")
+            local tagStroke = tagBtn:FindFirstChildOfClass("UIStroke")
+            if isPrem then
+                tagBtn.Size = UDim2.new(0, 58, 0, 18)
+                tagBtn.BackgroundColor3 = Color3.fromRGB(45, 18, 58)
+                if tagStroke then
+                    tagStroke.Color = genv.accent or Color3.fromRGB(168, 85, 247)
+                    tagStroke.Transparency = 0.2
+                end
+                if tagLabel then
+                    tagLabel.Text = "PREMIUM"
+                    tagLabel.TextColor3 = Color3.fromRGB(230, 200, 255)
+                end
+            else
+                tagBtn.Size = UDim2.new(0, 40, 0, 18)
+                tagBtn.BackgroundColor3 = Color3.fromRGB(24, 26, 34)
+                if tagStroke then
+                    tagStroke.Color = Color3.fromRGB(55, 58, 74)
+                    tagStroke.Transparency = 0.4
+                end
+                if tagLabel then
+                    tagLabel.Text = "FREE"
+                    tagLabel.TextColor3 = Color3.fromRGB(156, 163, 185)
+                end
+            end
+        end
+
+        if self.PremiumOnlyTabs then
+            for _, tabEntry in ipairs(self.PremiumOnlyTabs) do
+                if tabEntry.btn and tabEntry.btn.Parent then
+                    tabEntry.btn.Visible = isPrem
+                end
+            end
+        end
+    end
+
     function Library:UnlockAll()
         self.IsPremium = true
         if genv then
@@ -4982,6 +5137,9 @@ function Library.new(selfOrOpts, options)
             end
             table.clear(self.LockedObjects)
         end
+        if self.UpdateTierTags then
+            self:UpdateTierTags()
+        end
     end
 
     function Library:LockElement(frame, obj)
@@ -4993,8 +5151,8 @@ function Library.new(selfOrOpts, options)
 
         local overlay = new("TextButton", {
             Name = "BlockedOverlay",
-            BackgroundColor3 = genv.blockedoverlay or Color3.fromRGB(0, 0, 0),
-            BackgroundTransparency = 0.45,
+            BackgroundColor3 = genv.blockedoverlay or Color3.fromRGB(12, 13, 18),
+            BackgroundTransparency = 0.88,
             BorderSizePixel = 0,
             Size = UDim2.new(1, 0, 1, 0),
             ZIndex = 15,
@@ -5005,33 +5163,44 @@ function Library.new(selfOrOpts, options)
         table.insert(genv.UIElements, overlay)
         corner(overlay, 10)
 
-        local overlayStroke = stroke(overlay, Color3.fromRGB(45, 48, 60), 1, 0.4)
+        local overlayStroke = stroke(overlay, Color3.fromRGB(48, 42, 54), 1, 0.6)
 
-        local lockRow = new("Frame", {
-            Name = "LockRow",
-            BackgroundTransparency = 1,
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(0, 0, 0, 18),
+        local lockBadge = new("Frame", {
+            Name = "LockBadge",
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -10, 0.5, 0),
+            Size = UDim2.new(0, 0, 0, 22),
             AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundColor3 = Color3.fromRGB(30, 20, 26),
+            BackgroundTransparency = 0.15,
+            BorderSizePixel = 0,
             ZIndex = 16,
         }, overlay)
+        corner(lockBadge, 6)
+        local badgeStroke = stroke(lockBadge, Color3.fromRGB(180, 50, 75), 1, 0.35)
+
+        new("UIPadding", {
+            PaddingLeft = UDim.new(0, 7),
+            PaddingRight = UDim.new(0, 7),
+        }, lockBadge)
 
         new("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal,
             VerticalAlignment = Enum.VerticalAlignment.Center,
             HorizontalAlignment = Enum.HorizontalAlignment.Center,
-            Padding = UDim.new(0, 6),
-        }, lockRow)
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Padding = UDim.new(0, 5),
+        }, lockBadge)
 
         local lockIcon = new("ImageLabel", {
             Name = "LockIcon",
-            Size = UDim2.new(0, 14, 0, 14),
+            Size = UDim2.new(0, 12, 0, 12),
             BackgroundTransparency = 1,
             Image = "rbxassetid://134724289526879",
-            ImageColor3 = genv.blockedtext or Color3.fromRGB(210, 210, 210),
-            ZIndex = 16,
-        }, lockRow)
+            ImageColor3 = Color3.fromRGB(244, 63, 94),
+            LayoutOrder = 1,
+            ZIndex = 17,
+        }, lockBadge)
         table.insert(genv.UIElements, lockIcon)
 
         local lockLabel = new("TextLabel", {
@@ -5039,42 +5208,59 @@ function Library.new(selfOrOpts, options)
             BackgroundTransparency = 1,
             Size = UDim2.new(0, 0, 1, 0),
             AutomaticSize = Enum.AutomaticSize.X,
-            FontFace = font(Enum.FontWeight.Medium),
-            TextColor3 = genv.blockedtext or Color3.fromRGB(210, 210, 210),
-            TextSize = 13,
-            Text = "Locked",
-            ZIndex = 16,
-        }, lockRow)
+            FontFace = font(Enum.FontWeight.SemiBold),
+            TextColor3 = Color3.fromRGB(250, 120, 140),
+            TextSize = 11,
+            Text = "LOCKED",
+            LayoutOrder = 2,
+            ZIndex = 17,
+        }, lockBadge)
         table.insert(genv.UIElements, lockLabel)
 
         overlay.MouseEnter:Connect(function()
             TweenService:Create(overlay, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                BackgroundTransparency = 0.28,
+                BackgroundTransparency = 0.78,
             }):Play()
             TweenService:Create(overlayStroke, TweenInfo.new(0.18), {
                 Color = Color3.fromRGB(244, 63, 94),
-                Transparency = 0.1,
+                Transparency = 0.2,
+            }):Play()
+            TweenService:Create(lockBadge, TweenInfo.new(0.18), {
+                BackgroundColor3 = Color3.fromRGB(180, 30, 60),
+                BackgroundTransparency = 0,
+            }):Play()
+            TweenService:Create(badgeStroke, TweenInfo.new(0.18), {
+                Color = Color3.fromRGB(255, 95, 135),
+                Transparency = 0,
             }):Play()
             TweenService:Create(lockIcon, TweenInfo.new(0.18), {
-                ImageColor3 = Color3.fromRGB(255, 95, 135),
+                ImageColor3 = WHITE,
             }):Play()
-            lockLabel.Text = "Click to Unlock"
-            lockLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            lockLabel.Text = "UNLOCK"
+            lockLabel.TextColor3 = WHITE
         end)
 
         overlay.MouseLeave:Connect(function()
             TweenService:Create(overlay, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                BackgroundTransparency = 0.45,
+                BackgroundTransparency = 0.88,
             }):Play()
             TweenService:Create(overlayStroke, TweenInfo.new(0.18), {
-                Color = Color3.fromRGB(45, 48, 60),
-                Transparency = 0.4,
+                Color = Color3.fromRGB(48, 42, 54),
+                Transparency = 0.6,
+            }):Play()
+            TweenService:Create(lockBadge, TweenInfo.new(0.18), {
+                BackgroundColor3 = Color3.fromRGB(30, 20, 26),
+                BackgroundTransparency = 0.15,
+            }):Play()
+            TweenService:Create(badgeStroke, TweenInfo.new(0.18), {
+                Color = Color3.fromRGB(180, 50, 75),
+                Transparency = 0.35,
             }):Play()
             TweenService:Create(lockIcon, TweenInfo.new(0.18), {
-                ImageColor3 = genv.blockedtext or Color3.fromRGB(210, 210, 210),
+                ImageColor3 = Color3.fromRGB(244, 63, 94),
             }):Play()
-            lockLabel.Text = "Locked"
-            lockLabel.TextColor3 = genv.blockedtext or Color3.fromRGB(210, 210, 210)
+            lockLabel.Text = "LOCKED"
+            lockLabel.TextColor3 = Color3.fromRGB(250, 120, 140)
         end)
 
         bindTap(overlay, function()
@@ -7879,7 +8065,7 @@ keybindHudRows[kb.name] = {
         BackgroundTransparency = 1,
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, 48, 0.36, 0),
-        Size = UDim2.new(1, -72, 0, 14),
+        Size = UDim2.new(1, -94, 0, 14),
         FontFace = font(Enum.FontWeight.Bold),
         TextColor3 = Color3.fromRGB(240, 242, 248),
         TextSize = 12,
@@ -7895,7 +8081,7 @@ keybindHudRows[kb.name] = {
         BackgroundTransparency = 1,
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, 48, 0.68, 0),
-        Size = UDim2.new(1, -72, 0, 12),
+        Size = UDim2.new(1, -94, 0, 12),
         FontFace = font(Enum.FontWeight.Regular),
         TextColor3 = Color3.fromRGB(140, 144, 158),
         TextSize = 11,
@@ -7904,6 +8090,70 @@ keybindHudRows[kb.name] = {
         Text = "@" .. LocalPlayer.Name,
         ZIndex = 21,
     }, userCard)
+
+    local isPremCard = (Library.IsPremium == true) or (genv and genv._MoondietyPremium == true)
+    local cardTierTag = new("TextButton", {
+        Name = "UserCardTierTag",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -26, 0.5, 0),
+        Size = isPremCard and UDim2.new(0, 58, 0, 18) or UDim2.new(0, 40, 0, 18),
+        BackgroundColor3 = isPremCard and Color3.fromRGB(45, 18, 58) or Color3.fromRGB(24, 26, 34),
+        BorderSizePixel = 0,
+        AutoButtonColor = false,
+        Text = "",
+        ZIndex = 22,
+    }, userCard)
+    corner(cardTierTag, 5)
+    local cardTierStroke = stroke(cardTierTag, isPremCard and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(55, 58, 74), 1, isPremCard and 0.2 or 0.4)
+
+    local cardTierLabel = new("TextLabel", {
+        Name = "TierLabel",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        FontFace = font(Enum.FontWeight.Bold),
+        TextColor3 = isPremCard and Color3.fromRGB(230, 200, 255) or Color3.fromRGB(156, 163, 185),
+        TextSize = 9,
+        Text = isPremCard and "PREMIUM" or "FREE",
+        TextXAlignment = Enum.TextXAlignment.Center,
+        ZIndex = 23,
+    }, cardTierTag)
+
+    cardTierTag.MouseEnter:Connect(function()
+        local premNow = (Library.IsPremium == true) or (genv and genv._MoondietyPremium == true)
+        if not premNow then
+            TweenService:Create(cardTierTag, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(36, 38, 50)}):Play()
+            if cardTierStroke then
+                TweenService:Create(cardTierStroke, TweenInfo.new(0.18), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.2}):Play()
+            end
+        else
+            TweenService:Create(cardTierTag, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(60, 24, 76)}):Play()
+        end
+    end)
+
+    cardTierTag.MouseLeave:Connect(function()
+        local premNow = (Library.IsPremium == true) or (genv and genv._MoondietyPremium == true)
+        if not premNow then
+            TweenService:Create(cardTierTag, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(24, 26, 34)}):Play()
+            if cardTierStroke then
+                TweenService:Create(cardTierStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(55, 58, 74), Transparency = 0.4}):Play()
+            end
+        else
+            TweenService:Create(cardTierTag, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 18, 58)}):Play()
+            if cardTierStroke then
+                TweenService:Create(cardTierStroke, TweenInfo.new(0.2), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.2}):Play()
+            end
+        end
+    end)
+
+    cardTierTag.MouseButton1Click:Connect(function()
+        if not Library.IsPremium and Library.ShowPremiumPrompt then
+            Library:ShowPremiumPrompt()
+        end
+    end)
+
+    Library.UserCardTierTag = cardTierTag
 
     local userChevron = new("ImageLabel", {
         Name = "UserChevron",
@@ -9253,6 +9503,7 @@ keybindHudRows[kb.name] = {
 
     function Tab.create_tab(selfOrName, nameOrIcon, iconId)
         local name, rawIcon
+        local cfgTable = (type(selfOrName) == "table" and selfOrName) or (type(nameOrIcon) == "table" and nameOrIcon) or nil
         if type(selfOrName) == "table" and type(selfOrName.name) == "string" then
             name = selfOrName.name
             rawIcon = selfOrName.icon
@@ -9262,6 +9513,15 @@ keybindHudRows[kb.name] = {
         else
             name = (type(selfOrName) == "string") and selfOrName or nameOrIcon
             rawIcon = (type(selfOrName) == "string") and nameOrIcon or iconId
+        end
+        local isPremTab = false
+        local premOnly = false
+        if cfgTable then
+            isPremTab = cfgTable.premium or cfgTable.is_premium or cfgTable.premium_only or false
+            premOnly = (cfgTable.premium_only == true)
+        end
+        if name == "Premium" or name == "Exclusive" then
+            isPremTab = true
         end
         local resolvedIcon = rawIcon
         if resolvedIcon and Library.Icons and Library.Icons[resolvedIcon] then
@@ -9304,11 +9564,12 @@ keybindHudRows[kb.name] = {
             ZIndex = 4,
         }, tabBtn)
 
+        local tabTextRightPad = (isPremTab and 38) or 0
         local TabText = new("TextLabel", {
             Name = "TextLabel",
             AnchorPoint = Vector2.new(0, 0.5),
             Position = hasIcon and UDim2.new(0, 32, 0.5, 0) or UDim2.new(0, 12, 0.5, 0),
-            Size = hasIcon and UDim2.new(1, -40, 0, 14) or UDim2.new(1, -24, 0, 14),
+            Size = hasIcon and UDim2.new(1, -40 - tabTextRightPad, 0, 14) or UDim2.new(1, -24 - tabTextRightPad, 0, 14),
             BackgroundTransparency = 1,
             FontFace = font(Enum.FontWeight.Medium),
             Text = name,
@@ -9318,6 +9579,30 @@ keybindHudRows[kb.name] = {
             TextTransparency = 0.55,
             ZIndex = 4,
         }, tabBtn)
+
+        if isPremTab then
+            local proBadge = new("Frame", {
+                Name = "ProBadge",
+                AnchorPoint = Vector2.new(1, 0.5),
+                Position = UDim2.new(1, -8, 0.5, 0),
+                Size = UDim2.new(0, 32, 0, 16),
+                BackgroundColor3 = Color3.fromRGB(45, 18, 58),
+                BorderSizePixel = 0,
+                ZIndex = 5,
+            }, tabBtn)
+            corner(proBadge, 4)
+            stroke(proBadge, genv.accent or Color3.fromRGB(168, 85, 247), 1, 0.3)
+            new("TextLabel", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 1, 0),
+                FontFace = font(Enum.FontWeight.Bold),
+                Text = "PRO",
+                TextColor3 = Color3.fromRGB(230, 200, 255),
+                TextSize = 8,
+                TextXAlignment = Enum.TextXAlignment.Center,
+                ZIndex = 6,
+            }, proBadge)
+        end
 
         local Fill = new("Frame", {
             Name = "Fill",
@@ -9784,11 +10069,19 @@ local stickyMerge = makeSticky("StickyMerge", SECTION_X, SECTION_W, 49)
             relayout(anim)
         end
 
+        local isPremUser = (Library.IsPremium == true) or (genv and genv._MoondietyPremium == true)
+        if premOnly then
+            if not isPremUser then
+                tabBtn.Visible = false
+            end
+            table.insert(Library.PremiumOnlyTabs, {btn = tabBtn, section = itemsSection, name = name})
+        end
+
         bindTap(tabBtn, function()
             Tab.open_tab({tab = tabBtn, section = itemsSection, tabModule = Module})
         end)
 
-        if tabCount == 0 then
+        if tabBtn.Visible and not Tab.current_tab then
             Tab.open_tab({tab = tabBtn, section = itemsSection, tabModule = Module})
         end
         tabCount += 1
@@ -9940,7 +10233,7 @@ end
         end
 
         local function makeToggleObject(cfg, Switch, Circle)
-            local isLocked = (cfg.locked == true) and (not Library.IsPremium)
+            local isLocked = (cfg.locked == true or cfg.premium == true or cfg.is_premium == true) and (not Library.IsPremium)
             local obj = {state = false, callback = cfg.callback, flag = cfg.flag, isLocked = isLocked}
             if isLocked then
                 obj.state = false
@@ -10030,20 +10323,44 @@ end
         function Module:create_title(arg)
             local cfg = resolve(self, arg)
             local side = getSide(cfg)
-           local title = new("TextLabel", {
-            Name = "Title",
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            Size = UDim2.new(1, 0, 0, 15),
-            ZIndex = 2,
-            FontFace = font(),
-            TextColor3 = WHITE,
-            TextScaled = false,
-            TextSize = 13,
-            Text = cfg.name or "",
-            TextXAlignment = Enum.TextXAlignment.Left,
-        }, itemsSection)
+            local isPremTitle = (cfg.premium or cfg.is_premium or cfg.locked) == true
+            local title = new("TextLabel", {
+                Name = "Title",
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                Size = UDim2.new(1, 0, 0, 15),
+                ZIndex = 2,
+                FontFace = font(),
+                TextColor3 = WHITE,
+                TextScaled = false,
+                TextSize = 13,
+                Text = cfg.name or "",
+                TextXAlignment = Enum.TextXAlignment.Left,
+            }, itemsSection)
             new("UIPadding", {PaddingLeft = UDim.new(0, 4)}, title)
+            if isPremTitle then
+                local premBadge = new("Frame", {
+                    Name = "PremTitleBadge",
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    Position = UDim2.new(1, -6, 0.5, 0),
+                    Size = UDim2.new(0, 32, 0, 14),
+                    BackgroundColor3 = Color3.fromRGB(45, 18, 58),
+                    BorderSizePixel = 0,
+                    ZIndex = 3,
+                }, title)
+                corner(premBadge, 3)
+                stroke(premBadge, genv.accent or Color3.fromRGB(168, 85, 247), 1, 0.3)
+                new("TextLabel", {
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 1, 0),
+                    FontFace = font(Enum.FontWeight.Bold),
+                    Text = "PRO",
+                    TextColor3 = Color3.fromRGB(230, 200, 255),
+                    TextSize = 8,
+                    TextXAlignment = Enum.TextXAlignment.Center,
+                    ZIndex = 4,
+                }, premBadge)
+            end
             registerItem(title, side, 15, cfg.name)
 
             if side ~= "middle" then
@@ -10202,7 +10519,7 @@ end
                 obj:UpdateToggle()
             end)
 
-            if cfg.locked and not Library.IsPremium then
+            if (cfg.locked or cfg.premium or cfg.is_premium) and not Library.IsPremium then
                 Library:LockElement(toggle, obj)
             end
 
@@ -10259,7 +10576,7 @@ end
             attachTooltip(checkbox, cfg.tooltip or cfg.desc)
             registerItem(checkbox, side, ELEMENT_HEIGHT, cfg.name)
 
-            local isLocked = (cfg.locked == true) and (not Library.IsPremium)
+            local isLocked = (cfg.locked == true or cfg.premium == true or cfg.is_premium == true) and (not Library.IsPremium)
             local obj = {state = cfg.enabled or false, callback = cfg.callback, flag = cfg.flag, isLocked = isLocked}
             if isLocked then
                 obj.state = false
@@ -10336,7 +10653,7 @@ end
         obj:UpdateToggle()
     end)
 
-    if cfg.locked and not Library.IsPremium then
+    if (cfg.locked or cfg.premium or cfg.is_premium) and not Library.IsPremium then
         Library:LockElement(checkbox, obj)
     end
 
@@ -10935,7 +11252,7 @@ end
                 return self
             end
 
-            if cfg.locked and not Library.IsPremium then
+            if (cfg.locked or cfg.premium or cfg.is_premium) and not Library.IsPremium then
                 obj.isLocked = true
                 Library:LockElement(button, obj)
             end
@@ -10949,57 +11266,131 @@ end
             local button = row("Button", "tabcolor")
             rowTexts(button, cfg.name or "Button", cfg.description, 20)
 
-            local overlay = new("Frame", {
-                Name = "BlockedOverlay",
-                BackgroundColor3 = genv.blockedoverlay or Color3.fromRGB(0, 0, 0),
-                BackgroundTransparency = 0.45,
-                BorderSizePixel = 0,
-                Size = UDim2.new(1, 0, 1, 0),
-                ZIndex = 5,
-                Active = true,
-            }, button)
-            table.insert(genv.UIElements, overlay)
-            corner(overlay, 10)
+            if not Library.IsPremium then
+                local overlay = new("TextButton", {
+                    Name = "BlockedOverlay",
+                    BackgroundColor3 = genv.blockedoverlay or Color3.fromRGB(12, 13, 18),
+                    BackgroundTransparency = 0.88,
+                    BorderSizePixel = 0,
+                    Size = UDim2.new(1, 0, 1, 0),
+                    ZIndex = 15,
+                    Active = true,
+                    AutoButtonColor = false,
+                    Text = "",
+                }, button)
+                table.insert(genv.UIElements, overlay)
+                corner(overlay, 10)
 
-            local lockRow = new("Frame", {
-                Name = "LockRow",
-                BackgroundTransparency = 1,
-                AnchorPoint = Vector2.new(0.5, 0.5),
-                Position = UDim2.new(0.5, 0, 0.5, 0),
-                Size = UDim2.new(0, 0, 0, 18),
-                AutomaticSize = Enum.AutomaticSize.X,
-                ZIndex = 6,
-            }, overlay)
+                local overlayStroke = stroke(overlay, Color3.fromRGB(48, 42, 54), 1, 0.6)
 
-            new("UIListLayout", {
-                FillDirection = Enum.FillDirection.Horizontal,
-                VerticalAlignment = Enum.VerticalAlignment.Center,
-                HorizontalAlignment = Enum.HorizontalAlignment.Center,
-                Padding = UDim.new(0, 6),
-            }, lockRow)
+                local lockBadge = new("Frame", {
+                    Name = "LockBadge",
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    Position = UDim2.new(1, -10, 0.5, 0),
+                    Size = UDim2.new(0, 0, 0, 22),
+                    AutomaticSize = Enum.AutomaticSize.X,
+                    BackgroundColor3 = Color3.fromRGB(30, 20, 26),
+                    BackgroundTransparency = 0.15,
+                    BorderSizePixel = 0,
+                    ZIndex = 16,
+                }, overlay)
+                corner(lockBadge, 6)
+                local badgeStroke = stroke(lockBadge, Color3.fromRGB(180, 50, 75), 1, 0.35)
 
-            local lockIcon = new("ImageLabel", {
-                Name = "LockIcon",
-                Size = UDim2.new(0, 14, 0, 14),
-                BackgroundTransparency = 1,
-                Image = "rbxassetid://134724289526879",
-                ImageColor3 = genv.blockedtext or Color3.fromRGB(210, 210, 210),
-                ZIndex = 6,
-            }, lockRow)
-            table.insert(genv.UIElements, lockIcon)
+                new("UIPadding", {
+                    PaddingLeft = UDim.new(0, 7),
+                    PaddingRight = UDim.new(0, 7),
+                }, lockBadge)
 
-            local lockLabel = new("TextLabel", {
-                Name = "BlockedText",
-                BackgroundTransparency = 1,
-                Size = UDim2.new(0, 0, 1, 0),
-                AutomaticSize = Enum.AutomaticSize.X,
-                FontFace = font(Enum.FontWeight.Medium),
-                TextColor3 = genv.blockedtext or Color3.fromRGB(210, 210, 210),
-                TextSize = 13,
-                Text = cfg.lockText or "Locked",
-                ZIndex = 6,
-            }, lockRow)
-            table.insert(genv.UIElements, lockLabel)
+                new("UIListLayout", {
+                    FillDirection = Enum.FillDirection.Horizontal,
+                    VerticalAlignment = Enum.VerticalAlignment.Center,
+                    HorizontalAlignment = Enum.HorizontalAlignment.Center,
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Padding = UDim.new(0, 5),
+                }, lockBadge)
+
+                local lockIcon = new("ImageLabel", {
+                    Name = "LockIcon",
+                    Size = UDim2.new(0, 12, 0, 12),
+                    BackgroundTransparency = 1,
+                    Image = "rbxassetid://134724289526879",
+                    ImageColor3 = Color3.fromRGB(244, 63, 94),
+                    LayoutOrder = 1,
+                    ZIndex = 17,
+                }, lockBadge)
+                table.insert(genv.UIElements, lockIcon)
+
+                local lockLabel = new("TextLabel", {
+                    Name = "BlockedText",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(0, 0, 1, 0),
+                    AutomaticSize = Enum.AutomaticSize.X,
+                    FontFace = font(Enum.FontWeight.SemiBold),
+                    TextColor3 = Color3.fromRGB(250, 120, 140),
+                    TextSize = 11,
+                    Text = cfg.lockText or "LOCKED",
+                    LayoutOrder = 2,
+                    ZIndex = 17,
+                }, lockBadge)
+                table.insert(genv.UIElements, lockLabel)
+
+                overlay.MouseEnter:Connect(function()
+                    TweenService:Create(overlay, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        BackgroundTransparency = 0.78,
+                    }):Play()
+                    TweenService:Create(overlayStroke, TweenInfo.new(0.18), {
+                        Color = Color3.fromRGB(244, 63, 94),
+                        Transparency = 0.2,
+                    }):Play()
+                    TweenService:Create(lockBadge, TweenInfo.new(0.18), {
+                        BackgroundColor3 = Color3.fromRGB(180, 30, 60),
+                        BackgroundTransparency = 0,
+                    }):Play()
+                    TweenService:Create(badgeStroke, TweenInfo.new(0.18), {
+                        Color = Color3.fromRGB(255, 95, 135),
+                        Transparency = 0,
+                    }):Play()
+                    TweenService:Create(lockIcon, TweenInfo.new(0.18), {
+                        ImageColor3 = WHITE,
+                    }):Play()
+                    lockLabel.Text = "UNLOCK"
+                    lockLabel.TextColor3 = WHITE
+                end)
+
+                overlay.MouseLeave:Connect(function()
+                    TweenService:Create(overlay, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        BackgroundTransparency = 0.88,
+                    }):Play()
+                    TweenService:Create(overlayStroke, TweenInfo.new(0.18), {
+                        Color = Color3.fromRGB(48, 42, 54),
+                        Transparency = 0.6,
+                    }):Play()
+                    TweenService:Create(lockBadge, TweenInfo.new(0.18), {
+                        BackgroundColor3 = Color3.fromRGB(30, 20, 26),
+                        BackgroundTransparency = 0.15,
+                    }):Play()
+                    TweenService:Create(badgeStroke, TweenInfo.new(0.18), {
+                        Color = Color3.fromRGB(180, 50, 75),
+                        Transparency = 0.35,
+                    }):Play()
+                    TweenService:Create(lockIcon, TweenInfo.new(0.18), {
+                        ImageColor3 = Color3.fromRGB(244, 63, 94),
+                    }):Play()
+                    lockLabel.Text = cfg.lockText or "LOCKED"
+                    lockLabel.TextColor3 = Color3.fromRGB(250, 120, 140)
+                end)
+
+                overlay.MouseButton1Click:Connect(function()
+                    if Library.ShowPremiumPrompt then
+                        Library:ShowPremiumPrompt()
+                    end
+                end)
+
+                if Library.LockedElements then
+                    table.insert(Library.LockedElements, overlay)
+                end
+            end
 
             registerItem(button, side, ELEMENT_HEIGHT, cfg.name)
             return button
@@ -11207,7 +11598,7 @@ end
                 end
             end)
 
-            local isLocked = (cfg.locked == true) and (not Library.IsPremium)
+            local isLocked = (cfg.locked == true or cfg.premium == true or cfg.is_premium == true) and (not Library.IsPremium)
             local obj = {min = min_v, max = max_v, step = step, flag = cfg.flag, callback = cfg.callback, isLocked = isLocked}
             function obj:GetValue() return Library.Flags[self.flag] end
             function obj:SetValue(value, skipCallback)
@@ -11221,7 +11612,7 @@ end
             obj.Set = obj.SetValue
 
             Library:RegisterObject(cfg.flag, obj)
-            if cfg.locked and not Library.IsPremium then
+            if (cfg.locked or cfg.premium or cfg.is_premium) and not Library.IsPremium then
                 Library:LockElement(slider, obj)
             end
 
@@ -11342,7 +11733,7 @@ end
                 if obj.callback then obj.callback(box.Text) end
             end)
 
-            if cfg.locked and not Library.IsPremium then
+            if (cfg.locked or cfg.premium or cfg.is_premium) and not Library.IsPremium then
                 obj.isLocked = true
                 Library:LockElement(box.Parent, obj)
             end
@@ -11487,7 +11878,7 @@ end
             end
 
             Library:RegisterObject(cfg.flag, obj)
-            if cfg.locked and not Library.IsPremium then
+            if (cfg.locked or cfg.premium or cfg.is_premium) and not Library.IsPremium then
                 obj.isLocked = true
                 Library:LockElement(keybind, obj)
             end
@@ -11947,7 +12338,7 @@ end
                 if open then D:close() else D:open() end
             end)
 
-            if cfg.locked and not Library.IsPremium then
+            if (cfg.locked or cfg.premium or cfg.is_premium) and not Library.IsPremium then
                 D.isLocked = true
                 Library:LockElement(dropdownRow, D)
             end
@@ -12005,17 +12396,13 @@ end
     end)
 
     WindowController.create_tab = function(selfOrName, nameOrIcon, iconId)
-        local tabName, tabIcon
         if type(selfOrName) == "table" and type(selfOrName.name) == "string" then
-            tabName = selfOrName.name
-            tabIcon = selfOrName.icon
+            return Tab.create_tab(Tab, selfOrName)
         elseif type(nameOrIcon) == "table" and type(nameOrIcon.name) == "string" then
-            tabName = nameOrIcon.name
-            tabIcon = nameOrIcon.icon
-        else
-            tabName = (type(selfOrName) == "string") and selfOrName or nameOrIcon
-            tabIcon = (type(selfOrName) == "string") and nameOrIcon or iconId
+            return Tab.create_tab(Tab, nameOrIcon)
         end
+        local tabName = (type(selfOrName) == "string") and selfOrName or nameOrIcon
+        local tabIcon = (type(selfOrName) == "string") and nameOrIcon or iconId
         return Tab.create_tab(Tab, tabName, tabIcon)
     end
     WindowController.Tab = WindowController.create_tab
