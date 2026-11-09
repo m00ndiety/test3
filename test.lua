@@ -5861,36 +5861,36 @@ function Library.new(selfOrOpts, options)
             Name = "NotifLogo",
             AnchorPoint = Vector2.new(0, 0),
             Position = UDim2.new(0, 16, 0, 14),
-            Size = UDim2.new(0, 16, 0, 16),
+            Size = UDim2.new(0, 22, 0, 22),
             BackgroundTransparency = 1,
             Image = "rbxassetid://133495621202705",
             ImageTransparency = 1,
             ZIndex = 952,
         }, NotifCard)
 
-       local TitleLabel = new("TextLabel", {
+        local TitleLabel = new("TextLabel", {
             Name = "Title",
-            Position = UDim2.new(0, 58, 0, 14),
-            Size = UDim2.new(1, -88, 0, 16),
+            Position = UDim2.new(0, 48, 0, 13),
+            Size = UDim2.new(1, -78, 0, 16),
             BackgroundTransparency = 1,
             FontFace = font(Enum.FontWeight.SemiBold),
             Text = title,
             TextColor3 = WHITE,
-            TextSize = 15,
+            TextSize = 13,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextTransparency = 1,
             ZIndex = 952,
         }, NotifCard)
 
-      local TextLabel = new("TextLabel", {
+        local TextLabel = new("TextLabel", {
             Name = "Text",
-            Position = UDim2.new(0, 58, 0, 35),
-            Size = UDim2.new(1, -74, 0, 0),
+            Position = UDim2.new(0, 48, 0, 33),
+            Size = UDim2.new(1, -78, 0, 0),
             BackgroundTransparency = 1,
             FontFace = font(Enum.FontWeight.Medium),
             Text = text,
             TextColor3 = Color3.fromRGB(170, 170, 170),
-            TextSize = 13,
+            TextSize = 12,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Top,
             TextWrapped = true,
@@ -5918,14 +5918,10 @@ function Library.new(selfOrOpts, options)
             accentBar = accentBar,
             nType = nType
         }
-            local textBounds = TextService:GetTextSize(text, 13, Enum.Font.GothamMedium, Vector2.new(224, 9999))
-            TextLabel.Size = UDim2.new(1, -74, 0, textBounds.Y)
+        local textBounds = TextService:GetTextSize(text, 12, Enum.Font.GothamMedium, Vector2.new(220, 9999))
+        TextLabel.Size = UDim2.new(1, -78, 0, textBounds.Y)
 
-            local logoH = math.clamp(21 + textBounds.Y, 24, 64)
-            NotifLogo.Size = UDim2.new(0, logoH, 0, logoH)
-            NotifLogo.Position = UDim2.new(0, 16, 0, 14)
-
-            local targetHeight = math.max(62, 35 + textBounds.Y + 14)
+        local targetHeight = math.max(56, 33 + textBounds.Y + 12)
         local slideIn = TweenService:Create(NotifCard, TweenInfo.new(0.5, Enum.EasingStyle.Circular, Enum.EasingDirection.Out), {
             Size = UDim2.new(1, 0, 0, targetHeight),
             Position = UDim2.new(0, 0, 0, 0),
