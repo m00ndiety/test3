@@ -2226,8 +2226,34 @@ function Library:LoadSettings()
     if data.hud_button_glow_intensity ~= nil then
         self:SetHudGlowIntensity(data.hud_button_glow_intensity / 100)
     end
-    if data.hud_show_floating_buttons ~= nil then
-        self:SetFloatingButtonsVisible(data.hud_show_floating_buttons)
+    local isMobileUser = self.IsMobile or IsMobile
+    local savedMode = data.hud_display_mode
+    local savedKeybinds = data.keybind_hud_toggle
+    local savedFloating = data.hud_show_floating_buttons
+    if isMobileUser and savedMode == "Both" and savedKeybinds ~= true then
+        if savedFloating == true then
+            savedMode = "Floating Buttons Only"
+        else
+            savedMode = "None"
+        end
+    end
+    if savedMode ~= nil then
+        self.HudMode = savedMode
+        if self.Objects and self.Objects["hud_display_mode"] and self.Objects["hud_display_mode"].SetValue then
+            if self.Objects["hud_display_mode"]:GetValue() ~= savedMode then
+                self.Objects["hud_display_mode"]:SetValue(savedMode, true)
+            end
+        end
+    end
+    if savedKeybinds ~= nil then
+        self:SetKeybindListVisible(savedKeybinds)
+    elseif isMobileUser then
+        self:SetKeybindListVisible(false)
+    end
+    if savedFloating ~= nil then
+        self:SetFloatingButtonsVisible(savedFloating)
+    else
+        self:UpdateHudVisibility()
     end
     return true
 end
@@ -2801,7 +2827,7 @@ function Library:GetHudPositionsFile()
     return ROOT_FOLDER .. "/Positions/hud_positions_" .. tostring(gId) .. ".json"
 end
 Library.HudPositionsFile = Library:GetHudPositionsFile()
-Library.HudMode = "Both"
+Library.HudMode = IsMobile and "None" or "Keybind HUD Only"
 Library.HudButtonSize = 58
 Library.HudButtonRounding = 16
 Library.HudButtonTransparency = 0.2
@@ -2849,21 +2875,49 @@ Library.FloatingButtonsVisible = false
 Library:LoadHudPositions()
 
 function Library:SetFloatingButtonsVisible(state)
-    Library.FloatingButtonsVisible = (state == true)
+    local visible = (state == true)
+    Library.FloatingButtonsVisible = visible
+    local mode = Library.HudMode or ((Library.IsMobile or IsMobile) and "None" or "Keybind HUD Only")
+    local hasKeybinds = (mode == "Both" or mode == "Keybind HUD Only")
+    if Library.KeybindListEnabled == false then
+        hasKeybinds = false
+    elseif Library.KeybindListEnabled == true and (mode == "Keybind HUD Only" or mode == "Both") then
+        hasKeybinds = true
+    end
+    local nextMode
+    if visible and hasKeybinds then
+        nextMode = "Both"
+    elseif visible then
+        nextMode = "Floating Buttons Only"
+    elseif hasKeybinds then
+        nextMode = "Keybind HUD Only"
+    else
+        nextMode = "None"
+    end
+    Library.HudMode = nextMode
     if Library.Objects and Library.Objects["hud_show_floating_buttons"] and Library.Objects["hud_show_floating_buttons"].SetValue then
-        if Library.Objects["hud_show_floating_buttons"]:GetValue() ~= Library.FloatingButtonsVisible then
-            Library.Objects["hud_show_floating_buttons"]:SetValue(Library.FloatingButtonsVisible, true)
+        if Library.Objects["hud_show_floating_buttons"]:GetValue() ~= visible then
+            Library.Objects["hud_show_floating_buttons"]:SetValue(visible, true)
+        end
+    end
+    if Library.Objects and Library.Objects["hud_display_mode"] and Library.Objects["hud_display_mode"].SetValue then
+        if Library.Objects["hud_display_mode"]:GetValue() ~= nextMode then
+            Library.Objects["hud_display_mode"]:SetValue(nextMode, true)
         end
     end
     Library:UpdateHudVisibility()
 end
 
 function Library:UpdateHudVisibility()
-    local mode = Library.HudMode or "Both"
+    local isMobileUser = Library.IsMobile or IsMobile
+    local mode = Library.HudMode or (isMobileUser and "None" or "Keybind HUD Only")
     local showButtons = (mode == "Both" or mode == "Floating Buttons Only")
     local showKeybinds = (mode == "Both" or mode == "Keybind HUD Only")
     if Library.FloatingButtonsVisible == false then
         showButtons = false
+    end
+    if Library.KeybindListEnabled == false then
+        showKeybinds = false
     end
     if Library.HudGui then
         Library.HudGui.Enabled = showButtons
@@ -3620,10 +3674,24 @@ function Library:BuildKeybindsAndHudTab(tab)
         name = "Active HUD Mode",
         flag = "hud_display_mode",
         section = "left",
-        option = Library.HudMode or "Both",
+        option = Library.HudMode or ((Library.IsMobile or IsMobile) and "None" or "Keybind HUD Only"),
         options = {"Both", "Floating Buttons Only", "Keybind HUD Only", "None"},
         callback = function(val)
+            local showButtons = (val == "Both" or val == "Floating Buttons Only")
+            local showKeybinds = (val == "Both" or val == "Keybind HUD Only")
             Library.HudMode = val
+            Library.FloatingButtonsVisible = showButtons
+            Library.KeybindListEnabled = showKeybinds
+            if Library.Objects and Library.Objects["hud_show_floating_buttons"] and Library.Objects["hud_show_floating_buttons"].SetValue then
+                if Library.Objects["hud_show_floating_buttons"]:GetValue() ~= showButtons then
+                    Library.Objects["hud_show_floating_buttons"]:SetValue(showButtons, true)
+                end
+            end
+            if Library.Objects and Library.Objects["keybind_hud_toggle"] and Library.Objects["keybind_hud_toggle"].SetValue then
+                if Library.Objects["keybind_hud_toggle"]:GetValue() ~= showKeybinds then
+                    Library.Objects["keybind_hud_toggle"]:SetValue(showKeybinds, true)
+                end
+            end
             Library:UpdateHudVisibility()
         end
     })
@@ -4327,10 +4395,37 @@ function Library:SetWatermarkVisible(state)
 end
 
 function Library:SetKeybindListVisible(state)
-    Library.KeybindListEnabled = state
-    if Library.KeybindListFrame then
-        Library.KeybindListFrame.Visible = state
+    local visible = (state == true)
+    Library.KeybindListEnabled = visible
+    local mode = Library.HudMode or ((Library.IsMobile or IsMobile) and "None" or "Keybind HUD Only")
+    local hasButtons = (mode == "Both" or mode == "Floating Buttons Only")
+    if Library.FloatingButtonsVisible == false then
+        hasButtons = false
+    elseif Library.FloatingButtonsVisible == true then
+        hasButtons = true
     end
+    local nextMode
+    if visible and hasButtons then
+        nextMode = "Both"
+    elseif visible then
+        nextMode = "Keybind HUD Only"
+    elseif hasButtons then
+        nextMode = "Floating Buttons Only"
+    else
+        nextMode = "None"
+    end
+    Library.HudMode = nextMode
+    if Library.Objects and Library.Objects["keybind_hud_toggle"] and Library.Objects["keybind_hud_toggle"].SetValue then
+        if Library.Objects["keybind_hud_toggle"]:GetValue() ~= visible then
+            Library.Objects["keybind_hud_toggle"]:SetValue(visible, true)
+        end
+    end
+    if Library.Objects and Library.Objects["hud_display_mode"] and Library.Objects["hud_display_mode"].SetValue then
+        if Library.Objects["hud_display_mode"]:GetValue() ~= nextMode then
+            Library.Objects["hud_display_mode"]:SetValue(nextMode, true)
+        end
+    end
+    Library:UpdateHudVisibility()
 end
 
 function Library:UpdateToggleBarVisibility()
