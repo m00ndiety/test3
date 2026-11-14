@@ -4423,6 +4423,7 @@ local function buildUserCard(parent, attachTooltip)
     }, parent)
     table.insert(genv.UIElements, userCard)
     userCard.Visible = false
+    userCard.Size = UDim2.new(0, 0, 0, 0)  
     corner(userCard, 9)
     local userCardStroke = stroke(userCard, genv.uiline or Color3.fromRGB(36, 38, 48), 1, 0.5)
 
@@ -4671,11 +4672,10 @@ function Library.new(selfOrOpts, options)
     local positionX = 0.0938254446
     local mainName = genv.hubname or options.Name or "Moondiety"
     local subName = genv.hubsubname or options.SubName
-
     local headerLogoFrame = new("Frame", {
         Name = "HeaderLogoFrame",
         AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0.0338, -3, subName and 0.85 or 0.8, 0),
+        Position = UDim2.new(0.0338, -3, 0.5, 6),
         Size = UDim2.new(0, 32, 0, 32),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -4729,7 +4729,7 @@ function Library.new(selfOrOpts, options)
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Position = UDim2.new(0.0338, 34, subName and 0.70 or 0.87, 0),
+                Position = UDim2.new(0.0338, 34, subName and 0.35 or 0.5, 6),
         Size = UDim2.new(1, -220, 0, 16),
         FontFace = font(),
         Text = mainName,
@@ -4740,12 +4740,12 @@ function Library.new(selfOrOpts, options)
         ZIndex = 99,
     }, Top)
 
-    if subName then
+      if subName then
         new("TextLabel", {
             AnchorPoint = Vector2.new(0, 0.5),
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
-            Position = UDim2.new(0.0338, 34, 1.00, 3),
+            Position = UDim2.new(0.0338, 34, 0.72, 6),
             Size = UDim2.new(1, -220, 0, 14),
             FontFace = font(),
             Text = subName,
@@ -4787,12 +4787,13 @@ function Library.new(selfOrOpts, options)
         TextYAlignment = Enum.TextYAlignment.Center,
         ZIndex = 101,
     }, headerTierTag)
-
     local tierLabelTween = nil
     local tierLabelVersion = 0
     local function animateTierLabel(text, color)
         if not headerTierLabel or not headerTierLabel.Parent then return end
         if headerTierLabel.Text == text then
+            tierLabelVersion += 1
+            if tierLabelTween then pcall(function() tierLabelTween:Cancel() end); tierLabelTween = nil end
             TweenService:Create(headerTierLabel, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 TextColor3 = color,
                 TextTransparency = 0
@@ -4858,8 +4859,8 @@ function Library.new(selfOrOpts, options)
 
     local minimizeBtn = new("TextButton", {
         Name = "Minimize",
-        BackgroundColor3 = Color3.fromRGB(28, 30, 38),
-        BackgroundTransparency = 0.4,
+        BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 30)):lerp(WHITE, 0.06),
+        BackgroundTransparency = 0,
         BorderSizePixel = 0,
         Size = UDim2.new(0, 24, 0, 24),
         AutoButtonColor = false,
@@ -4868,13 +4869,13 @@ function Library.new(selfOrOpts, options)
         LayoutOrder = 1,
     }, controls)
     corner(minimizeBtn, 6)
-    local minStroke = stroke(minimizeBtn, Color3.fromRGB(48, 50, 64), 1, 0.5)
+    local minStroke = stroke(minimizeBtn, genv.uiline or Color3.fromRGB(48, 50, 64), 1, 0.15)
 
-    local minBar = new("Frame", {
+     local minBar = new("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
         Size = UDim2.new(0, 10, 0, 2),
-        BackgroundColor3 = Color3.fromRGB(200, 205, 220),
+        BackgroundColor3 = Color3.fromRGB(156, 163, 185),
         BorderSizePixel = 0,
         ZIndex = 101,
     }, minimizeBtn)
@@ -4883,18 +4884,18 @@ function Library.new(selfOrOpts, options)
     minimizeBtn.MouseEnter:Connect(function()
         TweenService:Create(minimizeBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(42, 45, 58), BackgroundTransparency = 0.1}):Play()
         if minStroke then TweenService:Create(minStroke, TweenInfo.new(0.15), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.2}):Play() end
-        TweenService:Create(minBar, TweenInfo.new(0.15), {BackgroundColor3 = WHITE}):Play()
+       TweenService:Create(minBar, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(235, 238, 245)}):Play()
     end)
     minimizeBtn.MouseLeave:Connect(function()
         TweenService:Create(minimizeBtn, TweenInfo.new(0.2), {BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 30)):lerp(WHITE, 0.06), BackgroundTransparency = 0}):Play()
         if minStroke then TweenService:Create(minStroke, TweenInfo.new(0.2), {Color = genv.uiline or Color3.fromRGB(48, 50, 64), Transparency = 0.15}):Play() end
-        TweenService:Create(minBar, TweenInfo.new(0.2), {BackgroundColor3 = genv.tabtextcolor or WHITE}):Play()
+        TweenService:Create(minBar, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(156, 163, 185)}):Play()
     end)
 
-    local closeBtn = new("TextButton", {
+      local closeBtn = new("TextButton", {
         Name = "Close",
-        BackgroundColor3 = Color3.fromRGB(28, 30, 38),
-        BackgroundTransparency = 0.4,
+        BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 30)):lerp(WHITE, 0.06),
+        BackgroundTransparency = 0,
         BorderSizePixel = 0,
         Size = UDim2.new(0, 24, 0, 24),
         AutoButtonColor = false,
@@ -4903,14 +4904,14 @@ function Library.new(selfOrOpts, options)
         LayoutOrder = 2,
     }, controls)
     corner(closeBtn, 6)
-    local closeStroke = stroke(closeBtn, Color3.fromRGB(48, 50, 64), 1, 0.5)
+    local closeStroke = stroke(closeBtn, genv.uiline or Color3.fromRGB(48, 50, 64), 1, 0.15)
 
-    local closeBar1 = new("Frame", {
+     local closeBar1 = new("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
         Size = UDim2.new(0, 10, 0, 2),
         Rotation = 45,
-        BackgroundColor3 = Color3.fromRGB(200, 205, 220),
+        BackgroundColor3 = Color3.fromRGB(156, 163, 185),
         BorderSizePixel = 0,
         ZIndex = 101,
     }, closeBtn)
@@ -4921,7 +4922,7 @@ function Library.new(selfOrOpts, options)
         Position = UDim2.new(0.5, 0, 0.5, 0),
         Size = UDim2.new(0, 10, 0, 2),
         Rotation = -45,
-        BackgroundColor3 = Color3.fromRGB(200, 205, 220),
+        BackgroundColor3 = Color3.fromRGB(156, 163, 185),
         BorderSizePixel = 0,
         ZIndex = 101,
     }, closeBtn)
@@ -4930,14 +4931,14 @@ function Library.new(selfOrOpts, options)
     closeBtn.MouseEnter:Connect(function()
         TweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(220, 38, 38), BackgroundTransparency = 0}):Play()
         if closeStroke then TweenService:Create(closeStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(239, 68, 68), Transparency = 0}):Play() end
-        TweenService:Create(closeBar1, TweenInfo.new(0.15), {BackgroundColor3 = WHITE}):Play()
-        TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = WHITE}):Play()
+      TweenService:Create(closeBar1, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(235, 238, 245)}):Play()
+TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(235, 238, 245)}):Play()
     end)
     closeBtn.MouseLeave:Connect(function()
         TweenService:Create(closeBtn, TweenInfo.new(0.2), {BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 30)):lerp(WHITE, 0.06), BackgroundTransparency = 0}):Play()
         if closeStroke then TweenService:Create(closeStroke, TweenInfo.new(0.2), {Color = genv.uiline or Color3.fromRGB(48, 50, 64), Transparency = 0.15}):Play() end
-        TweenService:Create(closeBar1, TweenInfo.new(0.2), {BackgroundColor3 = genv.tabtextcolor or WHITE}):Play()
-        TweenService:Create(closeBar2, TweenInfo.new(0.2), {BackgroundColor3 = genv.tabtextcolor or WHITE}):Play()
+        TweenService:Create(closeBar1, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(156, 163, 185)}):Play()
+        TweenService:Create(closeBar2, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(156, 163, 185)}):Play()
     end)
 
     local NotifLayout = new("Frame", {
@@ -5309,11 +5310,11 @@ function Library.new(selfOrOpts, options)
                 ):Play()
             end
 
-            if tagLabel then
+                       if tagLabel then
                 animateTierLabel(
                     isPrem and "PREMIUM" or (showUpgrade and "UPGRADE" or "FREE"),
                     (isPrem or showUpgrade) and WHITE
-                        or (genv.tabtextcolor or Color3.fromRGB(156, 163, 185))
+                        or Color3.fromRGB(156, 163, 185)
                 )
                 tagLabel.TextSize = 10
             end
@@ -8182,6 +8183,9 @@ keybindHudRows[kb.name] = {
     end
     Library.UpdateToggleBarVisibility = updateToggleVisibility
     updateToggleVisibility()
+    task.defer(function()
+        if Library.UpdateHUDThemes then pcall(Library.UpdateHUDThemes) end
+    end)
 
     local tabs
 
@@ -8224,10 +8228,10 @@ keybindHudRows[kb.name] = {
                 headerTierStroke.Color = (prem or showUpgrade) and cAccent or cLine
                 headerTierStroke.Transparency = (prem or showUpgrade) and 0.15 or 0.25
             end
-            if headerTierLabel then
+                     if headerTierLabel then
                 animateTierLabel(
                     prem and "PREMIUM" or (showUpgrade and "UPGRADE" or "FREE"),
-                    (prem or showUpgrade) and WHITE or (genv.tabtextcolor or Color3.fromRGB(156, 163, 185))
+                    (prem or showUpgrade) and WHITE or Color3.fromRGB(156, 163, 185)
                 )
                 headerTierLabel.TextSize = 10
             end
@@ -8235,13 +8239,13 @@ keybindHudRows[kb.name] = {
         if minimizeBtn then
             minimizeBtn.BackgroundColor3 = cContainer:lerp(WHITE, 0.06)
             if minStroke then minStroke.Color = cLine; minStroke.Transparency = 0.15 end
-            if minBar then minBar.BackgroundColor3 = genv.tabtextcolor or WHITE end
+            if minBar then minBar.BackgroundColor3 = Color3.fromRGB(156, 163, 185) end
         end
         if closeBtn then
             closeBtn.BackgroundColor3 = cContainer:lerp(WHITE, 0.06)
             if closeStroke then closeStroke.Color = cLine; closeStroke.Transparency = 0.15 end
-            if closeBar1 then closeBar1.BackgroundColor3 = genv.tabtextcolor or WHITE end
-            if closeBar2 then closeBar2.BackgroundColor3 = genv.tabtextcolor or WHITE end
+            if closeBar1 then closeBar1.BackgroundColor3 = Color3.fromRGB(156, 163, 185) end
+            if closeBar2 then closeBar2.BackgroundColor3 = Color3.fromRGB(156, 163, 185) end
         end
         if Container then
             Container.BackgroundColor3 = cContainer
@@ -8671,7 +8675,7 @@ keybindHudRows[kb.name] = {
         BorderSizePixel = 0,
         ClipsDescendants = true,
         Position = UDim2.new(0, 10, 0, 58),
-        Size = UDim2.new(0.21, -10, 1, -138),
+        Size = UDim2.new(0.21, -10, 1, -68), 
         ScrollBarThickness = 0,
         ScrollBarImageTransparency = 1,
         CanvasSize = UDim2.new(0, 0, 0, 0),
