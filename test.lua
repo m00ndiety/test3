@@ -1526,8 +1526,41 @@ local readFileFn = (typeof(readfile) == "function" and readfile) or (type(readfi
 local writeFileFn = (typeof(writefile) == "function" and writefile) or (type(writefile) == "function" and writefile)
 local makeFolderFn = (typeof(makefolder) == "function" and makefolder) or (type(makefolder) == "function" and makefolder)
 local isFolderFn = (typeof(isfolder) == "function" and isfolder) or (type(isfolder) == "function" and isfolder)
+local KEY_FILE = ROOT_FOLDER .. "/key.txt"
 
-local isUserPremium = (LRM_KeyTier == "premium") or (LRM_IsUserPremium == true) or (genv and (genv._MoondietyPremium == true or genv._MoondietyVerifiedPremium == true))
+local function _loadKey()
+    if isfile and readfile and isfile(KEY_FILE) then
+        local ok, k = pcall(readfile, KEY_FILE)
+        if ok and type(k) == "string" and #k > 0 then return k end
+    end
+    return genv._MoondietyKey or shared._MoondietyKey
+end
+
+local function _saveKey(key)
+    if not key or key == "" then return end
+    if writefile then
+        pcall(function()
+            ensureFolder(ROOT_FOLDER)
+            writefile(KEY_FILE, tostring(key))
+        end)
+    end
+    genv._MoondietyKey = key
+    shared._MoondietyKey = key
+end
+
+genv._MoondietySaveKey = _saveKey
+genv._MoondietyLoadKey = _loadKey
+
+local savedKey = _loadKey()
+if savedKey then
+    genv._MoondietyKey = savedKey
+    shared._MoondietyKey = savedKey
+end
+
+local isUserPremium = (LRM_KeyTier == "premium")
+    or (LRM_IsUserPremium == true)
+    or (genv and (genv._MoondietyPremium == true or genv._MoondietyVerifiedPremium == true))
+    or (savedKey ~= nil and genv._MoondietyPremium == true)  -- ключ есть + loader подтвердил
 Library.IsPremium = (isUserPremium == true)
 
 local CONTAINER_SIZE = UDim2.new(0.44, 0, 0.44, 0)
