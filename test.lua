@@ -407,6 +407,15 @@ local function joinDiscord(code)
 end
 
 local Library
+local function formatKeybindDisplay(value)
+    local key = tostring(value or "")
+    local mouseButton = key:match("^MouseButton(%d+)$")
+    if mouseButton then
+        return "MB" .. mouseButton
+    end
+    return key
+end
+
 local function new(class, props, parent)
     local obj = Instance.new(class)
     for key, value in pairs(props) do
@@ -5807,8 +5816,8 @@ TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = Color3.f
         stroke(infoCard, Color3.fromRGB(48, 52, 68), 1, 0.5)
         local noteAccent = new("Frame", {
             Name = "NoteAccent",
-            Position = UDim2.new(0, 8, 0, 10),
-            Size = UDim2.new(0, 2, 0, 38),
+            Position = UDim2.new(0, 8, 0, 8),
+            Size = UDim2.new(0, 3, 0, 44),
             BackgroundColor3 = genv.accent or Color3.fromRGB(244, 63, 94),
             BorderSizePixel = 0,
             ZIndex = 5006,
@@ -5823,7 +5832,7 @@ TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = Color3.f
             FontFace = font(Enum.FontWeight.Bold),
             Text = "Unlock All Exclusive Features",
             TextColor3 = WHITE,
-            TextSize = 12,
+            TextSize = 13,
             TextXAlignment = Enum.TextXAlignment.Left,
             ZIndex = 5005,
         }, infoCard)
@@ -7275,7 +7284,7 @@ keybindHudRows[kb.name] = {
                     FontFace = font(Enum.FontWeight.Bold),
                     TextColor3 = genv.accent or WHITE,
                     TextSize = 10,
-                    Text = tostring(kb.key),
+                    Text = formatKeybindDisplay(kb.key),
                     ZIndex = 855,
                 }, badge)
 
@@ -10361,28 +10370,42 @@ keybindHudRows[kb.name] = {
             return val
         end
 
+        -- Read the actual scale applied to this window (it can be tweening).
+        local function getScrollbarScale()
+            local scale = Library.ContainerScale and Library.ContainerScale.Scale
+            return math.max(tonumber(scale) or tonumber(Library.UIScale) or 1, 0.01)
+        end
+
+        local function getScrollMetrics()
+            local canvasH = itemsSection.AbsoluteCanvasSize.Y
+            local windowH = itemsSection.AbsoluteWindowSize.Y
+            local maxScroll = math.max(0, canvasH - windowH)
+            return canvasH, windowH, maxScroll
+        end
+
         local function updateCustomScroll()
-            local winH = itemsSection.AbsoluteWindowSize.Y
-            local canH = itemsSection.CanvasSize.Y.Offset
-            local trackH = customScrollBar.AbsoluteSize.Y - 34
-            if canH <= winH or canH <= 0 or trackH <= 0 then
+            local uiScale = getScrollbarScale()
+            local canvasH, windowH, maxScroll = getScrollMetrics()
+            local trackH = (customScrollBar.AbsoluteSize.Y / uiScale) - 34
+
+            if canvasH <= windowH or canvasH <= 0 or trackH <= 0 then
                 scrollThumb.Visible = false
                 scrollTrack.BackgroundTransparency = 0.8
                 upArrowIcon.ImageTransparency = 0.6
                 downArrowIcon.ImageTransparency = 0.6
                 return
             end
+
             scrollThumb.Visible = true
             scrollTrack.BackgroundTransparency = 0.3
             upArrowIcon.ImageTransparency = 0
             downArrowIcon.ImageTransparency = 0
+
             local minThumb = math.min(20, trackH)
-            local maxThumb = math.max(minThumb, trackH)
-            local rawH = (winH / canH) * trackH
-            local thumbH = safeClamp(rawH, minThumb, maxThumb)
-            local maxScroll = math.max(1, canH - winH)
-            local progress = safeClamp(itemsSection.CanvasPosition.Y / maxScroll, 0, 1)
+            local thumbH = safeClamp((windowH / canvasH) * trackH, minThumb, trackH)
+            local progress = maxScroll > 0 and safeClamp(itemsSection.CanvasPosition.Y / maxScroll, 0, 1) or 0
             local thumbY = 17 + progress * math.max(0, trackH - thumbH)
+
             scrollThumb.Size = UDim2.new(0, 6, 0, thumbH)
             scrollThumb.Position = UDim2.new(0.5, 0, 0, thumbY)
         end
@@ -10391,6 +10414,9 @@ keybindHudRows[kb.name] = {
         itemsSection:GetPropertyChangedSignal("CanvasSize"):Connect(updateCustomScroll)
         itemsSection:GetPropertyChangedSignal("AbsoluteWindowSize"):Connect(updateCustomScroll)
         customScrollBar:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateCustomScroll)
+        if Library.ContainerScale then
+            Library.ContainerScale:GetPropertyChangedSignal("Scale"):Connect(updateCustomScroll)
+        end
         itemsSection:GetPropertyChangedSignal("Visible"):Connect(function()
             customScrollBar.Visible = itemsSection.Visible
             if customScrollBar.Visible then updateCustomScroll() end
@@ -10421,8 +10447,7 @@ keybindHudRows[kb.name] = {
             TweenService:Create(downArrowIcon, TweenInfo.new(0.2), {ImageColor3 = Color3.fromRGB(150, 155, 175)}):Play()
         end)
         bindTap(downArrowBtn, function()
-            local winH = itemsSection.AbsoluteWindowSize.Y
-            local maxScroll = math.max(0, itemsSection.CanvasSize.Y.Offset - winH)
+            local _, _, maxScroll = getScrollMetrics()
             local curY = itemsSection.CanvasPosition.Y
             local newY = math.min(maxScroll, curY + 50)
             TweenService:Create(itemsSection, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
@@ -10431,13 +10456,13 @@ keybindHudRows[kb.name] = {
         end)
 
         bindTap(scrollTrack, function(pos)
-            local trackH = customScrollBar.AbsoluteSize.Y - 34
-            local winH = itemsSection.AbsoluteWindowSize.Y
-            local canH = itemsSection.CanvasSize.Y.Offset
+            local uiScale = getScrollbarScale()
+            local trackH = (customScrollBar.AbsoluteSize.Y / uiScale) - 34
+            local canH, winH, maxScroll = getScrollMetrics()
             if canH > winH and trackH > 0 then
-                local relY = safeClamp(pos.Y - (customScrollBar.AbsolutePosition.Y + 17), 0, trackH)
+                local relY = safeClamp((pos.Y - (customScrollBar.AbsolutePosition.Y + 17 * uiScale)) / uiScale, 0, trackH)
                 local ratio = relY / trackH
-                local maxScroll = math.max(1, canH - winH)
+                maxScroll = math.max(1, maxScroll)
                 TweenService:Create(itemsSection, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
                     CanvasPosition = Vector2.new(itemsSection.CanvasPosition.X, ratio * maxScroll)
                 }):Play()
@@ -10475,17 +10500,17 @@ keybindHudRows[kb.name] = {
                         return
                     end
                     if moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch then
-                        local trackH = customScrollBar.AbsoluteSize.Y - 34
-                        local winH = itemsSection.AbsoluteWindowSize.Y
-                        local canH = itemsSection.CanvasSize.Y.Offset
+                        local uiScale = getScrollbarScale()
+                        local trackH = (customScrollBar.AbsoluteSize.Y / uiScale) - 34
+                        local canH, winH, maxScroll = getScrollMetrics()
                         if canH > winH and trackH > 0 then
                             local minThumb = math.min(20, trackH)
                             local maxThumb = math.max(minThumb, trackH)
-                            local thumbH = safeClamp((winH / canH) * trackH, minThumb, maxThumb)
+                            local thumbH = safeClamp((winH / canH) * trackH, minThumb, trackH)
                             local scrollableTrack = trackH - thumbH
                             if scrollableTrack > 0 then
-                                local deltaY = moveInput.Position.Y - dragStartY
-                                local maxScroll = math.max(1, canH - winH)
+                                local deltaY = (moveInput.Position.Y - dragStartY) / uiScale
+                                maxScroll = math.max(1, maxScroll)
                                 local deltaScroll = (deltaY / scrollableTrack) * maxScroll
                                 itemsSection.CanvasPosition = Vector2.new(itemsSection.CanvasPosition.X, safeClamp(dragStartScrollY + deltaScroll, 0, maxScroll))
                             end
@@ -10534,7 +10559,8 @@ keybindHudRows[kb.name] = {
             end
 
             local totalY = math.max(leftY, rightY) + 18
-            local windowH = itemsSection.AbsoluteWindowSize.Y
+            local windowScale = getScrollbarScale()
+            local windowH = itemsSection.AbsoluteWindowSize.Y / windowScale
             local maxScroll = math.max(0, totalY - windowH)
             local targetScroll = math.min(itemsSection.CanvasPosition.Y, maxScroll)
             local targetCanvas = UDim2.new(0, 0, 0, totalY)
@@ -11019,7 +11045,7 @@ end
                     TextColor3 = WHITE,
                     FontFace = font(),
                     TextSize = 10,
-                    Text = activeKey,
+                    Text = formatKeybindDisplay(activeKey),
                     ZIndex = 5,
                 }, Box)
 
@@ -11046,7 +11072,7 @@ end
                     local strVal = tostring(v or "None")
                     Library.Flags[kbFlag] = strVal
                     Library:UpdateKeybind(kbFlag, strVal)
-                    KeyText.Text = strVal
+                    KeyText.Text = formatKeybindDisplay(strVal)
                 end
                 Library:RegisterObject(kbFlag, kbObj)
 
@@ -11056,21 +11082,23 @@ end
                     setting = true
                     KeyText.Text = "..."
                     local conn
+                    task.defer(function()
                     conn = UserInputService.InputBegan:Connect(function(input)
                         if Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent then return end
                         local pressed
                         if input.UserInputType == Enum.UserInputType.Keyboard then
                             pressed = input.KeyCode.Name
-                        elseif input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then
+                        elseif input.UserInputType.Name:match("^MouseButton%d+$") then
                             pressed = input.UserInputType.Name
                         end
                         if not pressed then return end
                         Library.Flags[kbFlag] = pressed
                         Library:UpdateKeybind(kbFlag, pressed)
-                        KeyText.Text = pressed
+                        KeyText.Text = formatKeybindDisplay(pressed)
                         Library.save_flags(kbFlag)
                         setting = false
                         conn:Disconnect()
+                    end)
                     end)
                 end)
 
@@ -11081,7 +11109,7 @@ end
                     local pressed
                     if input.UserInputType == Enum.UserInputType.Keyboard then
                         pressed = input.KeyCode.Name
-                    elseif input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then
+                    elseif input.UserInputType.Name:match("^MouseButton%d+$") then
                         pressed = input.UserInputType.Name
                     end
                     if pressed and pressed == current then
@@ -11533,7 +11561,7 @@ end
                     TextColor3 = WHITE,
                     FontFace = font(),
                     TextSize = 10,
-                    Text = activeKey,
+                    Text = formatKeybindDisplay(activeKey),
                     ZIndex = 5,
                 }, Box)
 
@@ -11560,7 +11588,7 @@ end
                     local strVal = tostring(v or "None")
                     Library.Flags[kbFlag] = strVal
                     Library:UpdateKeybind(kbFlag, strVal)
-                    KeyText.Text = strVal
+                    KeyText.Text = formatKeybindDisplay(strVal)
                 end
                 Library:RegisterObject(kbFlag, kbObj)
 
@@ -11570,21 +11598,23 @@ end
                     setting = true
                     KeyText.Text = "..."
                     local conn
+                    task.defer(function()
                     conn = UserInputService.InputBegan:Connect(function(input)
                         if Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent then return end
                         local pressed
                         if input.UserInputType == Enum.UserInputType.Keyboard then
                             pressed = input.KeyCode.Name
-                        elseif input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then
+                        elseif input.UserInputType.Name:match("^MouseButton%d+$") then
                             pressed = input.UserInputType.Name
                         end
                         if not pressed then return end
                         Library.Flags[kbFlag] = pressed
                         Library:UpdateKeybind(kbFlag, pressed)
-                        KeyText.Text = pressed
+                        KeyText.Text = formatKeybindDisplay(pressed)
                         Library.save_flags(kbFlag)
                         setting = false
                         conn:Disconnect()
+                    end)
                     end)
                 end)
 
@@ -11595,7 +11625,7 @@ end
                     local pressed
                     if input.UserInputType == Enum.UserInputType.Keyboard then
                         pressed = input.KeyCode.Name
-                    elseif input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then
+                    elseif input.UserInputType.Name:match("^MouseButton%d+$") then
                         pressed = input.UserInputType.Name
                     end
                     if pressed and pressed == current then
@@ -11884,7 +11914,7 @@ end
                     TextColor3 = WHITE,
                     FontFace = font(),
                     TextSize = 10,
-                    Text = activeKey,
+                    Text = formatKeybindDisplay(activeKey),
                     ZIndex = 5,
                 }, Box)
 
@@ -11897,7 +11927,7 @@ end
                     local strVal = tostring(v or "None")
                     Library.Flags[kbFlag] = strVal
                     Library:UpdateKeybind(kbFlag, strVal)
-                    KeyText.Text = strVal
+                    KeyText.Text = formatKeybindDisplay(strVal)
                 end
                 Library:RegisterObject(kbFlag, kbObj)
 
@@ -11907,21 +11937,23 @@ end
                     setting = true
                     KeyText.Text = "..."
                     local conn
+                    task.defer(function()
                     conn = UserInputService.InputBegan:Connect(function(input)
                         if Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent then return end
                         local pressed
                         if input.UserInputType == Enum.UserInputType.Keyboard then
                             pressed = input.KeyCode.Name
-                        elseif input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then
+                        elseif input.UserInputType.Name:match("^MouseButton%d+$") then
                             pressed = input.UserInputType.Name
                         end
                         if not pressed then return end
                         Library.Flags[kbFlag] = pressed
                         Library:UpdateKeybind(kbFlag, pressed)
-                        KeyText.Text = pressed
+                        KeyText.Text = formatKeybindDisplay(pressed)
                         Library.save_flags(kbFlag)
                         setting = false
                         conn:Disconnect()
+                    end)
                     end)
                 end)
 
@@ -11932,7 +11964,7 @@ end
                     local pressed
                     if input.UserInputType == Enum.UserInputType.Keyboard then
                         pressed = input.KeyCode.Name
-                    elseif input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then
+                    elseif input.UserInputType.Name:match("^MouseButton%d+$") then
                         pressed = input.UserInputType.Name
                     end
                     if pressed and pressed == current then
@@ -12461,9 +12493,7 @@ end
 
             local function displayOf(value)
                 if not value then return "" end
-                local n = tostring(value):match("^MouseButton(%d+)$")
-                if n then return "Mouse" .. n end
-                return tostring(value)
+                return formatKeybindDisplay(value)
             end
 
             local function pressedName(input)
@@ -12532,6 +12562,7 @@ end
                 setting = true
                 KeyText.Text = "..."
                 local conn
+                task.defer(function()
                 conn = UserInputService.InputBegan:Connect(function(input)
                     if Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent then return end
                     local pressed = pressedName(input)
@@ -12547,6 +12578,7 @@ end
                     setting = false
                     lastBound = tick()
                     conn:Disconnect()
+                end)
                 end)
             end)
 
@@ -13151,6 +13183,5 @@ end
 
     return Library.WindowController
 end
-
 
 return Library
