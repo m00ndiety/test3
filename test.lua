@@ -1,4 +1,3 @@
---1
 local UserInputService = game:GetService('UserInputService')
 local Players = game:GetService('Players')
 local LocalPlayer = Players.LocalPlayer
@@ -960,7 +959,6 @@ local function applyAtmosphere(selfOrName, nameOrNil)
         end
 
 
-
         local function makeCloud(parent, startX, startY)
             local cW = math.random(90, 160)
             local cH = math.random(22, 38)
@@ -991,7 +989,6 @@ local function applyAtmosphere(selfOrName, nameOrNil)
             table.insert(atmosphereItems, cloud)
             return cloud
         end
-
 
 
         local webStrandsL = makeWeb(holder, 0, 0, false)
@@ -1048,7 +1045,6 @@ local function applyAtmosphere(selfOrName, nameOrNil)
                 time = math.random() * 10,
             })
         end
-
 
 
         local bats = {}
@@ -1226,7 +1222,6 @@ local function applyAtmosphere(selfOrName, nameOrNil)
             end
 
 
-
             for _, c in ipairs(clouds) do
                 c.time = c.time + dt
                 c.x = c.x + c.vx * dt
@@ -1236,8 +1231,6 @@ local function applyAtmosphere(selfOrName, nameOrNil)
                 local cloudAlpha = 0.72 + math.sin(c.time * 0.8 + c.phase) * 0.06
                 c.obj.BackgroundTransparency = math.clamp(cloudAlpha, 0.6, 0.85)
             end
-
-
 
 
         end)
@@ -4431,27 +4424,31 @@ end
 
 function Library:UpdateToggleBarVisibility()
     local isMobileUser = (Library.IsMobile ~= nil) and Library.IsMobile or IsMobile
-    local enabled = Library.ToggleBarEnabled and (Library.ToggleBarStyle ~= "Disabled")
-    local platformMatches = false
-    if Library.ToggleBarPlatform == "Both" then
-        platformMatches = true
-    elseif Library.ToggleBarPlatform == "Mobile Only" or Library.ToggleBarPlatform == "Mobile" then
+    local enabled = Library.ToggleBarEnabled == true and Library.ToggleBarStyle ~= "Disabled"
+    local platform = Library.ToggleBarPlatform or "Both"
+    local style = Library.ToggleBarStyle or "Floating Button"
+    local platformMatches = platform == "Both"
+    if platform == "Mobile Only" or platform == "Mobile" then
         platformMatches = isMobileUser
-    elseif Library.ToggleBarPlatform == "PC Only" then
+    elseif platform == "PC Only" then
         platformMatches = not isMobileUser
     end
     local active = enabled and platformMatches
     if Library.ToggleBarBtn then
-        Library.ToggleBarBtn.Visible = active and (Library.ToggleBarStyle == "Floating Button")
+        Library.ToggleBarBtn.Visible = active and (style == "Floating Button")
     end
     if Library.NotchBarBtn then
-        Library.NotchBarBtn.Visible = active and (Library.ToggleBarStyle == "Top Notch")
+        Library.NotchBarBtn.Visible = active and (style == "Top Notch")
     end
 end
 
 function Library:SetToggleBarVisible(state)
-    Library.ToggleBarEnabled = state
+    Library.ToggleBarEnabled = (state == true)
     Library:UpdateToggleBarVisibility()
+    if not Library.ToggleBarEnabled then
+        if Library.ToggleBarBtn then Library.ToggleBarBtn.Visible = false end
+        if Library.NotchBarBtn then Library.NotchBarBtn.Visible = false end
+    end
 end
 
 function Library:SetToggleBarStyle(style)
@@ -4519,7 +4516,7 @@ local function buildUserCard(parent, attachTooltip)
     }, parent)
     table.insert(genv.UIElements, userCard)
     userCard.Visible = false
-    userCard.Size = UDim2.new(0, 0, 0, 0)  
+    userCard.Size = UDim2.new(0, 0, 0, 0)
     corner(userCard, 9)
     local userCardStroke = stroke(userCard, genv.uiline or Color3.fromRGB(36, 38, 48), 1, 0.5)
 
@@ -5381,8 +5378,7 @@ TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = Color3.f
             local cAccent = genv.accent or Color3.fromRGB(168, 85, 247)
             local showUpgrade = (not isPrem) and headerTierHovered
 
-            -- Keep the tier badge in sync with hover and premium state.
-            -- Do not assign label.Text directly: animateTierLabel handles the fade transition.
+
             tagBtn.Size = isPrem and UDim2.new(0, 72, 0, 22) or UDim2.new(0, 58, 0, 20)
 
             local targetBackground = isPrem
@@ -5415,7 +5411,6 @@ TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = Color3.f
                 tagLabel.TextSize = 10
             end
         end
-
 
 
         if self.UserAvatarStatusDot and self.UserAvatarStatusDot.Parent then
@@ -5803,21 +5798,22 @@ TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = Color3.f
         local infoCard = new("Frame", {
             Name = "InfoCard",
             Position = UDim2.new(0, 16, 0, 58),
-            Size = UDim2.new(1, -32, 0, 68),
+            Size = UDim2.new(1, -32, 0, 62),
             BackgroundColor3 = Color3.fromRGB(25, 27, 36),
             BorderSizePixel = 0,
             ZIndex = 5004,
         }, card)
         corner(infoCard, 8)
         stroke(infoCard, Color3.fromRGB(48, 52, 68), 1, 0.5)
-        new("Frame", {
+        local noteAccent = new("Frame", {
             Name = "NoteAccent",
             Position = UDim2.new(0, 8, 0, 10),
-            Size = UDim2.new(0, 2, 0, 48),
+            Size = UDim2.new(0, 2, 0, 38),
             BackgroundColor3 = genv.accent or Color3.fromRGB(244, 63, 94),
             BorderSizePixel = 0,
             ZIndex = 5006,
         }, infoCard)
+        pill(noteAccent)
 
         new("TextLabel", {
             Name = "InfoTitle",
@@ -5838,7 +5834,8 @@ TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = Color3.f
             Size = UDim2.new(1, -26, 0, 34),
             BackgroundTransparency = 1,
             FontFace = font(Enum.FontWeight.Medium),
-            Text = "Permanent key unlocks all locked features across every game & update.\nInstant delivery: PayPal, Cards, Crypto & more at moondiety.com/shop",
+            Text = 'Permanent key unlocks all locked features across every game & update.\nInstant delivery: PayPal, Cards, Crypto & more at <font color="#FFFFFF">moondiety.com/shop</font>',
+            RichText = true,
             TextColor3 = Color3.fromRGB(180, 185, 200),
             TextSize = 11,
             TextWrapped = true,
@@ -5949,7 +5946,7 @@ TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = Color3.f
             }),
         }, checkBtn)
         local activateStroke = stroke(checkBtn, Color3.fromRGB(245, 85, 100), 1, 0.35)
-        -- Keep the gradient off the TextButton: Roblox gradients also tint button text.
+
         activateGradient.Enabled = false
 
         local activateHovered = false
@@ -6631,7 +6628,6 @@ TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = Color3.f
     }, wmPlrBtn)
 
 
-
     Library.WatermarkFrame = watermark
 
     local nearbyFrame = new("Frame", {
@@ -6839,7 +6835,7 @@ TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = Color3.f
     end)
     wmPlrBtn.MouseButton1Click:Connect(toggleNearbyPopup)
 
-    -- Restore the watermark position saved by the previous run.
+
     local watermarkPositionFile = ROOT_FOLDER .. "/watermark_position.json"
     pcall(function()
         if isfile and isfile(watermarkPositionFile) and readfile then
@@ -7399,7 +7395,7 @@ keybindHudRows[kb.name] = {
         BackgroundTransparency = 1,
         ZIndex = 852,
     }, islandCompact)
-    
+
     local eqBars = {}
     for i = 1, 4 do
         local bar = new("Frame", {
@@ -8010,7 +8006,7 @@ keybindHudRows[kb.name] = {
                     if Library.IslandStyle == "Click to Expand" or ((Library.IslandStyle == "Expand on Hover" or Library.IslandStyle == "Show on Hover") and input.UserInputType == Enum.UserInputType.Touch) then
                         setIslandExpanded(not islandExpandedState)
                     elseif Library.IslandStyle == "Compact Pill" then
-                        setHidden(false)
+                        if Library.setHidden then Library.setHidden(false) end
                     end
                 end
             elseif islandExpandedState and (Library.IslandStyle == "Click to Expand" or ((Library.IslandStyle == "Expand on Hover" or Library.IslandStyle == "Show on Hover") and input.UserInputType == Enum.UserInputType.Touch)) then
@@ -8318,7 +8314,7 @@ keybindHudRows[kb.name] = {
             local prem = (Library.IsPremium == true) or (genv and genv._MoondietyPremium == true)
             local showUpgrade = (not prem) and headerTierHovered
             local tierBaseColor = prem and cAccent:lerp(cContainer, 0.55) or cContainer:lerp(WHITE, showUpgrade and 0.08 or 0.06)
-            -- A new tween replaces any still-running hover tween, so the old theme cannot overwrite this color later.
+
             TweenService:Create(headerTierTag, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = tierBaseColor}):Play()
             if headerTierStroke then
                 headerTierStroke.Color = (prem or showUpgrade) and cAccent or cLine
@@ -8496,7 +8492,7 @@ keybindHudRows[kb.name] = {
         if island then
             island.BackgroundColor3 = cContainer
             if islandStroke then islandStroke.Color = cLine end
-            -- Metric cards use a restrained neutral surface across every theme.
+
             local metricSurface = cContainer:lerp(cAccent, 0.07)
             for _, metricTile in ipairs({fpsTile, pingTile, plrTile, actTile}) do
                 if metricTile and metricTile.Parent then
@@ -8586,8 +8582,8 @@ keybindHudRows[kb.name] = {
             wmFpsText.Text = string.format("<font color=\"#ffffff\"><b>%d</b></font> <font color=\"#8e92a4\">fps</font>", currentFps)
             wmPlrText.Text = string.format("<font color=\"#ffffff\"><b>%d</b></font> <font color=\"#8e92a4\">players</font>", playerCount)
 
-           
-            islandDot.BackgroundColor3 = (currentFps >= 45 and ping <= 120) and SUCCESS_COLOR or ((currentFps >= 25) and WARNING_COLOR or ERROR_COLOR)          
+
+            islandDot.BackgroundColor3 = (currentFps >= 45 and ping <= 120) and SUCCESS_COLOR or ((currentFps >= 25) and WARNING_COLOR or ERROR_COLOR)
 
             if nearbyFrame and nearbyFrame.Visible then
                 updateNearbyPlayers()
@@ -8632,7 +8628,7 @@ keybindHudRows[kb.name] = {
                         if ping <= 80 then isActive = true
                         elseif ping <= 150 then isActive = (i <= 3)
                         else isActive = (i <= 1) end
-                        
+
                         local baseH = 4 + (i * 2)
                         local h = isActive and (baseH + math.sin(t * 8 + i * 1.5) * 3) or 3
                         bar.Size = UDim2.new(0, 3, 0, math.max(2, h))
@@ -8733,8 +8729,8 @@ keybindHudRows[kb.name] = {
         Library.start_position = MainHolder.Position
     end
 
+
     Top.InputBegan:Connect(beginDrag)
-    Container.InputBegan:Connect(beginDrag)
 
     bind(UserInputService.InputChanged, function(input)
         if not Library.dragging then return end
@@ -8763,7 +8759,6 @@ keybindHudRows[kb.name] = {
     end)
 
 
-
     tabs = new("ScrollingFrame", {
         Name = "Tabs",
         Active = true,
@@ -8771,7 +8766,7 @@ keybindHudRows[kb.name] = {
         BorderSizePixel = 0,
         ClipsDescendants = true,
         Position = UDim2.new(0, 10, 0, 58),
-        Size = UDim2.new(0.21, -10, 1, -68), 
+        Size = UDim2.new(0.21, -10, 1, -68),
         ScrollBarThickness = 0,
         ScrollBarImageTransparency = 1,
         CanvasSize = UDim2.new(0, 0, 0, 0),
@@ -8945,7 +8940,6 @@ keybindHudRows[kb.name] = {
             Text = "@" .. LocalPlayer.Name,
             ZIndex = 893,
         }, modalHeader)
-
 
 
         local modalClose = new("TextButton", {
@@ -10353,6 +10347,7 @@ keybindHudRows[kb.name] = {
             BackgroundColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
             BackgroundTransparency = 0.35,
             BorderSizePixel = 0,
+            Active = true,
             ZIndex = 82,
         }, customScrollBar)
         corner(scrollThumb, 3)
@@ -10468,6 +10463,9 @@ keybindHudRows[kb.name] = {
         scrollThumb.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 thumbDragging = true
+                Library.dragging = false
+                Library.drag_position = nil
+                Library.start_position = nil
                 dragStartY = input.Position.Y
                 dragStartScrollY = itemsSection.CanvasPosition.Y
                 local moveConn, endConn
@@ -10523,7 +10521,7 @@ keybindHudRows[kb.name] = {
                     elseif e.side == "middle" then
                         local y = math.max(leftY, rightY)
                         t.pos = UDim2.new(0, 0, 0, y)
-                        t.w = 1
+                        t.w   = 0.97986
                         leftY = y + e.height + GAP
                         rightY = leftY
                     else
@@ -10864,7 +10862,7 @@ end
                 end
             elseif cfg.flag == "autoload_config_toggle" then
                 obj.state = (select(2, Library:GetAutoload()) == true)
-            elseif Library.savedFlags and type(Library.savedFlags[cfg.flag]) == "boolean" then
+            elseif cfg.flag and Library.savedFlags and type(Library.savedFlags[cfg.flag]) == "boolean" then
                 obj.state = Library.savedFlags[cfg.flag]
             elseif cfg.enabled ~= nil then
                 obj.state = (cfg.enabled == true)
@@ -10876,7 +10874,7 @@ end
             function obj:UpdateToggle(newState, skipCallback)
                 if self.isLocked and not Library.IsPremium then
                     self.state = false
-                    Library.Flags[self.flag] = false
+                    if self.flag then Library.Flags[self.flag] = false end
                     Switch:SetAttribute("State", false)
                     TweenService:Create(Switch, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = genv.togglecoloroff or Color3.fromRGB(60, 64, 72)}):Play()
                     TweenService:Create(Circle, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0, 2, 0.5, 0)}):Play()
@@ -10886,7 +10884,7 @@ end
                     return
                 end
                 if newState ~= nil then self.state = newState else self.state = not self.state end
-                Library.Flags[self.flag] = self.state
+                if self.flag then Library.Flags[self.flag] = self.state end
                 Switch:SetAttribute("State", self.state)
                 local tiSlide = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
                 local colorTi = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -10897,10 +10895,10 @@ end
                     TweenService:Create(Switch, colorTi, {BackgroundColor3 = genv.togglecoloroff or Color3.fromRGB(60, 64, 72)}):Play()
                     TweenService:Create(Circle, tiSlide, {Position = UDim2.new(0, 2, 0.5, 0)}):Play()
                 end
-                if Library.UpdateActionButtonStateByFlag then
+                if self.flag and Library.UpdateActionButtonStateByFlag then
                     Library:UpdateActionButtonStateByFlag(self.flag, self.state)
                 end
-                if not skipCallback then
+                if not skipCallback and self.flag then
                     Library.save_flags(self.flag)
                 end
                 if Library.UpdateKeybindHudStates then
@@ -10922,8 +10920,10 @@ end
             end
             obj.Set = obj.SetValue
 
-            Library.Flags[cfg.flag] = obj.state
-            Library:RegisterObject(cfg.flag, obj)
+            if cfg.flag then
+                Library.Flags[cfg.flag] = obj.state
+                Library:RegisterObject(cfg.flag, obj)
+            end
             obj:UpdateToggle(obj.state, true)
 
             if obj.state and cfg.callback and (not (cfg.flag and (SystemSettings[cfg.flag] or cfg.flag == "autoload_config_toggle" or cfg.flag == "autosave_config_toggle"))) then
@@ -10950,9 +10950,9 @@ end
                 TextScaled = false,
                 TextSize = 13,
                 Text = cfg.name or "",
-                TextXAlignment = Enum.TextXAlignment.Left,
+                TextXAlignment = side == "middle" and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left,
             }, itemsSection)
-            new("UIPadding", {PaddingLeft = UDim.new(0, 4)}, title)
+            new("UIPadding", {PaddingLeft = UDim.new(0, side == "middle" and 0 or 4)}, title)
             registerItem(title, side, 15, cfg.name)
 
             if side ~= "middle" then
@@ -10979,7 +10979,7 @@ end
 
             local rightPad = 50
             if cfg.colorpicker then rightPad = rightPad + 28 end
-            if cfg.keybind then rightPad = rightPad + 56 end
+            if cfg.keybind and not IsMobile then rightPad = rightPad + 56 end
 
             rowTexts(toggle, cfg.name, cfg.description, rightPad)
             attachTooltip(toggle, cfg.tooltip or cfg.desc)
@@ -11095,7 +11095,7 @@ end
                 end)
             end
 
-            if cfg.keybind then
+            if cfg.keybind and not IsMobile then
                 addInlineKeybind(type(cfg.keybind) == "table" and cfg.keybind or {})
             end
 
@@ -11172,7 +11172,7 @@ end
             local obj = {state = cfg.enabled or false, callback = cfg.callback, flag = cfg.flag, isLocked = isLocked}
             if isLocked then
                 obj.state = false
-            elseif Library.savedFlags and type(Library.savedFlags[cfg.flag]) == "boolean" then
+            elseif cfg.flag and Library.savedFlags and type(Library.savedFlags[cfg.flag]) == "boolean" then
                 obj.state = Library.savedFlags[cfg.flag]
             end
             if isLocked then
@@ -11182,7 +11182,7 @@ end
             function obj:UpdateToggle(newState, skipCallback)
                 if self.isLocked and not Library.IsPremium then
                     self.state = false
-                    Library.Flags[self.flag] = false
+                    if self.flag then Library.Flags[self.flag] = false end
                     Fill.BackgroundTransparency = 1
                     Glow.ImageTransparency = 1
                     if not skipCallback then
@@ -11191,12 +11191,12 @@ end
                     return
                 end
                 if newState ~= nil then self.state = newState else self.state = not self.state end
-                Library.Flags[self.flag] = self.state
+                if self.flag then Library.Flags[self.flag] = self.state end
                 local ti = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
                 TweenService:Create(Fill, ti, {BackgroundTransparency = self.state and 0 or 1}):Play()
                 TweenService:Create(Glow, ti, {ImageTransparency = self.state and 0 or 1}):Play()
                 if not skipCallback then
-                    Library.save_flags(self.flag)
+                    if self.flag then Library.save_flags(self.flag) end
                 end
                 if not skipCallback and self.callback then self.callback(self.state) end
             end
@@ -11212,9 +11212,11 @@ end
             end
             obj.Set = obj.SetValue
 
-               Library.Flags[cfg.flag] = obj.state
-    Library:RegisterObject(cfg.flag, obj)
-    obj:UpdateToggle(obj.state, true)
+            if cfg.flag then
+                Library.Flags[cfg.flag] = obj.state
+                Library:RegisterObject(cfg.flag, obj)
+            end
+            obj:UpdateToggle(obj.state, true)
 
     if obj.state and cfg.callback then
         task.spawn(function()
@@ -11498,6 +11500,124 @@ end
             end)
 
             local obj = makeToggleObject(cfg, Switch, Circle)
+
+            local function addColorpickerKeybind(kbOpts)
+                kbOpts = kbOpts or {}
+                local kbFlag = kbOpts.flag or ((cfg.flag or "colorpicker") .. "_bind")
+                local rawKey = kbOpts.default or kbOpts.keycode or "None"
+                local defaultKey = (typeof(rawKey) == "EnumItem" and rawKey.Name) or tostring(rawKey)
+                local activeKey = defaultKey
+                if Library.savedFlags and Library.savedFlags[kbFlag] ~= nil and Library.savedFlags[kbFlag] ~= "" then
+                    activeKey = tostring(Library.savedFlags[kbFlag])
+                elseif Library.Flags and Library.Flags[kbFlag] ~= nil and Library.Flags[kbFlag] ~= "" then
+                    activeKey = tostring(Library.Flags[kbFlag])
+                end
+
+                local Box = new("TextButton", {
+                    Name = "InlineKeybindBox",
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    Position = UDim2.new(1, -78, 0.5, 0),
+                    Size = UDim2.new(0, 48, 0, 20),
+                    BackgroundColor3 = genv.KeybindBox or Color3.fromRGB(24, 25, 30),
+                    BorderSizePixel = 0,
+                    Text = "",
+                    ZIndex = 4,
+                }, toggle)
+                table.insert(genv.UIElements, Box)
+                corner(Box, 4)
+                stroke(Box, Color3.fromRGB(45, 48, 60), 1, 0.5)
+
+                local KeyText = new("TextLabel", {
+                    Size = UDim2.new(1, 0, 1, 0),
+                    BackgroundTransparency = 1,
+                    TextColor3 = WHITE,
+                    FontFace = font(),
+                    TextSize = 10,
+                    Text = activeKey,
+                    ZIndex = 5,
+                }, Box)
+
+                Library.Flags[kbFlag] = activeKey
+                Library:RegisterKeybind(kbFlag, cfg.name or kbFlag, activeKey, function()
+                    return obj:GetValue()
+                end, function()
+                    if obj.isLocked and not Library.IsPremium then
+                        Library:ShowPremiumPrompt()
+                        return
+                    end
+                    obj:UpdateToggle(not obj:GetValue())
+                end, function()
+                    if obj.isLocked and not Library.IsPremium then
+                        Library:ShowPremiumPrompt()
+                        return
+                    end
+                    obj:UpdateToggle(not obj:GetValue())
+                end)
+
+                local kbObj = {flag = kbFlag}
+                function kbObj:GetValue() return Library.Flags[kbFlag] end
+                function kbObj:SetValue(v)
+                    local strVal = tostring(v or "None")
+                    Library.Flags[kbFlag] = strVal
+                    Library:UpdateKeybind(kbFlag, strVal)
+                    KeyText.Text = strVal
+                end
+                Library:RegisterObject(kbFlag, kbObj)
+
+                local setting = false
+                bindTap(Box, function()
+                    if setting then return end
+                    setting = true
+                    KeyText.Text = "..."
+                    local conn
+                    conn = UserInputService.InputBegan:Connect(function(input)
+                        if Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent then return end
+                        local pressed
+                        if input.UserInputType == Enum.UserInputType.Keyboard then
+                            pressed = input.KeyCode.Name
+                        elseif input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then
+                            pressed = input.UserInputType.Name
+                        end
+                        if not pressed then return end
+                        Library.Flags[kbFlag] = pressed
+                        Library:UpdateKeybind(kbFlag, pressed)
+                        KeyText.Text = pressed
+                        Library.save_flags(kbFlag)
+                        setting = false
+                        conn:Disconnect()
+                    end)
+                end)
+
+                bind(UserInputService.InputBegan, function(input, processed)
+                    if (Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent) or processed or setting then return end
+                    local current = Library.Flags[kbFlag]
+                    if not current or current == "None" or current == "" then return end
+                    local pressed
+                    if input.UserInputType == Enum.UserInputType.Keyboard then
+                        pressed = input.KeyCode.Name
+                    elseif input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.MouseButton3 then
+                        pressed = input.UserInputType.Name
+                    end
+                    if pressed and pressed == current then
+                        if obj.isLocked and not Library.IsPremium then
+                            Library:ShowPremiumPrompt()
+                            return
+                        end
+                        obj:UpdateToggle()
+                        if kbOpts.callback then kbOpts.callback(obj:GetValue()) end
+                    end
+                end)
+            end
+
+            if cfg.keybind and not IsMobile then
+                addColorpickerKeybind(type(cfg.keybind) == "table" and cfg.keybind or {})
+            end
+
+            function obj:AddKeybind(kbOpts)
+                addColorpickerKeybind(kbOpts)
+                return self
+            end
+
             function obj:GetColor() return Color3.fromHSV(h, s, v) end
             function obj:SetColor(c) setFromColor(c); Library.save_flags() end
 
@@ -11821,7 +11941,7 @@ end
                 end)
             end
 
-            if cfg.keybind then
+            if cfg.keybind and not IsMobile then
                 addInlineKeybind(type(cfg.keybind) == "table" and cfg.keybind or {})
             end
 
@@ -11983,9 +12103,9 @@ end
 
             local track = new("Frame", {
                 Name = "trackcolor",
-                AnchorPoint = Vector2.new(0.5, 0.5),
-                Position = UDim2.new(0.5, 0, 0.78, 0),
-                Size = UDim2.new(0.9, 0, 0, 5),
+                AnchorPoint = Vector2.new(0, 0.5),
+                Position = UDim2.new(0, 12, 0.78, 0),
+                Size = UDim2.new(1, -24, 0, 5),
                 BackgroundColor3 = genv.trackcolor or Color3.fromRGB(40, 40, 40),
                 BorderSizePixel = 0,
                 Active = true,
@@ -12039,7 +12159,7 @@ end
 
             local number = new("TextLabel", {
                 AnchorPoint = Vector2.new(1, 0.5),
-                Position = UDim2.new(0.97, 0, 0.32, 0),
+                Position = UDim2.new(1, -12, 0.32, 0),
                 Size = UDim2.new(0, 50, 0, 13),
                 BackgroundTransparency = 1,
                 FontFace = font(),
@@ -12089,12 +12209,15 @@ end
                 return tostring(math.floor(value + 0.5)) .. sfx
             end
 
+            local currentValue = roundValue(tonumber(cfg.value or cfg.default or cfg.currentvalue) or min_v)
+
             local function setFromPercent(percent, skipCallback)
                 percent = math.clamp(tonumber(percent) or 0, 0, 1)
                 fill.Size = UDim2.new(percent, 0, 1, 0)
                 knob.Position = UDim2.new(percent, math.floor(7 - percent * 14), 0.5, 0)
                 local final = roundValue(min_v + percent * (max_v - min_v))
-                Library.Flags[cfg.flag] = final
+                currentValue = final
+                if cfg.flag then Library.Flags[cfg.flag] = final end
                 number.Text = formatNumber(final)
                 if not skipCallback and cfg.callback then cfg.callback(final) end
             end
@@ -12106,20 +12229,19 @@ end
                 setFromPercent((x - minX) / trackWidth)
             end
 
-            local initialValue
-            if type(Library.Flags[cfg.flag]) == "number" then
+            local initialValue = currentValue
+            if cfg.flag and type(Library.Flags[cfg.flag]) == "number" then
                 initialValue = Library.Flags[cfg.flag]
-            elseif Library.savedFlags and type(Library.savedFlags[cfg.flag]) == "number" then
+            elseif cfg.flag and Library.savedFlags and type(Library.savedFlags[cfg.flag]) == "number" then
                 initialValue = Library.savedFlags[cfg.flag]
-            else
-                initialValue = tonumber(cfg.value or cfg.default or cfg.currentvalue) or min_v
             end
-            Library.Flags[cfg.flag] = roundValue(initialValue)
-            setFromPercent(math.clamp((Library.Flags[cfg.flag] - min_v) / (max_v - min_v), 0, 1))
+            currentValue = roundValue(initialValue)
+            if cfg.flag then Library.Flags[cfg.flag] = currentValue end
+            setFromPercent(math.clamp((currentValue - min_v) / (max_v - min_v), 0, 1), true)
 
             task.defer(function()
                 if track.AbsoluteSize.X > 0 then
-                    setFromPercent(math.clamp((Library.Flags[cfg.flag] - min_v) / (max_v - min_v), 0, 1), true)
+                    setFromPercent(math.clamp((currentValue - min_v) / (max_v - min_v), 0, 1), true)
                 end
             end)
 
@@ -12154,7 +12276,7 @@ end
                 animate(UDim2.new(0, 15, 0, 15))
                 TweenService:Create(fill, TweenInfo.new(0.2), {BackgroundColor3 = genv.sliderfill or genv.accent or Color3.fromRGB(90, 90, 90)}):Play()
                 TweenService:Create(number, TweenInfo.new(0.2), {TextColor3 = WHITE}):Play()
-                Library.save_flags(cfg.flag)
+                if cfg.flag then Library.save_flags(cfg.flag) end
             end
 
             track.InputBegan:Connect(beginDrag)
@@ -12178,18 +12300,21 @@ end
 
             local isLocked = (cfg.locked == true or cfg.premium == true or cfg.is_premium == true) and (not Library.IsPremium)
             local obj = {min = min_v, max = max_v, step = step, flag = cfg.flag, callback = cfg.callback, isLocked = isLocked}
-            function obj:GetValue() return Library.Flags[self.flag] end
+            function obj:GetValue()
+                if self.flag then return Library.Flags[self.flag] end
+                return currentValue
+            end
             function obj:SetValue(value, skipCallback)
                 if self.isLocked and not Library.IsPremium then return end
                 if type(value) ~= "number" then return end
                 setFromPercent(math.clamp((value - self.min) / (self.max - self.min), 0, 1), skipCallback == true)
-                if not skipCallback then
+                if not skipCallback and cfg.flag then
                     Library.save_flags(cfg.flag)
                 end
             end
             obj.Set = obj.SetValue
 
-            Library:RegisterObject(cfg.flag, obj)
+            if cfg.flag then Library:RegisterObject(cfg.flag, obj) end
             if (cfg.locked or cfg.premium or cfg.is_premium) and not Library.IsPremium then
                 Library:LockElement(slider, obj)
             end
@@ -12208,8 +12333,8 @@ end
                 AnchorPoint = Vector2.new(1, 0.5),
                 BackgroundColor3 = genv[boxKey] or Color3.fromRGB(22, 23, 27),
                 BorderSizePixel = 0,
-                Position = UDim2.new(0.96, 0, 0.5, 0),
-                Size = UDim2.new(0.46, 0, 0, 24),
+                Position = UDim2.new(1, -12, 0.5, 0),
+                Size = UDim2.new(0.21, 0, 0, 24),
                 ClearTextOnFocus = false,
                 Text = "",
                 PlaceholderText = cfg.placeholder or cfg.placeholdertext or "...",
@@ -12234,38 +12359,6 @@ end
             attachTooltip(container, cfg.tooltip or cfg.desc)
             registerItem(container, side, ELEMENT_HEIGHT, cfg.name)
             return box
-        end
-
-        function Module:create_textbox(arg)
-            local cfg = resolve(self, arg)
-            local side = getSide(cfg)
-            local box = buildTextEntry(cfg, side, "tabcolor", "InputBox", "TextBox", "TextHolder")
-            local Textbox = {}
-
-            if Library.Flags[cfg.flag] == nil then
-                local saved = Library.savedFlags and Library.savedFlags[cfg.flag]
-                Library.Flags[cfg.flag] = saved ~= nil and saved or (cfg.value or cfg.default or "")
-            end
-            box.Text = tostring(Library.Flags[cfg.flag])
-
-            if cfg.callback then cfg.callback(Library.Flags[cfg.flag]) end
-
-            box.FocusLost:Connect(function()
-                Library.Flags[cfg.flag] = box.Text
-                if cfg.callback then cfg.callback(box.Text) end
-                Library.save_flags()
-            end)
-
-            function Textbox:update(text)
-                box.Text = tostring(text or "")
-                Library.Flags[cfg.flag] = box.Text
-                if cfg.callback then cfg.callback(box.Text) end
-            end
-            function Textbox:GetValue() return box.Text end
-            function Textbox:SetValue(value) box.Text = tostring(value or "") end
-
-            Library:RegisterObject(cfg.flag, Textbox)
-            return Textbox
         end
 
         function Module.create_input(arg)
@@ -12322,6 +12415,19 @@ end
         function Module:create_keybind(arg)
             local cfg = resolve(self, arg)
             local side = getSide(cfg)
+            if IsMobile then
+                local mobileKey = cfg.keycode or cfg.default or "H"
+                local obj = {flag = cfg.flag, value = mobileKey}
+                function obj:GetValue()
+                    if self.flag then return Library.Flags[self.flag] end
+                    return self.value
+                end
+                function obj:SetValue(value)
+                    self.value = value
+                    if self.flag then Library.Flags[self.flag] = value end
+                end
+                return obj
+            end
             local keybind = row("Keybind", "Keybind")
             simpleLabel(keybind, cfg.name, 0.5)
 
@@ -12370,11 +12476,12 @@ end
             end
             local rawDefault = cfg.keycode or cfg.default or "H"
             local defaultKey = (typeof(rawDefault) == "EnumItem" and rawDefault.Name) or tostring(rawDefault)
-            Library.Flags[cfg.flag] = Library.Flags[cfg.flag] or defaultKey
-            if Library.savedFlags and Library.savedFlags[cfg.flag] then
-                Library.Flags[cfg.flag] = Library.savedFlags[cfg.flag]
+            local currentKey = cfg.flag and Library.Flags[cfg.flag] or defaultKey
+            if cfg.flag and Library.savedFlags and Library.savedFlags[cfg.flag] then
+                currentKey = Library.savedFlags[cfg.flag]
             end
-            KeyText.Text = displayOf(Library.Flags[cfg.flag])
+            if cfg.flag then Library.Flags[cfg.flag] = currentKey end
+            KeyText.Text = displayOf(currentKey)
 
             local kbState = false
             local isButtonKb = (cfg.isButton == true) or (cfg.flag == "toggleui")
@@ -12386,27 +12493,29 @@ end
                 end
                 if isButtonKb then
                     if cfg.callback then
-                        task.spawn(cfg.callback, nil, Library.Flags[cfg.flag])
+                        task.spawn(cfg.callback, nil, currentKey)
                     end
                     return
                 end
                 kbState = not kbState
-                if cfg.callback then task.spawn(cfg.callback, kbState, Library.Flags[cfg.flag]) end
+                if cfg.callback then task.spawn(cfg.callback, kbState, currentKey) end
                 if Library.UpdateKeybindList then Library:UpdateKeybindList() end
             end
 
-            Library:RegisterKeybind(
-                cfg.flag,
-                cfg.name,
-                Library.Flags[cfg.flag],
-                function()
-                    if isButtonKb then return nil end
-                    return kbState
-                end,
-                toggleKb,
-                toggleKb,
-                isButtonKb
-            )          
+            if cfg.flag then
+                Library:RegisterKeybind(
+                    cfg.flag,
+                    cfg.name,
+                    currentKey,
+                    function()
+                        if isButtonKb then return nil end
+                        return kbState
+                    end,
+                    toggleKb,
+                    toggleKb,
+                    isButtonKb
+                )
+            end
 
             local function updateSize()
                 Box.Size = UDim2.new(0, math.max(40, KeyText.TextBounds.X + 12), 0, 22)
@@ -12427,9 +12536,12 @@ end
                     if Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent then return end
                     local pressed = pressedName(input)
                     if not pressed then return end
-                    Library.Flags[cfg.flag] = pressed
-                    Library:UpdateKeybind(cfg.flag, pressed)
-                    Library.save_flags(cfg.flag)
+                    currentKey = pressed
+                    if cfg.flag then
+                        Library.Flags[cfg.flag] = pressed
+                        Library:UpdateKeybind(cfg.flag, pressed)
+                        Library.save_flags(cfg.flag)
+                    end
                     KeyText.Text = displayOf(pressed)
                     updateSize()
                     setting = false
@@ -12442,21 +12554,28 @@ end
                 if (Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent) or processed or setting then return end
                 if cfg.flag == "toggleui" then return end
                 local pressed = pressedName(input)
-                if pressed and pressed == Library.Flags[cfg.flag] then
+                if pressed and pressed == currentKey then
                     toggleKb()
                 end
             end)
 
-            local obj = {flag = cfg.flag, callback = cfg.callback}
-            function obj:GetValue() return Library.Flags[self.flag] end
+            local obj = {flag = cfg.flag, callback = cfg.callback, value = currentKey}
+            function obj:GetValue()
+                if self.flag then return Library.Flags[self.flag] end
+                return currentKey
+            end
             function obj:SetValue(value)
-                Library.Flags[self.flag] = value
-                Library:UpdateKeybind(self.flag, value)
+                currentKey = value
+                self.value = value
+                if self.flag then
+                    Library.Flags[self.flag] = value
+                    Library:UpdateKeybind(self.flag, value)
+                end
                 KeyText.Text = displayOf(value)
                 updateSize()
             end
 
-            Library:RegisterObject(cfg.flag, obj)
+            if cfg.flag then Library:RegisterObject(cfg.flag, obj) end
             if (cfg.locked or cfg.premium or cfg.is_premium) and not Library.IsPremium then
                 obj.isLocked = true
                 Library:LockElement(keybind, obj)
@@ -12474,6 +12593,7 @@ end
 
         local function buildDropdown(cfg, multi, sideStyle)
             local side = getSide(cfg)
+            sideStyle = sideStyle == true
             local keys = DropdownKeys[(sideStyle and "side_" or "inline_") .. (multi and "multi" or "single")]
             local OPT_H = sideStyle and 18 or 20
             local OPT_GAP, PT, PB, MAX_H = 6, 8, 8, 140
@@ -12484,11 +12604,14 @@ end
 
             local dropdownRow = row(keys.row, keys.rowKey)
             dropdownRow.ZIndex = 1
+            if sideStyle then
+                dropdownRow.ClipsDescendants = false
+            end
 
             local Title
             if sideStyle then
                 Title = new("TextLabel", {
-                    Position = UDim2.new(0.04, 0, 0, (ELEMENT_HEIGHT - 15) / 2),
+                    Position = UDim2.new(0, 12, 0, (ELEMENT_HEIGHT - 15) / 2),
                     Size = UDim2.new(0.4, 0, 0, 15),
                     BackgroundTransparency = 1,
                     FontFace = font(),
@@ -12510,8 +12633,9 @@ end
             }, dropdownRow)
             if sideStyle then
                 Box.AnchorPoint = Vector2.new(1, 0)
-                Box.Position = UDim2.new(0.96, 0, 0, (ELEMENT_HEIGHT - BOX_HEIGHT) / 2)
-                Box.Size = UDim2.new(0.46, 0, 0, BOX_HEIGHT)
+                Box.Position = UDim2.new(1, -12, 0, (ELEMENT_HEIGHT - BOX_HEIGHT) / 2)
+                local sideBoxWidth = side == "middle" and 0.32 or 0.55
+                Box.Size = UDim2.new(sideBoxWidth, 0, 0, BOX_HEIGHT)
             else
                 Box.AnchorPoint = Vector2.new(0.5, 0)
                 Box.Position = UDim2.new(0.5, 0, 0, 5)
@@ -12580,8 +12704,8 @@ end
             local Selected = new("TextLabel", {
                 AnchorPoint = Vector2.new(0, 0.5),
                 BackgroundTransparency = 1,
-                Position = UDim2.new(sideStyle and 0.07 or 0.05, 0, 0.5, 0),
-                Size = UDim2.new(1, -28, 1, 0),
+                Position = UDim2.new(0, sideStyle and 10 or 8, 0.5, 0),
+                Size = UDim2.new(1, -34, 1, 0),
                 ZIndex = 3,
                 FontFace = font(),
                 TextColor3 = WHITE,
@@ -12594,7 +12718,7 @@ end
                 Name = "Arrow",
                 AnchorPoint = Vector2.new(0.5, 0.5),
                 BackgroundTransparency = 1,
-                Position = UDim2.new(0.92, 0, 0.5, 0),
+                Position = UDim2.new(1, -14, 0.5, 0),
                 Size = UDim2.new(0, 10, 0, 10),
                 ZIndex = 3,
                 Image = "rbxassetid://17400678941",
@@ -12942,24 +13066,36 @@ end
             return buildDropdown(resolve(self, arg), true, true)
         end
 
-        function Module:create_divider(arg)
-            local cfg = resolve(self, arg)
+        function Module.create_divider(arg1, arg2)
+            local cfg = resolve(arg1, arg2)
             local side = getSide(cfg)
+            local dividerHeight = 14
+
             local div = new("Frame", {
                 Name = "Divider",
                 BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, 14),
+                Size = UDim2.new(1, 0, 0, dividerHeight),
                 ZIndex = 2,
             }, itemsSection)
+
             local lineDiv = new("Frame", {
+                Name = "DividerLine",
                 Position = UDim2.new(0, 4, 0.5, 0),
                 Size = UDim2.new(1, -8, 0, 1),
-                BackgroundColor3 = genv.uiline or Color3.fromRGB(35, 36, 42),
+                BackgroundColor3 = genv.uiline or Color3.fromRGB(74, 57, 103),
+                BackgroundTransparency = 0.15,
                 BorderSizePixel = 0,
                 ZIndex = 3,
             }, div)
-            registerItem(div, side, 14, "")
+            corner(lineDiv, 1)
+
+            table.insert(genv.UIElements, lineDiv)
+            registerItem(div, side, dividerHeight, "")
             return div
+        end
+
+        function Module.create_devider(arg1, arg2)
+            return Module.create_divider(arg1, arg2)
         end
 
         return Module
@@ -13015,5 +13151,6 @@ end
 
     return Library.WindowController
 end
+
 
 return Library
