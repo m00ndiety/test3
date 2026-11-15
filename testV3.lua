@@ -17,6 +17,11 @@ local getgenv = getgenv or function()
     return fallbackEnv
 end
 
+local hasRealWritefile = type(writefile) == "function"
+local hasRealReadfile = type(readfile) == "function"
+local hasRealIsfile = type(isfile) == "function"
+local hasRealDelfile = type(delfile) == "function"
+
 local isfolder = isfolder or function() return false end
 local makefolder = makefolder or function() end
 local writefile = writefile or function() end
@@ -27,6 +32,100 @@ local delfile = delfile or function() end
 
 local copyclipboard = setclipboard or toclipboard or (syn and syn.write_clipboard)
 local httpRequest = (syn and syn.request) or (http and http.request) or request
+
+local Capabilities = (type(getgenv) == "function" and getgenv()._MoondietyCaps)
+if type(Capabilities) ~= "table" then
+    local function probeCapabilities()
+        local probe = {}
+
+        if type(hookfunction) == "function" then
+            probe.hookfunction = pcall(function()
+                local function dummy() return 1 end
+                local orig = hookfunction(dummy, function() return 2 end)
+                if type(orig) == "function" then hookfunction(dummy, orig) end
+            end)
+        else
+            probe.hookfunction = false
+        end
+
+        if type(hookmetamethod) == "function" then
+            probe.hookmetamethod = pcall(function()
+                local mt = {}
+                local obj = setmetatable({}, mt)
+                local orig = hookmetamethod(obj, "__index", function(_, k) return k end)
+                if orig then hookmetamethod(obj, "__index", orig) end
+            end)
+        else
+            probe.hookmetamethod = false
+        end
+
+        if type(getgc) == "function" then
+            local ok, res = pcall(getgc, true)
+            probe.getgc = ok and type(res) == "table"
+        else
+            probe.getgc = false
+        end
+
+        if type(setreadonly) == "function" and type(rawset) == "function" then
+            probe.setreadonly = pcall(function()
+                local t = {x = 1}
+                setreadonly(t, false)
+                rawset(t, "x", 2)
+                setreadonly(t, true)
+                return t.x == 2
+            end)
+        else
+            probe.setreadonly = false
+        end
+
+        if type(getrawmetatable) == "function" then
+            local ok, mt = pcall(getrawmetatable, game)
+            if ok and type(mt) == "table" and type(mt.__index) == "function" then
+                local okRO = pcall(setreadonly, mt, false)
+                probe.getrawmetatable = okRO == true
+                if okRO then pcall(setreadonly, mt, true) end
+            else
+                probe.getrawmetatable = false
+            end
+        else
+            probe.getrawmetatable = false
+        end
+
+        if type(debug) == "table" then
+            probe.debug = type(debug.getupvalue) == "function" and type(debug.getinfo) == "function"
+        else
+            probe.debug = false
+        end
+
+        if type(Drawing) == "table" and type(Drawing.new) == "function" then
+            local ok, obj = pcall(Drawing.new, "Square")
+            probe.Drawing = ok and obj ~= nil
+            if probe.Drawing and obj and obj.Remove then
+                pcall(function() obj:Remove() end)
+            end
+        else
+            probe.Drawing = false
+        end
+
+        probe.writefile = hasRealWritefile
+        probe.readfile = hasRealReadfile
+        probe.isfile = hasRealIsfile
+        probe.delfile = hasRealDelfile
+        probe.cloneref = type(cloneref) == "function"
+        probe.gethui = type(gethui) == "function"
+        probe.request = httpRequest ~= nil
+
+        probe.isWeak = not probe.hookfunction or not probe.getgc or not probe.setreadonly or not probe.debug
+        probe.canMemoryHack = (probe.getgc == true) and (probe.setreadonly == true) and (probe.debug == true)
+
+        return probe
+    end
+
+    Capabilities = probeCapabilities()
+    if type(getgenv) == "function" then
+        getgenv()._MoondietyCaps = Capabilities
+    end
+end
 
 local ROOT_FOLDER = "Moondiety/V2"
 local createdFolders = {}
@@ -164,33 +263,39 @@ end
 fetchDiscordStats()
 
 local SupportedGames = {
-    { Name = "Dead Rails", UniverseId = 7018190066, PlaceId = 116495829188952, Playing = 17700 },
-    { Name = "Steal a Brainrot", UniverseId = 7709344486, PlaceId = 109983668079237, Playing = 109600 },
-    { Name = "Bloxstrike", UniverseId = 7633926880, PlaceId = 114234929420007, Playing = 22000 },
-    { Name = "Plant vs Brainrot", UniverseId = 8316902627, PlaceId = 127742093697776, Playing = 5200 },
-    { Name = "Escape Tsunami for Brainrots", UniverseId = 9363735110, PlaceId = 131623223084840, Playing = 6300 },
-    { Name = "Grow a Garden", UniverseId = 7436755782, PlaceId = 126884695634066, Playing = 31700 },
-    { Name = "100 Days At Sea", UniverseId = 9167377564, PlaceId = 70411440483149, Playing = 25400 },
-    { Name = "The Strongest Battlegrounds", UniverseId = 3808081382, PlaceId = 10449761463, Playing = 64200 },
-    { Name = "Forsaken", UniverseId = 6331902150, PlaceId = 18687417158, Playing = 91600 },
-    { Name = "99 Nights in the Forest", UniverseId = 7326934954, PlaceId = 79546208627805, Playing = 375000 },
-    { Name = "Drain the Lake", UniverseId = 10267363348, PlaceId = 138381251771774, Playing = 1160 },
-    { Name = "Rivals", UniverseId = 6035872082, PlaceId = 17625359962, Playing = 319000 },
-    { Name = "Brookhaven RP", UniverseId = 1686885941, PlaceId = 4924922222, Playing = 548000 },
-    { Name = "Evade", UniverseId = 3647333358, PlaceId = 9872472334, Playing = 113500 },
-    { Name = "Grow a Garden 2", UniverseId = 10200395747, PlaceId = 97598239454123, Playing = 2500 },
-    { Name = "Steal an Egg", UniverseId = 10563114921, PlaceId = 107778070777162, Playing = 1832000 },
-    { Name = "Land or Die!", UniverseId = 9312646406, PlaceId = 75547400568620, Playing = 4300 },
-    { Name = "Murder Mystery 2", UniverseId = 66654135, PlaceId = 142823291, Playing = 249800 },
+    { Name = "Dead Rails", UniverseId = 7018190066 },
+    { Name = "Steal A Brainrot", UniverseId = 7709344486 },
+    { Name = "Bloxstrike", UniverseId = 7633926880 },
+    { Name = "Plant vs Brainrot", UniverseId = 8316902627 },
+    { Name = "Escape Tsunami for Brainrots", UniverseId = 9363735110 },
+    { Name = "Grow A Garden", UniverseId = 7436755782 },
+    { Name = "100 Days At Sea", UniverseId = 9167377564 },
+    { Name = "The Strongest Battlegrounds", UniverseId = 3808081382 },
+    { Name = "Forsaken", UniverseId = 6331902150 },
+    { Name = "99 Nights In The Forest", UniverseId = 7326934954 },
+    { Name = "Dont Splash", UniverseId = 10771421858, PlaceId = 139386728420706 },
+    { Name = "Drain The Lake", UniverseId = 10267363348, PlaceId = 138381251771774 },
+    { Name = "Rivals", UniverseId = 6035872082 },
+    { Name = "Brookhaven", UniverseId = 1686885941 },
+    { Name = "Evade", UniverseId = 3647333358 },
+    { Name = "Grow A Garden 2", UniverseId = 10200395747 },
+    { Name = "Steal an Egg", UniverseId = 10563114921, PlaceId = 107778070777162 },
+    { Name = "Land or Die!", UniverseId = 9312646406 },
+    { Name = "Murder Mystery 2", UniverseId = 66654135 },
+    { Name = "Feed A Mosquito", UniverseId = 10747719434 },
+    { Name = "Sniper Arena", UniverseId = 9534705677 },
+    { Name = "Throw Food For Animals", UniverseId = 10766972131, PlaceId = 120219252362013 },
+    { Name = "Adopt Me", UniverseId = 383310974, PlaceId = 920587237 },
+    { Name = "Blox Fruits", UniverseId = 994732206, PlaceId = 2753915549, PlaceIds = { 2753915549, 4442272183, 7449423635 } },
 }
 
 local supportedGamesListeners = {}
 local scriptActiveUsers = 3500
 local scriptUserListeners = {}
 
-local ONLINE_MIN = 3000
-local ONLINE_MAX = 4000
-local ONLINE_STEP = 40
+local ONLINE_MIN = 0
+local ONLINE_MAX = math.huge
+local ONLINE_STEP = 5
 
 
 local function formatCount(n)
@@ -235,40 +340,34 @@ end
 
 local Library = nil
 
+local cachedServerOnline = nil
+local lastOnlineFetch = 0
+
 local function fetchOnlineFromServer()
-    local fn = httpRequest or http_request or request
-    if not fn then return nil end
-    local ok, res = pcall(fn, {
-        Url = "http://c-pl-1.apexnodes.xyz:10002/count",
-        Method = "GET",
-    })
-    if ok and res and (res.StatusCode == 200 or res.Status == 200) then
-        local body = res.Body or res.body
-        local n = tonumber(body)
-        if n and n > 0 then
-            return math.clamp(math.floor(n), ONLINE_MIN, ONLINE_MAX)
+    local g = type(getgenv) == "function" and getgenv() or nil
+    if g and type(g._MoondietyOnlineCount) == "number" and g._MoondietyOnlineCount > 0 then
+        cachedServerOnline = math.floor(g._MoondietyOnlineCount)
+        return cachedServerOnline, true
+    end
+    if g and type(g._MoondietyFetchOnlineCount) == "function" then
+        local ok, count = pcall(g._MoondietyFetchOnlineCount)
+        if ok and type(count) == "number" and count >= 0 then
+            cachedServerOnline = math.floor(count)
+            return cachedServerOnline, true
         end
     end
-    return nil
+    return cachedServerOnline, cachedServerOnline ~= nil
 end
 
 local function stepOnline()
-    local real = fetchOnlineFromServer()
-
-    if real then
+    local real, fresh = fetchOnlineFromServer()
+    if real ~= nil and fresh then
+        scriptActiveUsers = real
         if Library then Library.OnlineCount = real end
-        local diff = real - scriptActiveUsers
-        if math.abs(diff) <= ONLINE_STEP then
-            scriptActiveUsers = real
-        else
-            scriptActiveUsers = scriptActiveUsers + (diff > 0 and ONLINE_STEP or -ONLINE_STEP)
-        end
     else
-        if Library then Library.OnlineCount = 0 end
-        local drift = math.random(-ONLINE_STEP, ONLINE_STEP)
-        scriptActiveUsers = math.clamp(scriptActiveUsers + drift, ONLINE_MIN, ONLINE_MAX)
+        scriptActiveUsers = math.max(0, scriptActiveUsers + math.random(-4, 5))
+        if Library then Library.OnlineCount = real or 0 end
     end
-
     for _, fn in ipairs(scriptUserListeners) do
         pcall(fn, scriptActiveUsers)
     end
@@ -279,16 +378,19 @@ local function fetchScriptActiveUsers()
 end
 
 task.delay(10, function()
+    if Library and Library.Unloading then return end
     fetchSupportedGamesPlaying()
 end)
 
 task.spawn(function()
-    while task.wait(1) do
+    while task.wait(15) do
+        if Library and Library.Unloading then break end
         stepOnline()
     end
 end)
 task.spawn(function()
     while task.wait(120) do
+        if Library and Library.Unloading then break end
         fetchSupportedGamesPlaying()
     end
 end)
@@ -297,15 +399,45 @@ local function joinDiscord(code)
     local targetCode = code or "moondiety"
     local fullLink = "https://discord.gg/" .. targetCode
     if copyclipboard then pcall(copyclipboard, fullLink) end
+    local g = type(getgenv) == "function" and getgenv() or nil
+    if g and type(g._MoondietyJoinDiscord) == "function" then
+        task.spawn(pcall, g._MoondietyJoinDiscord, targetCode)
+        return
+    end
     task.spawn(function()
-        pcall(function()
-            local inviter = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/Discord-Inviter/main/init.luau"))()
-            inviter:Join(targetCode)
-        end)
+        local req = httpRequest or http_request or request
+        if not req then return end
+        local hs = game:GetService("HttpService")
+        for port = 6463, 6472 do
+            local ok, res = pcall(req, {
+                Url = "http://127.0.0.1:" .. port .. "/rpc?v=1",
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json",
+                    ["Origin"] = "https://discord.com",
+                },
+                Body = hs:JSONEncode({
+                    cmd = "INVITE_BROWSER",
+                    args = {code = targetCode},
+                    nonce = hs:GenerateGUID(false),
+                }),
+            })
+            if ok and type(res) == "table" and (res.StatusCode or res.Status) == 200 then
+                break
+            end
+        end
     end)
 end
 
-local Library
+local function formatKeybindDisplay(value)
+    local key = tostring(value or "")
+    local mouseButton = key:match("^MouseButton(%d+)$")
+    if mouseButton then
+        return "MB" .. mouseButton
+    end
+    return key
+end
+
 local function new(class, props, parent)
     local obj = Instance.new(class)
     for key, value in pairs(props) do
@@ -334,6 +466,17 @@ local function stroke(parent, color, thickness, transparency)
     }, parent)
 end
 
+local function setMaxFps()
+    local setCap = setfpscap or set_fps_cap or (syn and syn.set_fps_cap)
+    if typeof(setCap) == "function" then
+        pcall(function()
+            local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+            setCap(isMobile and 120 or 999)
+        end)
+    end
+end
+setMaxFps()
+
 local function getSafeGuiParent()
     local hidden
     pcall(function()
@@ -344,14 +487,17 @@ local function getSafeGuiParent()
     if typeof(hidden) == "Instance" then
         return hidden
     end
+    local canUseCore = false
     local core
     pcall(function()
-        core = game:GetService("CoreGui")
+        local cg = game:GetService("CoreGui")
         local probe = Instance.new("Folder")
-        probe.Parent = core
+        probe.Parent = cg
         probe:Destroy()
+        core = cg
+        canUseCore = true
     end)
-    if core then
+    if canUseCore and core then
         return core
     end
     return LocalPlayer:WaitForChild("PlayerGui")
@@ -844,7 +990,6 @@ local function applyAtmosphere(selfOrName, nameOrNil)
         end
 
 
-
         local function makeCloud(parent, startX, startY)
             local cW = math.random(90, 160)
             local cH = math.random(22, 38)
@@ -875,7 +1020,6 @@ local function applyAtmosphere(selfOrName, nameOrNil)
             table.insert(atmosphereItems, cloud)
             return cloud
         end
-
 
 
         local webStrandsL = makeWeb(holder, 0, 0, false)
@@ -934,7 +1078,6 @@ local function applyAtmosphere(selfOrName, nameOrNil)
         end
 
 
-
         local bats = {}
         for i = 1, 4 do
             local bx = math.random() * width
@@ -990,6 +1133,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
 
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
+            if not holder.Visible then return end
             t = t + dt
             local curCam = workspace.CurrentCamera
             local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
@@ -1109,7 +1253,6 @@ local function applyAtmosphere(selfOrName, nameOrNil)
             end
 
 
-
             for _, c in ipairs(clouds) do
                 c.time = c.time + dt
                 c.x = c.x + c.vx * dt
@@ -1119,8 +1262,6 @@ local function applyAtmosphere(selfOrName, nameOrNil)
                 local cloudAlpha = 0.72 + math.sin(c.time * 0.8 + c.phase) * 0.06
                 c.obj.BackgroundTransparency = math.clamp(cloudAlpha, 0.6, 0.85)
             end
-
-
 
 
         end)
@@ -1157,6 +1298,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
 
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
+            if not holder.Visible then return end
             t = t + dt
             local curCam = workspace.CurrentCamera
             local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
@@ -1206,6 +1348,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
 
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
+            if not holder.Visible then return end
             t = t + dt
             local curCam = workspace.CurrentCamera
             local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
@@ -1254,6 +1397,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
 
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
+            if not holder.Visible then return end
             t = t + dt
             local curCam = workspace.CurrentCamera
             local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
@@ -1303,6 +1447,7 @@ local function applyAtmosphere(selfOrName, nameOrNil)
 
         local t = 0
         atmosphereStepConnection = RunService.Heartbeat:Connect(function(dt)
+            if not holder.Visible then return end
             t = t + dt
             local curCam = workspace.CurrentCamera
             local curVp = curCam and curCam.ViewportSize or Vector2.new(1280, 720)
@@ -1325,6 +1470,12 @@ end
 
 Library = {
     IsMobile = IsMobile,
+    Caps = Capabilities,
+    IsWeak = Capabilities.isWeak,
+    CanMemoryHack = Capabilities.canMemoryHack,
+    CheckCapability = function(self, name)
+        return self.Caps and self.Caps[name] == true
+    end,
     connections = {},
     Flags = {},
     Objects = {},
@@ -1346,6 +1497,7 @@ Library = {
     ToggleBarEnabled = true,
     ToggleBarPlatform = "Both",
     ToggleBarStyle = "Floating Button",
+    ToggleBarSize = 40,
     GameName = "Roblox",
     savedFlags = {},
     activeTaps = {},
@@ -1384,8 +1536,74 @@ Library = {
             Library.AtmosphereHolder.Visible = showAtmo
         end
     end,
+    SetAtmosphereColor = function(selfOrCol, col)
+        local c = (typeof(selfOrCol) == "Color3") and selfOrCol or col
+        if typeof(c) == "Color3" then
+            Library.AtmosphereColor = c
+        end
+    end,
+    IsPremium = false,
+    LockedElements = {},
+    LockedObjects = {},
+    PremiumOnlyTabs = {},
 }
+if genv and type(genv.Moondiety) == "table" and genv.Moondiety ~= Library and type(genv.Moondiety.disconnect) == "function" then
+    pcall(function() genv.Moondiety:disconnect() end)
+end
 genv.Moondiety = Library
+
+local isFileFn = (typeof(isfile) == "function" and isfile) or (type(isfile) == "function" and isfile)
+local readFileFn = (typeof(readfile) == "function" and readfile) or (type(readfile) == "function" and readfile)
+local writeFileFn = (typeof(writefile) == "function" and writefile) or (type(writefile) == "function" and writefile)
+local makeFolderFn = (typeof(makefolder) == "function" and makefolder) or (type(makefolder) == "function" and makefolder)
+local isFolderFn = (typeof(isfolder) == "function" and isfolder) or (type(isfolder) == "function" and isfolder)
+
+local KEY_FILE = ROOT_FOLDER .. "/key.txt"
+local CACHE_KEY_FILE = ROOT_FOLDER .. "/Cache/key.txt"
+
+local function _loadKey()
+    if isFileFn and readFileFn then
+        for _, path in ipairs({CACHE_KEY_FILE, KEY_FILE}) do
+            if isFileFn(path) then
+                local ok, k = pcall(readFileFn, path)
+                if ok and type(k) == "string" then
+                    k = k:match("^%s*(.-)%s*$")
+                    if #k > 0 then return k end
+                end
+            end
+        end
+    end
+    return genv._MoondietyKey or shared._MoondietyKey
+end
+
+local function _saveKey(key)
+    if not key or key == "" then return end
+    if writeFileFn then
+        pcall(function()
+            ensureFolder(ROOT_FOLDER)
+            ensureFolder(ROOT_FOLDER .. "/Cache")
+            writeFileFn(KEY_FILE, tostring(key))
+            writeFileFn(CACHE_KEY_FILE, tostring(key))
+        end)
+    end
+    genv._MoondietyKey = key
+    shared._MoondietyKey = key
+end
+
+genv._MoondietySaveKey = _saveKey
+genv._MoondietyLoadKey = _loadKey
+
+local savedKey = _loadKey()
+if savedKey then
+    genv._MoondietyKey = savedKey
+    shared._MoondietyKey = savedKey
+end
+
+local isUserPremium = (LRM_KeyTier == "premium")
+    or (LRM_IsUserPremium == true)
+    or (genv and (genv._MoondietyPremium == true or genv._MoondietyVerifiedPremium == true))
+    or (savedKey ~= nil and genv._MoondietyPremium == true)
+Library.IsPremium = (isUserPremium == true)
 
 local CONTAINER_SIZE = UDim2.new(0.44, 0, 0.44, 0)
 local CONTAINER_SIZE_TOUCH = UDim2.new(0.92, 0, 0.78, 0)
@@ -1402,7 +1620,14 @@ local ERROR_COLOR = Color3.fromRGB(248, 113, 113)
 local INFO_COLOR = Color3.fromRGB(96, 165, 250)
 
 local function font(weight)
-    return Font.new("rbxasset://fonts/families/Montserrat.json", weight or Enum.FontWeight.SemiBold)
+    local f
+    pcall(function()
+        f = Font.new("rbxasset://fonts/families/Montserrat.json", weight or Enum.FontWeight.SemiBold)
+    end)
+    if f then
+        return f
+    end
+    return Font.fromEnum(Enum.Font.GothamBold)
 end
 
 local function bind(signal, fn)
@@ -1752,6 +1977,9 @@ local function ApplyTheme(name, customAccent)
     if Library.OnThemeChanged then
         Library.OnThemeChanged()
     end
+    if Library.UpdatePremiumPromptTheme then
+        pcall(Library.UpdatePremiumPromptTheme)
+    end
     if Library.UpdateHUDThemes then
         Library.UpdateHUDThemes()
     end
@@ -1764,6 +1992,12 @@ local function ApplyTheme(name, customAccent)
                 ab:UpdateTheme(cContainer, cLine, cAccent)
             end
         end
+    end
+    if Library.UpdateToggleBarCustomization then
+        Library:UpdateToggleBarCustomization()
+    end
+    if Library.UpdateTierTags then
+        Library:UpdateTierTags()
     end
 end
 
@@ -1828,6 +2062,9 @@ Library.Icons = {
 local SystemSettings = {
     themeselector = true,
     custom_accent_color = true,
+    custom_accent_color_color = true,
+    settings_custom_accent = true,
+    settings_custom_accent_color = true,
     island_toggle = true,
     island_style_dropdown = true,
     watermark_toggle = true,
@@ -1841,12 +2078,14 @@ local SystemSettings = {
     setting_ambience_opacity = true,
     setting_ambience_hide = true,
     universal_autoload_script = true,
+    autoload_script_hop = true,
     multi_language_toggle = true,
     language_selector = true,
     custom_cursor_toggle = true,
     cursor_style = true,
     cursor_size = true,
     cursor_color = true,
+    cursor_color_color = true,
     custom_cursor_url = true,
     window_bg_image_toggle = true,
     window_bg_image_url = true,
@@ -1855,6 +2094,11 @@ local SystemSettings = {
     hud_button_size = true,
     hud_button_rounding = true,
     hud_button_transparency = true,
+    hud_button_style = true,
+    hud_button_glow = true,
+    hud_button_glow_intensity = true,
+    hud_show_floating_buttons = true,
+    hud_floating_buttons_key = true,
     hud_lock_positions = true
 }
 
@@ -1865,12 +2109,82 @@ local ACCENT_FILE = ROOT_FOLDER .. "/accent.txt"
 Library.ActiveConfig = "None"
 Library.DefaultAutoSave = false
 
-ApplyTheme("Eclipse")
+ensureFolder(ROOT_FOLDER)
+Library.SavedSettings = {}
+local hasSavedTheme = false
+if isfile(SETTINGS_FILE) then
+    local ok, decoded = pcall(function() return HttpService:JSONDecode(readfile(SETTINGS_FILE)) end)
+    if ok and type(decoded) == "table" then
+        Library.SavedSettings = decoded
+        if decoded.themeselector and Themes[decoded.themeselector] then
+            Library.Theme = decoded.themeselector
+            hasSavedTheme = true
+        end
+        local accTbl = (type(decoded.custom_accent_color) == "table" and decoded.custom_accent_color)
+            or ((decoded.custom_accent_color == true or decoded.settings_custom_accent == true) and (type(decoded.custom_accent_color_color) == "table" and decoded.custom_accent_color_color or (type(decoded.settings_custom_accent_color) == "table" and decoded.settings_custom_accent_color)))
+        if type(accTbl) == "table" and #accTbl >= 3 then
+            Library.CustomAccent = Color3.fromRGB(accTbl[1], accTbl[2], accTbl[3])
+            genv.accent = Library.CustomAccent
+        end
+        if decoded.hud_button_size then
+            Library.HudButtonSize = tonumber(decoded.hud_button_size) or 58
+        end
+        if decoded.hud_button_rounding then
+            Library.HudButtonRounding = tonumber(decoded.hud_button_rounding) or 16
+        end
+        if decoded.hud_button_style then
+            Library.HudButtonStyle = decoded.hud_button_style
+        end
+        if decoded.hud_button_transparency ~= nil then
+            Library.HudButtonTransparency = (tonumber(decoded.hud_button_transparency) or 20) / 100
+        end
+        if decoded.hud_button_glow ~= nil then
+            Library.HudGlowEnabled = (decoded.hud_button_glow == true)
+        end
+        if decoded.hud_button_glow_intensity ~= nil then
+            Library.HudGlowIntensity = (tonumber(decoded.hud_button_glow_intensity) or 100) / 100
+        end
+        if decoded.hud_show_floating_buttons ~= nil then
+            Library.FloatingButtonsVisible = (decoded.hud_show_floating_buttons == true)
+        end
+    end
+end
+if not hasSavedTheme then
+    if isfile(THEME_FILE) then
+        local ok, themeName = pcall(readfile, THEME_FILE)
+        if ok and themeName then
+            themeName = themeName:match("^%s*(.-)%s*$")
+        end
+        if ok and themeName and Themes[themeName] then
+            Library.Theme = themeName
+        else
+            Library.Theme = "Eclipse"
+        end
+    else
+        Library.Theme = "Eclipse"
+    end
+end
+if not Library.CustomAccent and isfile(ACCENT_FILE) then
+    local ok, rawAcc = pcall(readfile, ACCENT_FILE)
+    if ok and type(rawAcc) == "string" and #rawAcc >= 5 then
+        local r, g, b = rawAcc:match("(%d+)%s*,%s*(%d+)%s*,%s*(%d+)")
+        if r and g and b then
+            Library.CustomAccent = Color3.fromRGB(tonumber(r), tonumber(g), tonumber(b))
+        elseif #rawAcc >= 6 then
+            Library.CustomAccent = hexToColor(rawAcc:match("^%s*(.-)%s*$"), nil)
+        end
+    end
+end
+ApplyTheme(Library.Theme, Library.CustomAccent)
 
 function Library:SetTheme(name)
     local isCustom = false
     if Library.Objects and Library.Objects.settings_custom_accent and Library.Objects.settings_custom_accent.GetValue then
         isCustom = Library.Objects.settings_custom_accent:GetValue() == true
+    elseif Library.Objects and Library.Objects.custom_accent_color and Library.Objects.custom_accent_color.GetValue then
+        isCustom = Library.Objects.custom_accent_color:GetValue() == true
+    elseif self.Flags and (self.Flags.custom_accent_color == true or self.Flags.settings_custom_accent == true) then
+        isCustom = true
     end
     local accent = isCustom and Library.CustomAccent or nil
     ApplyTheme(name, accent)
@@ -1947,7 +2261,13 @@ function Library:SetActiveConfig(name)
 end
 
 function Library:SaveSettings()
+    if self.Unloading or Library.Unloading then return false end
     local data = {}
+    if type(self.SavedSettings) == "table" then
+        for k, v in pairs(self.SavedSettings) do
+            data[k] = v
+        end
+    end
     for flag, obj in pairs(self.Objects) do
         if SystemSettings[flag] and obj.GetValue then
             local ok, val = pcall(function() return obj:GetValue() end)
@@ -1961,6 +2281,7 @@ function Library:SaveSettings()
             data[flag] = self.Flags[flag]
         end
     end
+    self.SavedSettings = data
     ensureFolder(ROOT_FOLDER)
     local ok, encoded = pcall(function() return HttpService:JSONEncode(data) end)
     if ok then
@@ -1979,9 +2300,67 @@ function Library:LoadSettings()
             self.Flags[flag] = value
             local obj = self.Objects[flag]
             if obj and obj.SetValue then
-                pcall(function() obj:SetValue(value) end)
+                pcall(function() obj:SetValue(value, true) end)
             end
         end
+    end
+    if data.themeselector and Themes[data.themeselector] then
+        self.Theme = data.themeselector
+    end
+    local accTbl = (type(data.custom_accent_color) == "table" and data.custom_accent_color)
+        or ((data.custom_accent_color == true or data.settings_custom_accent == true) and (type(data.custom_accent_color_color) == "table" and data.custom_accent_color_color or (type(data.settings_custom_accent_color) == "table" and data.settings_custom_accent_color)))
+    if type(accTbl) == "table" and #accTbl >= 3 then
+        self.CustomAccent = Color3.fromRGB(accTbl[1], accTbl[2], accTbl[3])
+    elseif data.custom_accent_color == false or data.settings_custom_accent == false then
+        self.CustomAccent = nil
+    end
+    ApplyTheme(self.Theme or "Eclipse", self.CustomAccent)
+    if data.hud_button_size then
+        self:SetHudButtonSize(data.hud_button_size)
+    end
+    if data.hud_button_rounding then
+        self:SetHudButtonRounding(data.hud_button_rounding)
+    end
+    if data.hud_button_style then
+        self:SetHudButtonStyle(data.hud_button_style)
+    end
+    if data.hud_button_transparency ~= nil then
+        self:SetHudButtonTransparency(data.hud_button_transparency / 100)
+    end
+    if data.hud_button_glow ~= nil then
+        self:SetHudGlowEnabled(data.hud_button_glow)
+    end
+    if data.hud_button_glow_intensity ~= nil then
+        self:SetHudGlowIntensity(data.hud_button_glow_intensity / 100)
+    end
+    local isMobileUser = self.IsMobile or IsMobile
+    local savedMode = data.hud_display_mode
+    local savedKeybinds = data.keybind_hud_toggle
+    local savedFloating = data.hud_show_floating_buttons
+    if isMobileUser and savedMode == "Both" and savedKeybinds ~= true then
+        if savedFloating == true then
+            savedMode = "Floating Buttons Only"
+        else
+            savedMode = "None"
+        end
+    end
+    if savedMode ~= nil then
+        self.HudMode = savedMode
+        if self.Objects and self.Objects["hud_display_mode"] and self.Objects["hud_display_mode"].SetValue then
+            if self.Objects["hud_display_mode"]:GetValue() ~= savedMode then
+                self.Objects["hud_display_mode"]:SetValue(savedMode, true)
+            end
+        end
+    end
+    if savedKeybinds ~= nil then
+        self:SetKeybindListVisible(savedKeybinds)
+    elseif isMobileUser then
+        self:SetKeybindListVisible(false)
+    end
+    if savedFloating ~= nil then
+        self:SetFloatingButtonsVisible(savedFloating)
+    else
+        self:UpdateHudVisibility()
     end
     return true
 end
@@ -2076,6 +2455,11 @@ local localeMap = {
     Chinese = {loc = "zh-cn", code = "zh-CN"}
 }
 
+local hasHttpGet = false
+pcall(function()
+    hasHttpGet = type(game.HttpGet) == "function"
+end)
+
 local function fetchOnlineTranslation(text, targetCode)
     local req = (syn and syn.request) or (http and http.request) or request
     local url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=" .. targetCode .. "&dt=t&q=" .. HttpService:UrlEncode(text)
@@ -2087,7 +2471,7 @@ local function fetchOnlineTranslation(text, targetCode)
                 return data[1][1][1]
             end
         end
-    elseif game.HttpGet then
+    elseif hasHttpGet then
         local ok, body = pcall(function() return game:HttpGet(url) end)
         if ok and body and body ~= "" then
             local dok, data = pcall(function() return HttpService:JSONDecode(body) end)
@@ -2099,7 +2483,7 @@ local function fetchOnlineTranslation(text, targetCode)
     return nil
 end
 
-function Library:TranslateText(text, targetLang)
+function Library:TranslateText(text, targetLang, skipOnline)
     if not text or type(text) ~= "string" or text == "" then return text end
     targetLang = targetLang or Library.Flags.language_selector or "Spanish"
     if targetLang == "English" then return text end
@@ -2123,17 +2507,29 @@ function Library:TranslateText(text, targetLang)
 
     if text:sub(1, 3) == "== " and text:sub(-3) == " ==" then
         local inner = text:sub(4, -4)
-        local transInner = Library:TranslateText(inner, targetLang)
+        local transInner = Library:TranslateText(inner, targetLang, skipOnline)
         local res = "== " .. string.upper(transInner) .. " =="
-        Library.TranslationCache[targetLang][text] = res
-        saveTranslationCache(targetLang)
+        if transInner ~= inner then
+            Library.TranslationCache[targetLang][text] = res
+            saveTranslationCache(targetLang)
+        end
         return res
     end
 
     if not cachedTranslators[meta.loc] then
-        pcall(function()
-            cachedTranslators[meta.loc] = LocalizationService:GetTranslatorForLocaleAsync(meta.loc)
-        end)
+        if skipOnline then
+            task.spawn(function()
+                pcall(function()
+                    if not cachedTranslators[meta.loc] then
+                        cachedTranslators[meta.loc] = LocalizationService:GetTranslatorForLocaleAsync(meta.loc)
+                    end
+                end)
+            end)
+        else
+            pcall(function()
+                cachedTranslators[meta.loc] = LocalizationService:GetTranslatorForLocaleAsync(meta.loc)
+            end)
+        end
     end
     local trans = cachedTranslators[meta.loc]
     if trans then
@@ -2156,6 +2552,10 @@ function Library:TranslateText(text, targetLang)
                 return r2
             end
         end
+    end
+
+    if skipOnline then
+        return text
     end
 
     local online = fetchOnlineTranslation(text, meta.code)
@@ -2211,9 +2611,9 @@ function Library:SetMultiLanguage(enabled, targetLang)
                         if Library.TranslationCache[targetLang][src] then
                             elem.Text = Library.TranslationCache[targetLang][src]
                         else
-                            local quick = Library:TranslateText(src, targetLang)
+                            local quick = Library:TranslateText(src, targetLang, true)
                             elem.Text = quick
-                            if quick == src and meta and canTranslate(src) and (syn or http or request or game.HttpGet) then
+                            if quick == src and meta and canTranslate(src) and (syn or http or request or hasHttpGet) then
                                 if not pendingMap[src] then
                                     pendingMap[src] = {}
                                     pendingCount = pendingCount + 1
@@ -2340,13 +2740,10 @@ Library.CursorPresetNames = {
 }
 
 function Library:SetCustomCursor(enabled, style, size, color, assetUrl)
-    if not enabled then
+    if not enabled or (IsMobile and not UserInputService.MouseEnabled) then
         if CursorGui then CursorGui.Enabled = false end
         if CursorConn then CursorConn:Disconnect(); CursorConn = nil end
         UserInputService.MouseIconEnabled = true
-        return
-    end
-    if IsMobile and not UserInputService.MouseEnabled then
         return
     end
     UserInputService.MouseIconEnabled = false
@@ -2356,7 +2753,7 @@ function Library:SetCustomCursor(enabled, style, size, color, assetUrl)
         CursorGui.ResetOnSpawn = false
         CursorGui.IgnoreGuiInset = true
         CursorGui.DisplayOrder = 1000000
-        CursorGui.Parent = (gethui and gethui()) or CoreGui
+        CursorGui.Parent = getSafeGuiParent()
         CursorDot = Instance.new("ImageLabel")
         CursorDot.Name = "CursorIcon"
         CursorDot.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -2380,15 +2777,19 @@ function Library:SetCustomCursor(enabled, style, size, color, assetUrl)
     if style == "Custom Image" or (assetUrl and assetUrl ~= "" and not preset) then
         local targetUrl = assetUrl or ""
         if targetUrl:find("^https?://") then
-            pcall(function()
-                local getAsset = getsynasset or getcustomasset
-                if getAsset and writefile then
-                    local res = game:HttpGet(targetUrl)
-                    ensureFolder(ROOT_FOLDER)
-                    local cursorPath = ROOT_FOLDER .. "/custom_cursor.png"
-                    writefile(cursorPath, res)
-                    CursorDot.Image = getAsset(cursorPath)
-                end
+            task.spawn(function()
+                pcall(function()
+                    local getAsset = getsynasset or getcustomasset
+                    if getAsset and Capabilities.writefile and hasHttpGet then
+                        local res = game:HttpGet(targetUrl)
+                        ensureFolder(ROOT_FOLDER)
+                        local cursorPath = ROOT_FOLDER .. "/custom_cursor.png"
+                        writefile(cursorPath, res)
+                        if CursorDot and CursorDot.Parent then
+                            CursorDot.Image = getAsset(cursorPath)
+                        end
+                    end
+                end)
             end)
         elseif targetUrl:match("^%d+$") then
             CursorDot.Image = "rbxassetid://" .. targetUrl
@@ -2397,7 +2798,8 @@ function Library:SetCustomCursor(enabled, style, size, color, assetUrl)
         end
     end
     if CursorConn then CursorConn:Disconnect() end
-    CursorConn = RunService.RenderStepped:Connect(function()
+    CursorConn = bind(RunService.RenderStepped, function()
+        if not CursorDot or not CursorDot.Parent then return end
         local mousePos = UserInputService:GetMouseLocation()
         CursorDot.Position = UDim2.new(0, mousePos.X, 0, mousePos.Y)
     end)
@@ -2409,43 +2811,36 @@ function Library:SetWindowBg(enabled, assetIdOrUrl, transparency)
     Library.WindowBgImage.ImageTransparency = tonumber(transparency) or 0.3
     if not enabled or not assetIdOrUrl or assetIdOrUrl == "" then return end
     if assetIdOrUrl:find("^https?://") then
-        pcall(function()
-            local getAsset = getsynasset or getcustomasset
-            if getAsset and writefile then
-                local res = game:HttpGet(assetIdOrUrl)
-                ensureFolder(ROOT_FOLDER)
-                local bgPath = ROOT_FOLDER .. "/custom_bg.png"
-                writefile(bgPath, res)
-                Library.WindowBgImage.Image = getAsset(bgPath)
-            end
+        task.spawn(function()
+            pcall(function()
+                local getAsset = getsynasset or getcustomasset
+                if getAsset and Capabilities.writefile and hasHttpGet then
+                    local res = game:HttpGet(assetIdOrUrl)
+                    ensureFolder(ROOT_FOLDER)
+                    local bgPath = ROOT_FOLDER .. "/custom_bg.png"
+                    writefile(bgPath, res)
+                    if Library.WindowBgImage and Library.WindowBgImage.Parent then
+                        Library.WindowBgImage.Image = getAsset(bgPath)
+                    end
+                end
+            end)
         end)
     else
         Library.WindowBgImage.Image = assetIdOrUrl
     end
 end
 
-Library.OnlineCount = 0
+Library.OnlineCount = (genv and tonumber(genv._MoondietyOnlineCount)) or 0
 task.spawn(function()
     while true do
+        if Library.Unloading then break end
         pcall(function()
-            local req = (syn and syn.request) or request or (http and http.request) or http_request
-            if req then
-                local res = req({
-                    Url = "http://c-pl-1.apexnodes.xyz:10002/online",
-                    Method = "GET"
-                })
-                if res and (res.StatusCode == 200 or res.Status == 200) then
-                    local body = res.Body or res.body
-                    local data = HttpService:JSONDecode(body)
-                    if data and data.online then
-                        Library.OnlineCount = tonumber(data.online) or Library.OnlineCount
-                        if Library.OnlineCount > 0 then
-                            scriptActiveUsers = Library.OnlineCount
-                            for _, fn in ipairs(scriptUserListeners) do
-                                pcall(fn, scriptActiveUsers)
-                            end
-                        end
-                    end
+            local real, fresh = fetchOnlineFromServer()
+            if real and real > 0 then
+                Library.OnlineCount = real
+                scriptActiveUsers = real
+                for _, fn in ipairs(scriptUserListeners) do
+                    pcall(fn, scriptActiveUsers)
                 end
             end
         end)
@@ -2453,13 +2848,25 @@ task.spawn(function()
     end
 end)
 
-function Library:SetAutoLoadScript(enabled)
-    Library.SavedSettings.universal_autoload_script = enabled and true or false
-    Library:SaveSettings()
+function Library:GetAutoLoadScript()
+    if self.SavedSettings and self.SavedSettings.universal_autoload_script ~= nil then
+        return self.SavedSettings.universal_autoload_script == true
+    end
+    if self.Flags and self.Flags.universal_autoload_script ~= nil then
+        return self.Flags.universal_autoload_script == true
+    end
+    if isfile(SETTINGS_FILE) then
+        local ok, data = pcall(function() return HttpService:JSONDecode(readfile(SETTINGS_FILE)) end)
+        if ok and type(data) == "table" and data.universal_autoload_script ~= nil then
+            return data.universal_autoload_script == true
+        end
+    end
+    return true
 end
 
-local LOADER_URL = "https://moondiety.com/loader"
-local LOADER_CODE = 'loadstring(game:HttpGet("' .. LOADER_URL .. '"))()'
+local LOADER_URL = (genv and type(genv._MoondietyLoaderUrl) == "string" and genv._MoondietyLoaderUrl) or "https://moondiety.com/loader"
+local LOADER_CODE = (genv and type(genv._MoondietyTeleportPayload) == "string" and genv._MoondietyTeleportPayload)
+    or ('pcall(function() local p="Moondiety/V2/settings.json" if isfile and isfile(p) then local ok,d=pcall(function() return game:GetService("HttpService"):JSONDecode(readfile(p)) end) if ok and type(d)=="table" and d.universal_autoload_script==false then return end end if getgenv then getgenv()._MoondietyServerHop=true end shared._MoondietyServerHop=true loadstring(game:HttpGet("' .. LOADER_URL .. '"))() end)')
 
 local queueAlreadySet = false
 local lastQueueSetTime = 0
@@ -2473,9 +2880,13 @@ local function getQueueFn()
 end
 
 local function queueOnTeleport(force)
-    if Library.SavedSettings and Library.SavedSettings.universal_autoload_script == false then return end
+    if not Library:GetAutoLoadScript() then return end
+    if genv and type(genv._MoondietyQueueTeleport) == "function" then
+        local ok = pcall(genv._MoondietyQueueTeleport, force)
+        if ok then return end
+    end
     if queueAlreadySet and not force then return end
-    if not force and (tick() - lastQueueSetTime) < 5 then return end
+    if (tick() - lastQueueSetTime) < (force and 2 or 5) then return end
     local q = getQueueFn()
     if q then
         local ok = pcall(q, LOADER_CODE)
@@ -2486,25 +2897,55 @@ local function queueOnTeleport(force)
     end
 end
 
+function Library:SetAutoLoadScript(enabled)
+    local state = (enabled == true)
+    if not self.SavedSettings then self.SavedSettings = {} end
+    self.SavedSettings.universal_autoload_script = state
+    self.Flags.universal_autoload_script = state
+    self.Flags.autoload_script_hop = state
+    local toggleObj = self.Objects.universal_autoload_script or self.Objects.autoload_script_hop
+    if toggleObj and toggleObj.GetValue and toggleObj:GetValue() ~= state then
+        pcall(function() toggleObj:SetValue(state, true) end)
+    end
+    self:SaveSettings()
+    if state then
+        queueOnTeleport(true)
+    else
+        local q = getQueueFn()
+        if q then
+            pcall(q, "")
+        end
+        queueAlreadySet = false
+    end
+end
+
 queueOnTeleport()
 
 pcall(function()
-    LocalPlayer.OnTeleport:Connect(function(state)
-        if state == Enum.TeleportState.Started or state == Enum.TeleportState.InProgress then
-            queueOnTeleport()
+    bind(LocalPlayer.OnTeleport, function(state)
+        if state == Enum.TeleportState.Started then
+            if Library:GetAutoLoadScript() then
+                pcall(function()
+                    ensureFolder(ROOT_FOLDER .. "/Cache")
+                    writefile(ROOT_FOLDER .. "/Cache/hop.txt", tostring(os.time()))
+                end)
+                queueOnTeleport(true)
+            end
         end
     end)
 end)
 
 pcall(function()
-    TeleportService.TeleportInitFailed:Connect(function()
-        queueOnTeleport(true)
-    end)
-end)
-
-pcall(function()
-    game:BindToClose(function()
-        queueOnTeleport()
+    bind(TeleportService.TeleportInitFailed, function()
+        pcall(function()
+            if isfile(ROOT_FOLDER .. "/Cache/hop.txt") then
+                delfile(ROOT_FOLDER .. "/Cache/hop.txt")
+            end
+        end)
+        if Library:GetAutoLoadScript() then
+            lastQueueSetTime = 0
+            queueOnTeleport(true)
+        end
     end)
 end)
 
@@ -2518,7 +2959,7 @@ function Library:GetHudPositionsFile()
     return ROOT_FOLDER .. "/Positions/hud_positions_" .. tostring(gId) .. ".json"
 end
 Library.HudPositionsFile = Library:GetHudPositionsFile()
-Library.HudMode = "Both"
+Library.HudMode = IsMobile and "None" or "Keybind HUD Only"
 Library.HudButtonSize = 58
 Library.HudButtonRounding = 16
 Library.HudButtonTransparency = 0.2
@@ -2562,25 +3003,53 @@ function Library:LoadHudPositions()
         end
     end)
 end
-Library.FloatingButtonsVisible = true
+Library.FloatingButtonsVisible = false
 Library:LoadHudPositions()
 
 function Library:SetFloatingButtonsVisible(state)
-    Library.FloatingButtonsVisible = (state == true)
+    local visible = (state == true)
+    Library.FloatingButtonsVisible = visible
+    local mode = Library.HudMode or ((Library.IsMobile or IsMobile) and "None" or "Keybind HUD Only")
+    local hasKeybinds = (mode == "Both" or mode == "Keybind HUD Only")
+    if Library.KeybindListEnabled == false then
+        hasKeybinds = false
+    elseif Library.KeybindListEnabled == true and (mode == "Keybind HUD Only" or mode == "Both") then
+        hasKeybinds = true
+    end
+    local nextMode
+    if visible and hasKeybinds then
+        nextMode = "Both"
+    elseif visible then
+        nextMode = "Floating Buttons Only"
+    elseif hasKeybinds then
+        nextMode = "Keybind HUD Only"
+    else
+        nextMode = "None"
+    end
+    Library.HudMode = nextMode
     if Library.Objects and Library.Objects["hud_show_floating_buttons"] and Library.Objects["hud_show_floating_buttons"].SetValue then
-        if Library.Objects["hud_show_floating_buttons"]:GetValue() ~= Library.FloatingButtonsVisible then
-            Library.Objects["hud_show_floating_buttons"]:SetValue(Library.FloatingButtonsVisible, true)
+        if Library.Objects["hud_show_floating_buttons"]:GetValue() ~= visible then
+            Library.Objects["hud_show_floating_buttons"]:SetValue(visible, true)
+        end
+    end
+    if Library.Objects and Library.Objects["hud_display_mode"] and Library.Objects["hud_display_mode"].SetValue then
+        if Library.Objects["hud_display_mode"]:GetValue() ~= nextMode then
+            Library.Objects["hud_display_mode"]:SetValue(nextMode, true)
         end
     end
     Library:UpdateHudVisibility()
 end
 
 function Library:UpdateHudVisibility()
-    local mode = Library.HudMode or "Both"
+    local isMobileUser = Library.IsMobile or IsMobile
+    local mode = Library.HudMode or (isMobileUser and "None" or "Keybind HUD Only")
     local showButtons = (mode == "Both" or mode == "Floating Buttons Only")
     local showKeybinds = (mode == "Both" or mode == "Keybind HUD Only")
     if Library.FloatingButtonsVisible == false then
         showButtons = false
+    end
+    if Library.KeybindListEnabled == false then
+        showKeybinds = false
     end
     if Library.HudGui then
         Library.HudGui.Enabled = showButtons
@@ -2590,9 +3059,12 @@ function Library:UpdateHudVisibility()
     end
 end
 
-Library.HudButtonStyle = "Card"
-Library.HudGlowEnabled = true
-Library.HudGlowIntensity = 1
+Library.HudButtonStyle = Library.HudButtonStyle or "Card"
+Library.HudGlowEnabled = (Library.HudGlowEnabled ~= nil) and Library.HudGlowEnabled or true
+Library.HudGlowIntensity = Library.HudGlowIntensity or 1
+Library.HudButtonSize = Library.HudButtonSize or 58
+Library.HudButtonRounding = Library.HudButtonRounding or 16
+Library.HudButtonTransparency = Library.HudButtonTransparency or 0.2
 
 Library.HudStyle = {
     iconOff = Color3.fromRGB(150, 155, 172),
@@ -2626,52 +3098,134 @@ function Library:ApplyHudProps(list, animate)
     end
 end
 
+function Library:UpdateToggleBarCustomization()
+    local btn = Library.ToggleBarBtn
+    if not btn or not btn.Parent then return end
+    local s = tonumber(Library.ToggleBarSize) or 40
+    local mode = string.lower(Library.HudButtonStyle or "card")
+    local radius = tonumber(Library.HudButtonRounding) or 10
+    local trans = tonumber(Library.HudButtonTransparency) or 0
+    local glowEnabled = Library.HudGlowEnabled ~= false
+    local intensity = tonumber(Library.HudGlowIntensity) or 1
+    local cAccent = genv.accent or Color3.fromRGB(168, 85, 247)
+
+    local w, h = s, s
+    if mode == "capsule" then
+        h = math.max(30, math.floor(s * 0.75))
+        w = math.max(h * 1.6, math.floor(s * 1.5))
+        radius = h / 2
+    elseif mode == "orb" then
+        radius = s / 2
+    else
+        radius = math.min(radius, math.floor(s * 0.28))
+    end
+
+    btn.Size = UDim2.new(0, w, 0, h)
+    btn.BackgroundTransparency = trans
+
+    if Library.ToggleBarCorner then
+        Library.ToggleBarCorner.CornerRadius = UDim.new(0, radius)
+    end
+
+    if Library.ToggleBarIcon then
+        local iconSize = math.floor(math.min(w, h) * 0.52)
+        Library.ToggleBarIcon.Size = UDim2.new(0, iconSize, 0, iconSize)
+    end
+
+    if Library.ToggleBarDot then
+        if mode == "orb" then
+            local off = math.floor(s * 0.35)
+            Library.ToggleBarDot.AnchorPoint = Vector2.new(0.5, 0.5)
+            Library.ToggleBarDot.Position = UDim2.new(0.5, off, 0.5, -off)
+        else
+            Library.ToggleBarDot.AnchorPoint = Vector2.new(1, 0)
+            Library.ToggleBarDot.Position = UDim2.new(1, -5, 0, 5)
+        end
+        Library.ToggleBarDot.Size = UDim2.fromOffset(4, 4)
+    end
+
+    if Library.ToggleBarStroke then
+        local alpha = glowEnabled and math.clamp(0.4 * (1 - intensity * 0.7), 0, 0.8) or 0.7
+        Library.ToggleBarStroke.Transparency = alpha
+        Library.ToggleBarStroke.Thickness = glowEnabled and (1.2 + intensity * 1.0) or 1.0
+        Library.ToggleBarStroke.Color = cAccent
+    end
+end
+
+function Library:SetToggleBarSize(newSize)
+    newSize = tonumber(newSize) or 40
+    Library.ToggleBarSize = newSize
+    Library.Flags["hud_logo_toggle_size"] = newSize
+    Library:UpdateToggleBarCustomization()
+    Library:save_settings_auto()
+end
+
 function Library:SetHudButtonSize(newSize)
     newSize = tonumber(newSize) or 58
     Library.HudButtonSize = newSize
+    Library.Flags["hud_button_size"] = newSize
     for _, item in pairs(Library.ActionButtons) do
-        if item.Resize then item:Resize(newSize) end
+        if item.Resize then
+            pcall(function() item:Resize(newSize) end)
+        end
     end
+    Library:UpdateToggleBarCustomization()
+    Library:save_settings_auto()
 end
 
 function Library:SetHudButtonRounding(radius)
     radius = tonumber(radius) or 16
     Library.HudButtonRounding = radius
+    Library.Flags["hud_button_rounding"] = radius
     for _, item in pairs(Library.ActionButtons) do
         if item.Layout then item:Layout() end
     end
+    Library:UpdateToggleBarCustomization()
+    Library:save_settings_auto()
 end
 
 function Library:SetHudButtonStyle(name)
     Library.HudButtonStyle = name or "Card"
+    Library.Flags["hud_button_style"] = Library.HudButtonStyle
     for _, item in pairs(Library.ActionButtons) do
         if item.SetStyle then
             item:SetStyle(Library.HudButtonStyle)
         end
     end
+    Library:UpdateToggleBarCustomization()
+    Library:save_settings_auto()
 end
 
 function Library:SetHudButtonTransparency(trans)
     trans = tonumber(trans) or 0.2
     Library.HudButtonTransparency = trans
+    Library.Flags["hud_button_transparency"] = math.floor(trans * 100)
     for _, item in pairs(Library.ActionButtons) do
         if item.face then item.face.BackgroundTransparency = trans end
     end
+    Library:UpdateToggleBarCustomization()
+    Library:save_settings_auto()
 end
 
 function Library:SetHudGlowEnabled(enabled)
     Library.HudGlowEnabled = (enabled == true)
+    Library.Flags["hud_button_glow"] = Library.HudGlowEnabled
     for _, item in pairs(Library.ActionButtons) do
         if item.UpdateGlow then item:UpdateGlow() end
     end
+    Library:UpdateToggleBarCustomization()
+    Library:save_settings_auto()
 end
 
 function Library:SetHudGlowIntensity(intensity)
     intensity = tonumber(intensity) or 1
     Library.HudGlowIntensity = math.clamp(intensity, 0, 1)
+    Library.Flags["hud_button_glow_intensity"] = math.floor(Library.HudGlowIntensity * 100)
     for _, item in pairs(Library.ActionButtons) do
         if item.UpdateGlow then item:UpdateGlow() end
     end
+    Library:UpdateToggleBarCustomization()
+    Library:save_settings_auto()
 end
 
 function Library:ResetHudPositions()
@@ -2720,6 +3274,17 @@ function Library:UpdateActionButtonStateByFlag(flag, state)
     end
 end
 
+function Library:SetActionButtonVisible(id, visible)
+    local item = Library.ActionButtons[id]
+    if item and item.btn then
+        item.btn.Visible = (visible == true)
+        local toggleObj = Library.Objects["hud_show_" .. id]
+        if toggleObj and toggleObj.SetValue and toggleObj:GetValue() ~= (visible == true) then
+            pcall(function() toggleObj:SetValue(visible == true, true) end)
+        end
+    end
+end
+
 function Library:RegisterActionButton(cfg)
     local id = cfg.id or cfg.name
     if not id then return end
@@ -2737,7 +3302,7 @@ function Library:RegisterActionButton(cfg)
         btnGui.ResetOnSpawn = false
         btnGui.IgnoreGuiInset = true
         btnGui.DisplayOrder = 99999
-        btnGui.Enabled = (Library.FloatingButtonsVisible ~= false)
+        btnGui.Enabled = (Library.FloatingButtonsVisible == true)
         btnGui.Parent = getSafeGuiParent()
         Library.HudGui = btnGui
     end
@@ -2772,6 +3337,7 @@ function Library:RegisterActionButton(cfg)
         Size = UDim2.fromOffset(size, size),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
+        Visible = (cfg.visible ~= false),
     }, btnGui)
     local rootScale = new("UIScale", {Scale = 0.7}, root)
 
@@ -2980,19 +3546,21 @@ function Library:RegisterActionButton(cfg)
         end
     end
 
+    local paint
+
     function item:Resize(newSize)
         item.size = newSize or Library.HudButtonSize or 58
         item:Layout()
-        paint(false)
+        if paint then paint(false) end
     end
 
     function item:SetStyle(name)
         item.styleName = name or Library.HudButtonStyle or "Card"
         item:Layout()
-        paint(false)
+        if paint then paint(false) end
     end
 
-    local function paint(animate, cContainer, cLine, cAccent)
+    paint = function(animate, cContainer, cLine, cAccent)
         cAccent = cAccent or genv.accent or cfg.color or Color3.fromRGB(168, 85, 247)
         cContainer = cContainer or genv.uicontainer or Color3.fromRGB(18, 19, 24)
         cLine = cLine or genv.uiline or Color3.fromRGB(42, 45, 56)
@@ -3002,7 +3570,7 @@ function Library:RegisterActionButton(cfg)
         local strokeColor = (on or item.hovered) and cAccent or cLine
         local strokeAlpha = on and 0.1 or (item.hovered and 0.25 or 0.4)
         local list = {
-            {face, {BackgroundColor3 = faceColor}},
+            {face, {BackgroundColor3 = faceColor, BackgroundTransparency = Library.HudButtonTransparency or 0.2}},
             {faceStroke, {Color = strokeColor, Transparency = strokeAlpha}},
             {wash, {BackgroundColor3 = cAccent, BackgroundTransparency = on and 0.82 or 1}},
             {topLine, {BackgroundColor3 = on and cAccent or cLine, BackgroundTransparency = on and 0.2 or 0.6}},
@@ -3021,7 +3589,7 @@ function Library:RegisterActionButton(cfg)
                 targetAlpha = math.clamp(1 - (1 - baseAlpha) * intensity, 0, 1)
             end
             table.insert(list, {ring.stroke, {
-                Color = on and cAccent or (genv.shadowcolor or Color3.fromRGB(0, 0, 0)),
+                Color = (on or glowEnabled) and cAccent or (genv.shadowcolor or Color3.fromRGB(0, 0, 0)),
                 Transparency = targetAlpha,
             }})
         end
@@ -3201,11 +3769,11 @@ function Library:RegisterActionButton(cfg)
         end)
     end
 
-    if Library.KeybindsAndHudTab and Library.KeybindsAndHudTab.create_toggle then
+    if Library.KeybindsAndHudTab and type(Library.KeybindsAndHudTab.create_toggle) == "function" then
         Library.RegisteredHudToggles = Library.RegisteredHudToggles or {}
         if not Library.RegisteredHudToggles[id] then
             Library.RegisteredHudToggles[id] = true
-            Library.KeybindsAndHudTab.create_toggle({
+            Library.KeybindsAndHudTab:create_toggle({
                 name = "Show " .. (cfg.name or id),
                 flag = "hud_show_" .. id,
                 section = "left",
@@ -3216,6 +3784,7 @@ function Library:RegisterActionButton(cfg)
             })
         end
     end
+    return item
 end
 
 function Library:BuildKeybindsAndHudTab(tab)
@@ -3227,7 +3796,7 @@ function Library:BuildKeybindsAndHudTab(tab)
         name = "Show Mobile Floating Buttons",
         flag = "hud_show_floating_buttons",
         section = "left",
-        enabled = Library.FloatingButtonsVisible ~= false,
+        enabled = (Library.FloatingButtonsVisible == true),
         keybind = { default = "None", flag = "hud_floating_buttons_key" },
         callback = function(state)
             Library:SetFloatingButtonsVisible(state)
@@ -3237,10 +3806,24 @@ function Library:BuildKeybindsAndHudTab(tab)
         name = "Active HUD Mode",
         flag = "hud_display_mode",
         section = "left",
-        option = Library.HudMode or "Both",
+        option = Library.HudMode or ((Library.IsMobile or IsMobile) and "None" or "Keybind HUD Only"),
         options = {"Both", "Floating Buttons Only", "Keybind HUD Only", "None"},
         callback = function(val)
+            local showButtons = (val == "Both" or val == "Floating Buttons Only")
+            local showKeybinds = (val == "Both" or val == "Keybind HUD Only")
             Library.HudMode = val
+            Library.FloatingButtonsVisible = showButtons
+            Library.KeybindListEnabled = showKeybinds
+            if Library.Objects and Library.Objects["hud_show_floating_buttons"] and Library.Objects["hud_show_floating_buttons"].SetValue then
+                if Library.Objects["hud_show_floating_buttons"]:GetValue() ~= showButtons then
+                    Library.Objects["hud_show_floating_buttons"]:SetValue(showButtons, true)
+                end
+            end
+            if Library.Objects and Library.Objects["keybind_hud_toggle"] and Library.Objects["keybind_hud_toggle"].SetValue then
+                if Library.Objects["keybind_hud_toggle"]:GetValue() ~= showKeybinds then
+                    Library.Objects["keybind_hud_toggle"]:SetValue(showKeybinds, true)
+                end
+            end
             Library:UpdateHudVisibility()
         end
     })
@@ -3265,6 +3848,47 @@ function Library:BuildKeybindsAndHudTab(tab)
                 Duration = 2,
                 Type = "Info"
             })
+        end
+    })
+
+    tab.create_toggle({
+        name = "UI Toggle Button (Logo)",
+        flag = "hud_show_logo_toggle",
+        section = "left",
+        enabled = (Library.ToggleBarEnabled ~= false),
+        callback = function(state)
+            Library:SetToggleBarVisible(state)
+        end
+    })
+    tab.create_slider({
+        name = "UI Toggle Size",
+        flag = "hud_logo_toggle_size",
+        section = "left",
+        value = Library.ToggleBarSize or 40,
+        minimum_value = 32,
+        maximum_value = 60,
+        callback = function(val)
+            Library:SetToggleBarSize(val)
+        end
+    })
+    tab.create_dropdown({
+        name = "UI Toggle Style",
+        flag = "hud_logo_toggle_style",
+        section = "left",
+        option = Library.ToggleBarStyle or "Floating Button",
+        options = {"Floating Button", "Top Notch", "Disabled"},
+        callback = function(val)
+            Library:SetToggleBarStyle(val)
+        end
+    })
+    tab.create_dropdown({
+        name = "UI Toggle Platform",
+        flag = "hud_logo_toggle_platform",
+        section = "left",
+        option = Library.ToggleBarPlatform or "Both",
+        options = {"Both", "Mobile Only", "PC Only"},
+        callback = function(val)
+            Library:SetToggleBarPlatform(val)
         end
     })
 
@@ -3352,7 +3976,20 @@ function Library:BuildKeybindsAndHudTab(tab)
 end
 
 function Library:SaveConfig(name)
-    name = name or "default"
+    name = (type(name) == "string" and name:match("^%s*(.-)%s*$")) or ""
+    if name == "" or name == "None" then
+        name = (self.ActiveConfig and self.ActiveConfig ~= "" and self.ActiveConfig ~= "None") and self.ActiveConfig or "default"
+    end
+    local lowerName = name:lower()
+    if lowerName == "autoload" or lowerName == "autosave" then
+        Library:Notify({
+            Title = "Invalid Name",
+            Content = "Please pick a different config name",
+            Duration = 3,
+            Type = "Error"
+        })
+        return false
+    end
     local data = {}
     for flag, value in pairs(self.Flags) do
         if not SystemSettings[flag] and flag ~= "configname_input" and flag ~= "savedconfigs" and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" and value ~= nil then
@@ -3375,7 +4012,19 @@ function Library:SaveConfig(name)
     local folder = self:GetConfigFolder()
     ensureFolder(folder)
     local ok, encoded = pcall(function() return HttpService:JSONEncode(data) end)
-    if ok then writefile(folder .. "/" .. name .. ".json", encoded) end
+    local wrote = false
+    if ok and Capabilities.writefile then
+        wrote = pcall(writefile, folder .. "/" .. name .. ".json", encoded)
+    end
+    if not ok or not wrote then
+        Library:Notify({
+            Title = "Save Failed",
+            Content = "Could not save config: " .. name,
+            Duration = 3,
+            Type = "Error"
+        })
+        return false
+    end
     self:SetActiveConfig(name)
     self:RefreshConfigs()
     if self.Flags.autoload_config_toggle then
@@ -3387,7 +4036,7 @@ function Library:SaveConfig(name)
         Duration = 3,
         Type = "Success"
     })
-    return ok
+    return true
 end
 
 function Library:LoadConfig(name)
@@ -3407,14 +4056,27 @@ function Library:LoadConfig(name)
     if not ok or type(data) ~= "table" then return false end
     self.isLoadingConfig = true
     for flag, value in pairs(data) do
-        if not SystemSettings[flag] and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" then
-            self.Flags[flag] = value
+        if not SystemSettings[flag] and flag ~= "configname_input" and flag ~= "savedconfigs" and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" then
             local obj = self.Objects[flag]
+            if obj and obj.isLocked and not self.IsPremium then
+                if type(value) == "boolean" then
+                    value = false
+                end
+            end
+            self.Flags[flag] = value
             if obj then
-                if obj.SetValue then
-                    pcall(function() obj:SetValue(value) end)
-                elseif obj.Set then
-                    pcall(function() obj:Set(value) end)
+                if obj.isLocked and not self.IsPremium then
+                    if obj.SetValue then
+                        pcall(function() obj:SetValue(false, true) end)
+                    elseif obj.Set then
+                        pcall(function() obj:Set(false, true) end)
+                    end
+                else
+                    if obj.SetValue then
+                        pcall(function() obj:SetValue(value, true) end)
+                    elseif obj.Set then
+                        pcall(function() obj:Set(value, true) end)
+                    end
                 end
             end
             if self.Keybinds and self.Keybinds[flag] then
@@ -3422,14 +4084,18 @@ function Library:LoadConfig(name)
             end
         end
     end
-     self.isLoadingConfig = false
+    self.savedFlags = data
+    self.isLoadingConfig = false
     self:SetActiveConfig(name)
     if self.OnConfigLoaded then
         pcall(self.OnConfigLoaded, name)
     end
 
     for flag, obj in pairs(self.Objects) do
-        if obj and obj.GetValue and not SystemSettings[flag] then
+        if obj and obj.GetValue and not SystemSettings[flag] and flag ~= "configname_input" and flag ~= "savedconfigs" and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" then
+            if obj.isLocked and not self.IsPremium then
+                continue
+            end
             local ok, val = pcall(function() return obj:GetValue() end)
             if ok and val ~= nil then
                 if obj.callback then
@@ -3457,11 +4123,17 @@ function Library:ListConfigs()
     local list = {}
     local seen = {}
     if isfolder(folder) then
-        for _, file in ipairs(listfiles(folder)) do
-            local fileName = file:match("([^/\\]+)%.json$")
-            if fileName and fileName ~= "autoload" and not seen[fileName] then
-                seen[fileName] = true
-                table.insert(list, fileName)
+        local ok, files = pcall(listfiles, folder)
+        if ok and type(files) == "table" then
+            for _, file in ipairs(files) do
+                local fileName = tostring(file):match("([^/\\]+)%.json$")
+                if fileName then
+                    local lower = fileName:lower()
+                    if lower ~= "autoload" and lower ~= "autosave" and not seen[fileName] then
+                        seen[fileName] = true
+                        table.insert(list, fileName)
+                    end
+                end
             end
         end
     end
@@ -3473,13 +4145,16 @@ function Library:DeleteConfig(name)
     name = name or "default"
     local folder = self:GetConfigFolder()
     local path = folder .. "/" .. name .. ".json"
-    if isfile(path) then delfile(path) end
+    if isfile(path) then pcall(delfile, path) end
     if self.ActiveConfig == name then
         self:SetActiveConfig("None")
     end
     local autoCfg, autoEnabled = self:GetAutoload()
     if autoCfg == name then
-        self:SetAutoload("", false)
+        if isfile(folder .. "/autoload.json") then
+            pcall(delfile, folder .. "/autoload.json")
+        end
+        self:SetAutoload("None", false)
     end
     self:RefreshConfigs()
     Library:Notify({
@@ -3488,6 +4163,155 @@ function Library:DeleteConfig(name)
         Duration = 3,
         Type = "Info"
     })
+end
+
+function Library:ExportConfig(name)
+    local data = {}
+    local usedFile = false
+    if type(name) == "string" and name ~= "" and name ~= "None" then
+        local path = self:GetConfigFolder() .. "/" .. name .. ".json"
+        if isfile and readfile and isfile(path) then
+            local ok, decoded = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
+            if ok and type(decoded) == "table" then
+                data = decoded
+                usedFile = true
+            end
+        end
+    end
+    if not usedFile then
+        for flag, value in pairs(self.Flags) do
+            if not SystemSettings[flag] and flag ~= "configname_input" and flag ~= "savedconfigs" and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" and value ~= nil then
+                data[flag] = value
+            end
+        end
+        for flag, obj in pairs(self.Objects) do
+            if not SystemSettings[flag] and flag ~= "configname_input" and flag ~= "savedconfigs" and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" and obj.GetValue then
+                local ok, val = pcall(function() return obj:GetValue() end)
+                if ok and val ~= nil then
+                    data[flag] = val
+                end
+            end
+        end
+        for flag, kb in pairs(self.Keybinds) do
+            if not SystemSettings[flag] and kb.key and kb.key ~= "" then
+                data[flag] = kb.key
+            end
+        end
+    end
+    local ok, encoded = pcall(function() return HttpService:JSONEncode(data) end)
+    if not ok or type(encoded) ~= "string" then
+        Library:Notify({
+            Title = "Copy Failed",
+            Content = "Could not copy config code",
+            Duration = 3,
+            Type = "Error"
+        })
+        return nil
+    end
+    local clipFn = copyclipboard or setclipboard or toclipboard
+    if type(clipFn) == "function" then
+        pcall(clipFn, encoded)
+    end
+    Library:Notify({
+        Title = "Copied",
+        Content = "Config code copied to clipboard",
+        Duration = 3,
+        Type = "Success"
+    })
+    return encoded
+end
+
+function Library:ImportConfig(rawCode, saveName)
+    local code = type(rawCode) == "string" and rawCode:match("^%s*(.-)%s*$") or ""
+    if code == "" or not code:find("^%s*{") then
+        local fromInput = type(self.Flags.configname_input) == "string" and self.Flags.configname_input:match("^%s*(.-)%s*$") or ""
+        if fromInput:find("^{") then
+            code = fromInput
+        elseif type(getclipboard) == "function" then
+            local okClip, clipStr = pcall(getclipboard)
+            if okClip and type(clipStr) == "string" then
+                code = clipStr:match("^%s*(.-)%s*$")
+            end
+        end
+    end
+    if code == "" or not code:find("^{") then
+        Library:Notify({
+            Title = "Paste Config",
+            Content = "Paste the config code into the Config Name box first",
+            Duration = 3,
+            Type = "Warning"
+        })
+        return false
+    end
+    local ok, data = pcall(function() return HttpService:JSONDecode(code) end)
+    if not ok or type(data) ~= "table" then
+        Library:Notify({
+            Title = "Invalid Code",
+            Content = "That config code is broken or invalid",
+            Duration = 3,
+            Type = "Error"
+        })
+        return false
+    end
+    self.isLoadingConfig = true
+    for flag, value in pairs(data) do
+        if not SystemSettings[flag] and flag ~= "configname_input" and flag ~= "savedconfigs" and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" then
+            local obj = self.Objects[flag]
+            if obj and obj.isLocked and not self.IsPremium then
+                if type(value) == "boolean" then
+                    value = false
+                end
+            end
+            self.Flags[flag] = value
+            if obj then
+                if obj.isLocked and not self.IsPremium then
+                    if obj.SetValue then
+                        pcall(function() obj:SetValue(false, true) end)
+                    elseif obj.Set then
+                        pcall(function() obj:Set(false, true) end)
+                    end
+                else
+                    if obj.SetValue then
+                        pcall(function() obj:SetValue(value, true) end)
+                    elseif obj.Set then
+                        pcall(function() obj:Set(value, true) end)
+                    end
+                end
+            end
+            if self.Keybinds and self.Keybinds[flag] then
+                self:UpdateKeybind(flag, value)
+            end
+        end
+    end
+    self.savedFlags = data
+    self.isLoadingConfig = false
+    for flag, obj in pairs(self.Objects) do
+        if obj and obj.GetValue and not SystemSettings[flag] and flag ~= "configname_input" and flag ~= "savedconfigs" and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" then
+            if obj.isLocked and not self.IsPremium then
+                continue
+            end
+            local okVal, val = pcall(function() return obj:GetValue() end)
+            if okVal and val ~= nil and obj.callback then
+                task.spawn(function()
+                    pcall(obj.callback, val)
+                end)
+            end
+        end
+    end
+    if self.Objects.configname_input and self.Objects.configname_input.ClearInput and tostring(self.Flags.configname_input or ""):find("^{") then
+        pcall(function() self.Objects.configname_input:ClearInput() end)
+    end
+    if type(saveName) == "string" and saveName ~= "" then
+        self:SaveConfig(saveName)
+    else
+        Library:Notify({
+            Title = "Loaded",
+            Content = "Config code loaded",
+            Duration = 3,
+            Type = "Success"
+        })
+    end
+    return true
 end
 
 function Library:GetAutoload()
@@ -3500,23 +4324,70 @@ function Library:GetAutoload()
     local ok, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
     if ok and type(data) == "table" then
         local cfg = tostring(data.config or "")
+        if cfg == "true" or cfg == "false" then
+            local list = selfObj:ListConfigs()
+            if #list > 0 and list[1] ~= "None" then
+                cfg = list[1]
+            else
+                cfg = "default"
+            end
+        end
         local isEnabled = (data.enabled == true) and (cfg ~= "" and cfg ~= "None")
         return cfg, isEnabled
     end
     return "", false
 end
 
-function Library:SetAutoload(name, enabled)
+function Library:SetAutoload(nameOrEnabled, enabledOrName)
     local selfObj = (self and type(self) == "table") and self or Library
     local folder = selfObj:GetConfigFolder()
     ensureFolder(folder)
-    if enabled == nil then
-        enabled = (name ~= nil and name ~= "" and name ~= "None")
+
+    local targetName = nil
+    local targetEnabled = nil
+
+    if type(nameOrEnabled) == "boolean" then
+        targetEnabled = nameOrEnabled
+        if type(enabledOrName) == "string" and enabledOrName ~= "" and enabledOrName ~= "None" and enabledOrName ~= "true" and enabledOrName ~= "false" then
+            targetName = enabledOrName
+        end
+    elseif type(enabledOrName) == "boolean" then
+        targetEnabled = enabledOrName
+        if type(nameOrEnabled) == "string" and nameOrEnabled ~= "" and nameOrEnabled ~= "None" and nameOrEnabled ~= "true" and nameOrEnabled ~= "false" then
+            targetName = nameOrEnabled
+        end
+    elseif type(nameOrEnabled) == "string" then
+        if nameOrEnabled ~= "" and nameOrEnabled ~= "None" and nameOrEnabled ~= "true" and nameOrEnabled ~= "false" then
+            targetName = nameOrEnabled
+            targetEnabled = true
+        else
+            targetName = "default"
+            targetEnabled = false
+        end
     end
+
+    if targetEnabled == nil then
+        targetEnabled = false
+    end
+
+    if not targetName or targetName == "" or targetName == "None" or targetName == "true" or targetName == "false" then
+        local curCfg, curEnabled = selfObj:GetAutoload()
+        if curCfg and curCfg ~= "" and curCfg ~= "None" and curCfg ~= "true" and curCfg ~= "false" then
+            targetName = curCfg
+        elseif selfObj.ActiveConfig and selfObj.ActiveConfig ~= "" and selfObj.ActiveConfig ~= "None" then
+            targetName = selfObj.ActiveConfig
+        elseif selfObj.Flags and selfObj.Flags.configname_input and selfObj.Flags.configname_input ~= "" and selfObj.Flags.configname_input ~= "None" then
+            targetName = selfObj.Flags.configname_input
+        else
+            targetName = "default"
+        end
+    end
+
     local payload = {
-        enabled = enabled and true or false,
-        config = name or ""
+        enabled = (targetEnabled == true),
+        config = tostring(targetName)
     }
+
     local ok, encoded = pcall(function() return HttpService:JSONEncode(payload) end)
     if ok then
         pcall(writefile, folder .. "/autoload.json", encoded)
@@ -3583,46 +4454,22 @@ function Library:SetAutosave(enabled)
     end
 end
 
-ensureFolder(ROOT_FOLDER)
-Library.SavedSettings = {}
-if isfile(SETTINGS_FILE) then
-    local ok, decoded = pcall(function() return HttpService:JSONDecode(readfile(SETTINGS_FILE)) end)
-    if ok and type(decoded) == "table" then
-        Library.SavedSettings = decoded
-        if decoded.themeselector and Themes[decoded.themeselector] then
-            Library.Theme = decoded.themeselector
-        end
-        if decoded.custom_accent_color and type(decoded.custom_accent_color) == "table" then
-            local c = decoded.custom_accent_color
-            if #c >= 3 then
-                Library.CustomAccent = Color3.fromRGB(c[1], c[2], c[3])
-                genv.accent = Library.CustomAccent
-            end
-        end
-    end
+if not Library.SavedSettings then
+    Library.SavedSettings = {}
 end
-if not Library.Theme then
-    if isfile(THEME_FILE) then
-        local ok, themeName = pcall(readfile, THEME_FILE)
-        if ok and themeName and Themes[themeName] then
-            Library.Theme = themeName
-        else
-            Library.Theme = "Eclipse"
-        end
-    else
-        Library.Theme = "Eclipse"
-    end
-end
-if not Library.CustomAccent and isfile(ACCENT_FILE) then
-    local ok, hex = pcall(readfile, ACCENT_FILE)
-    if ok and hex and #hex >= 6 then
-        Library.CustomAccent = hexToColor(hex, nil)
-    end
-end
-ApplyTheme(Library.Theme, Library.CustomAccent)
 
 function Library:disconnect()
     cleanupAtmosphere()
+    if CursorConn then
+        pcall(function() CursorConn:Disconnect() end)
+        CursorConn = nil
+    end
+    if CursorGui then
+        pcall(function() CursorGui:Destroy() end)
+        CursorGui = nil
+        CursorDot = nil
+    end
+    pcall(function() UserInputService.MouseIconEnabled = true end)
     for index, connection in ipairs(Library.connections) do
         pcall(function() connection:Disconnect() end)
         Library.connections[index] = nil
@@ -3635,6 +4482,51 @@ function Library:disconnect()
 end
 
 function Library:Unload()
+    if Library.Unloading then return end
+    Library.Unloading = true
+    if genv then
+        genv._MoondietyLoaderActive = nil
+    end
+    if shared then
+        shared._MoondietyLoaderActive = nil
+    end
+
+    for flag, value in pairs(Library.Flags or {}) do
+        if value == true and not SystemSettings[flag] then
+            Library.Flags[flag] = false
+        end
+    end
+
+    for flag, obj in pairs(Library.Objects or {}) do
+        if obj and not SystemSettings[flag] and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" then
+            if type(obj.SetValue) == "function" then
+                pcall(function()
+                    local current = type(obj.GetValue) == "function" and obj:GetValue() or nil
+                    if current == true then
+                        obj:SetValue(false)
+                    end
+                end)
+            elseif type(obj.Set) == "function" then
+                pcall(function()
+                    local current = type(obj.GetValue) == "function" and obj:GetValue() or nil
+                    if current == true or current == nil then
+                        obj:Set(false)
+                    end
+                end)
+            end
+        end
+    end
+
+    for flag, keybind in pairs(Library.Keybinds or {}) do
+        if keybind and not SystemSettings[flag] and type(keybind.toggle) == "function" then
+            pcall(function()
+                if keybind.getState and keybind.getState() == true then
+                    keybind.toggle(false)
+                end
+            end)
+        end
+    end
+
     Library:disconnect()
     if Library.HudGui then
         pcall(function() Library.HudGui:Destroy() end)
@@ -3648,6 +4540,8 @@ function Library:Unload()
 end
 
 function Library:clear()
+    Library.Unloading = false
+    Library:disconnect()
     Library.Keybinds = {}
     if Library.HudGui then
         pcall(function() Library.HudGui:Destroy() end)
@@ -3656,7 +4550,7 @@ function Library:clear()
     Library.ActionButtons = {}
     local parentGui = getSafeGuiParent()
     for _, object in ipairs(parentGui:GetChildren()) do
-        if object.Name == "Moondiety" or object.Name == "MoondietyHUD" then
+        if object.Name == "Moondiety" or object.Name == "MoondietyHUD" or object.Name == "MoondietyCursor" then
             pcall(function() object:Destroy() end)
         end
     end
@@ -3670,30 +4564,50 @@ end
 
 local saveSettingsPending = false
 function Library:save_settings_auto()
+    if Library.Unloading then return end
     if saveSettingsPending then return end
     saveSettingsPending = true
     task.delay(0.25, function()
         saveSettingsPending = false
+        if Library.Unloading then return end
         Library:SaveSettings()
     end)
 end
 
 local savePending = false
 local function doSave()
+    if Library.Unloading then return end
     if not Library.exist() then return end
     if not Library:GetAutosave() then return end
     local data = {}
+    for flag, value in pairs(Library.Flags) do
+        if not SystemSettings[flag] and flag ~= "configname_input" and flag ~= "savedconfigs" and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" and value ~= nil then
+            data[flag] = value
+        end
+    end
     for flag, obj in pairs(Library.Objects) do
         if flag ~= "savedconfigs" and flag ~= "configname_input" and flag ~= "autoload_config_toggle" and flag ~= "autosave_config_toggle" and not SystemSettings[flag] and obj.GetValue then
             local ok, value = pcall(function() return obj:GetValue() end)
             if ok and value ~= nil then data[flag] = value end
         end
     end
+    for flag, kb in pairs(Library.Keybinds) do
+        if not SystemSettings[flag] and kb.key and kb.key ~= "" then
+            data[flag] = kb.key
+        end
+    end
+    if Library.Container and Library.Container.Parent then data.__ui_position = {x = Library.Container.Position.X.Scale, xo = Library.Container.Position.X.Offset, y = Library.Container.Position.Y.Scale, yo = Library.Container.Position.Y.Offset} end
+    if Library.KeybindListFrame and Library.KeybindListFrame.Parent then data.__keybind_position = {x = Library.KeybindListFrame.Position.X.Scale, xo = Library.KeybindListFrame.Position.X.Offset, y = Library.KeybindListFrame.Position.Y.Scale, yo = Library.KeybindListFrame.Position.Y.Offset} end
+    if Library.IslandFrame and Library.IslandFrame.Parent then
+        local savedIslandPosition = Library.IslandCompactPosition or Library.IslandFrame.Position
+        data.__island_position = {x = savedIslandPosition.X.Scale, xo = savedIslandPosition.X.Offset, y = savedIslandPosition.Y.Scale, yo = savedIslandPosition.Y.Offset}
+    end
     local ok, encoded = pcall(function() return HttpService:JSONEncode(data) end)
     if not ok then return end
     local dataFolder = ROOT_FOLDER .. "/Data"
     ensureFolder(dataFolder)
-    writefile(dataFolder .. "/" .. game.GameId .. ".json", encoded)
+    pcall(writefile, dataFolder .. "/" .. game.GameId .. ".json", encoded)
+    Library.savedFlags = data
     if Library.ActiveConfig and Library.ActiveConfig ~= "None" and Library.ActiveConfig ~= "" then
         local cfgFolder = Library:GetConfigFolder()
         ensureFolder(cfgFolder)
@@ -3702,7 +4616,7 @@ local function doSave()
 end
 
 function Library.save_flags(selfOrFlag, flagOrNil)
-    if Library.isLoadingConfig then return end
+    if Library.Unloading or Library.isLoadingConfig then return end
     local flag = (type(selfOrFlag) == "string") and selfOrFlag or ((type(flagOrNil) == "string") and flagOrNil or nil)
     if flag and SystemSettings[flag] then
         Library:save_settings_auto()
@@ -3786,12 +4700,14 @@ function Library:SetIslandDraggable(enabled)
 end
 
 function Library:ResetIslandPosition()
+    Library.IslandCompactPosition = UDim2.new(0.5, 0, 0, 14)
     if Library.IslandFrame then
         TweenService:Create(Library.IslandFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
             Position = UDim2.new(0.5, 0, 0, 14),
             AnchorPoint = Vector2.new(0.5, 0)
         }):Play()
     end
+    self:save_flags("__island_position")
 end
 
 function Library:ResetToggleBarPosition()
@@ -3817,35 +4733,66 @@ function Library:SetWatermarkVisible(state)
 end
 
 function Library:SetKeybindListVisible(state)
-    Library.KeybindListEnabled = state
-    if Library.KeybindListFrame then
-        Library.KeybindListFrame.Visible = state
+    local visible = (state == true)
+    Library.KeybindListEnabled = visible
+    local mode = Library.HudMode or ((Library.IsMobile or IsMobile) and "None" or "Keybind HUD Only")
+    local hasButtons = (mode == "Both" or mode == "Floating Buttons Only")
+    if Library.FloatingButtonsVisible == false then
+        hasButtons = false
+    elseif Library.FloatingButtonsVisible == true then
+        hasButtons = true
     end
+    local nextMode
+    if visible and hasButtons then
+        nextMode = "Both"
+    elseif visible then
+        nextMode = "Keybind HUD Only"
+    elseif hasButtons then
+        nextMode = "Floating Buttons Only"
+    else
+        nextMode = "None"
+    end
+    Library.HudMode = nextMode
+    if Library.Objects and Library.Objects["keybind_hud_toggle"] and Library.Objects["keybind_hud_toggle"].SetValue then
+        if Library.Objects["keybind_hud_toggle"]:GetValue() ~= visible then
+            Library.Objects["keybind_hud_toggle"]:SetValue(visible, true)
+        end
+    end
+    if Library.Objects and Library.Objects["hud_display_mode"] and Library.Objects["hud_display_mode"].SetValue then
+        if Library.Objects["hud_display_mode"]:GetValue() ~= nextMode then
+            Library.Objects["hud_display_mode"]:SetValue(nextMode, true)
+        end
+    end
+    Library:UpdateHudVisibility()
 end
 
 function Library:UpdateToggleBarVisibility()
     local isMobileUser = (Library.IsMobile ~= nil) and Library.IsMobile or IsMobile
-    local enabled = Library.ToggleBarEnabled and (Library.ToggleBarStyle ~= "Disabled")
-    local platformMatches = false
-    if Library.ToggleBarPlatform == "Both" then
-        platformMatches = true
-    elseif Library.ToggleBarPlatform == "Mobile Only" or Library.ToggleBarPlatform == "Mobile" then
+    local enabled = Library.ToggleBarEnabled == true and Library.ToggleBarStyle ~= "Disabled"
+    local platform = Library.ToggleBarPlatform or "Both"
+    local style = Library.ToggleBarStyle or "Floating Button"
+    local platformMatches = platform == "Both"
+    if platform == "Mobile Only" or platform == "Mobile" then
         platformMatches = isMobileUser
-    elseif Library.ToggleBarPlatform == "PC Only" then
+    elseif platform == "PC Only" then
         platformMatches = not isMobileUser
     end
     local active = enabled and platformMatches
     if Library.ToggleBarBtn then
-        Library.ToggleBarBtn.Visible = active and (Library.ToggleBarStyle == "Floating Button")
+        Library.ToggleBarBtn.Visible = active and (style == "Floating Button")
     end
     if Library.NotchBarBtn then
-        Library.NotchBarBtn.Visible = active and (Library.ToggleBarStyle == "Top Notch")
+        Library.NotchBarBtn.Visible = active and (style == "Top Notch")
     end
 end
 
 function Library:SetToggleBarVisible(state)
-    Library.ToggleBarEnabled = state
+    Library.ToggleBarEnabled = (state == true)
     Library:UpdateToggleBarVisibility()
+    if not Library.ToggleBarEnabled then
+        if Library.ToggleBarBtn then Library.ToggleBarBtn.Visible = false end
+        if Library.NotchBarBtn then Library.NotchBarBtn.Visible = false end
+    end
 end
 
 function Library:SetToggleBarStyle(style)
@@ -3866,9 +4813,149 @@ function Library:FinishLoading()
     self:LoadAutoload()
 end
 
+
+local function buildUserAvatar(parent, premium)
+        local image = new("ImageLabel", {
+            Name = "Avatar",
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, 8, 0.5, 0),
+            Size = UDim2.new(0, 34, 0, 34),
+            BackgroundColor3 = Color3.fromRGB(18, 19, 24),
+            BackgroundTransparency = 0,
+            BorderSizePixel = 0,
+            Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=100&h=100",
+            ZIndex = 21,
+        }, parent)
+        corner(image, 8)
+        local imageStroke = stroke(image, premium and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(44, 46, 58), 1, premium and 0.2 or 0.6)
+        Library.UserAvatar = image
+        Library.UserAvatarStroke = imageStroke
+
+        local dot = new("Frame", {
+            Name = "StatusDot",
+            AnchorPoint = Vector2.new(1, 1),
+            Position = UDim2.new(1, 1, 1, 1),
+            Size = UDim2.new(0, 9, 0, 9),
+            BackgroundColor3 = premium and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(34, 197, 94),
+            BorderSizePixel = 0,
+            ZIndex = 23,
+        }, image)
+        corner(dot, 5)
+        stroke(dot, genv.tabcolor or genv.uicontainer or Color3.fromRGB(22, 23, 29), 1.5, 0)
+        Library.UserAvatarStatusDot = dot
+        return image, dot
+    end
+
+
+local function buildUserCard(parent, attachTooltip)
+    local userCard = new("TextButton", {
+        Name = "UserCard",
+        BackgroundColor3 = genv.tabcolor or genv.uicontainer or Color3.fromRGB(22, 23, 29),
+        BorderSizePixel = 0,
+        AutoButtonColor = false,
+        Text = "",
+        Position = UDim2.new(0, 10, 1, -68),
+        Size = UDim2.new(0.21, -10, 0, 56),
+        ZIndex = 20,
+    }, parent)
+    table.insert(genv.UIElements, userCard)
+    userCard.Visible = false
+    userCard.Size = UDim2.new(0, 0, 0, 0)
+    corner(userCard, 9)
+    local userCardStroke = stroke(userCard, genv.uiline or Color3.fromRGB(36, 38, 48), 1, 0.5)
+
+    buildUserAvatar(userCard, (Library.IsPremium == true) or (genv and genv._MoondietyPremium == true))
+    task.spawn(function()
+        while Library.UserAvatarStatusDot and Library.UserAvatarStatusDot.Parent do
+            local twA = TweenService:Create(Library.UserAvatarStatusDot, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0.45})
+            twA:Play()
+            twA.Completed:Wait()
+            if not Library.UserAvatarStatusDot or not Library.UserAvatarStatusDot.Parent then break end
+            local twB = TweenService:Create(Library.UserAvatarStatusDot, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0})
+            twB:Play()
+            twB.Completed:Wait()
+        end
+    end)
+
+    new("TextLabel", {
+        Name = "NickLabel",
+        BackgroundTransparency = 1,
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0, 50, 0.35, 0),
+        Size = UDim2.new(1, -72, 0, 16),
+        FontFace = font(Enum.FontWeight.Bold),
+        TextColor3 = Color3.fromRGB(242, 244, 250),
+        TextSize = 12,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = LocalPlayer.DisplayName,
+        ZIndex = 21,
+    }, userCard)
+    userCard:FindFirstChild("NickLabel"):SetAttribute("ThemeText", true)
+    table.insert(genv.UIElements, userCard:FindFirstChild("NickLabel"))
+
+    new("TextLabel", {
+        Name = "UserLabel",
+        BackgroundTransparency = 1,
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0, 50, 0.65, 0),
+        Size = UDim2.new(1, -72, 0, 14),
+        FontFace = font(Enum.FontWeight.Regular),
+        TextColor3 = Color3.fromRGB(145, 150, 165),
+        TextSize = 11,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "@" .. LocalPlayer.Name,
+        ZIndex = 21,
+    }, userCard)
+    userCard:FindFirstChild("UserLabel"):SetAttribute("ThemeText", true)
+    table.insert(genv.UIElements, userCard:FindFirstChild("UserLabel"))
+
+    new("ImageLabel", {
+        Name = "UserChevron",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -10, 0.5, 0),
+        Size = UDim2.new(0, 12, 0, 12),
+        BackgroundTransparency = 1,
+        Image = "rbxassetid://92473583511724",
+        ImageColor3 = Color3.fromRGB(120, 124, 138),
+        ZIndex = 21,
+    }, userCard)
+
+    userCard.MouseEnter:Connect(function()
+        local baseCol = genv.tabcolor or genv.uicontainer or Color3.fromRGB(22, 23, 29)
+        TweenService:Create(userCard, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {BackgroundColor3 = baseCol:lerp(WHITE, 0.08)}):Play()
+        if userCardStroke then
+            TweenService:Create(userCardStroke, TweenInfo.new(0.2), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.2}):Play()
+        end
+        TweenService:Create(userCard:FindFirstChild("UserChevron"), TweenInfo.new(0.2, Enum.EasingStyle.Back), {Position = UDim2.new(1, -7, 0.5, 0), ImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247)}):Play()
+    end)
+
+    userCard.MouseLeave:Connect(function()
+        local baseCol = genv.tabcolor or genv.uicontainer or Color3.fromRGB(22, 23, 29)
+        TweenService:Create(userCard, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {BackgroundColor3 = baseCol}):Play()
+        if userCardStroke then
+            TweenService:Create(userCardStroke, TweenInfo.new(0.2), {Color = genv.uiline or Color3.fromRGB(36, 38, 48), Transparency = 0.5}):Play()
+        end
+        TweenService:Create(userCard:FindFirstChild("UserChevron"), TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Position = UDim2.new(1, -10, 0.5, 0), ImageColor3 = Color3.fromRGB(120, 124, 138)}):Play()
+    end)
+
+    attachTooltip(userCard, "@" .. LocalPlayer.Name)
+
+    task.spawn(function()
+        local ok, content = pcall(function()
+            return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+        end)
+        if ok and content then Library.UserAvatar.Image = content end
+    end)
+
+    return userCard, userCardStroke
+end
+
 function Library.new(selfOrOpts, options)
     Library:clear()
     Library:disconnect()
+    hasFinishedLoading = false
     local opts = (type(selfOrOpts) == "table" and selfOrOpts ~= Library) and selfOrOpts or (type(options) == "table" and options or {})
     options = opts
     if opts.AutoSave ~= nil then
@@ -3876,6 +4963,7 @@ function Library.new(selfOrOpts, options)
     end
     Library.load_flags()
     local openInfoModal, closeInfoModal
+    local isInfoModalOpen = false
     local screen = new("ScreenGui", {
         Name = "Moondiety",
         ResetOnSpawn = false,
@@ -3927,6 +5015,7 @@ function Library.new(selfOrOpts, options)
         ZIndex = 10,
     }, screen)
     Library.MainHolder = MainHolder
+    Library.Container = MainHolder
 
     local mainScale = new("UIScale", {
         Scale = Library.UIScale or 1,
@@ -4020,18 +5109,26 @@ function Library.new(selfOrOpts, options)
     local positionX = 0.0938254446
     local mainName = genv.hubname or options.Name or "Moondiety"
     local subName = genv.hubsubname or options.SubName
-
+    local headerLogoFrame = new("Frame", {
+        Name = "HeaderLogoFrame",
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0.0338, -3, 0.5, 6),
+        Size = UDim2.new(0, 32, 0, 32),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 98,
+    }, Top)
     local HeaderLogo = new("ImageLabel", {
         Name = "HeaderLogo",
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0.0338, 0, subName and 0.85 or 0.8, 0),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
         Size = UDim2.new(0, 26, 0, 26),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Image = "rbxassetid://133495621202705",
         Active = true,
         ZIndex = 99,
-    }, Top)
+    }, headerLogoFrame)
     Library.HeaderLogo = HeaderLogo
 
     local logoWobbling = false
@@ -4069,31 +5166,183 @@ function Library.new(selfOrOpts, options)
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Position = UDim2.new(0.0338, 34, subName and 0.6 or 0.8, 0),
-        Size = UDim2.new(1 - positionX, -34, 0, 16),
+        Position = UDim2.new(0.0338, 34, subName and 0.35 or 0.5, 6),
+        Size = UDim2.new(1, isMobileUser and -280 or -310, 0, 16),
         FontFace = font(),
         Text = mainName,
         TextColor3 = WHITE,
         TextSize = 16,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         TextXAlignment = Enum.TextXAlignment.Left,
         ZIndex = 99,
     }, Top)
 
-    if subName then
+      if subName then
         new("TextLabel", {
             AnchorPoint = Vector2.new(0, 0.5),
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
-            Position = UDim2.new(0.0338, 34, 1.15, 0),
-            Size = UDim2.new(1 - positionX, -34, 0, 14),
+            Position = UDim2.new(0.0338, 34, 0.72, 6),
+            Size = UDim2.new(1, isMobileUser and -280 or -310, 0, 14),
             FontFace = font(),
             Text = subName,
             TextColor3 = Color3.fromRGB(170, 170, 170),
             TextSize = 12,
+            TextTruncate = Enum.TextTruncate.AtEnd,
             TextXAlignment = Enum.TextXAlignment.Left,
             ZIndex = 99,
         }, Top)
     end
+
+    local searchHolder = new("Frame", {
+        Name = "GlobalSearchHolder",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -148, 0.5, 0),
+        Size = UDim2.new(0, isMobileUser and 112 or 140, 0, 22),
+        BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 30)):lerp(WHITE, 0.05),
+        BorderSizePixel = 0,
+        ZIndex = 100,
+    }, Top)
+    corner(searchHolder, 6)
+    local searchStroke = stroke(searchHolder, genv.uiline or Color3.fromRGB(48, 50, 64), 1, 0.25)
+
+    local searchIcon = new("ImageLabel", {
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0, 6, 0.5, 0),
+        Size = UDim2.new(0, 11, 0, 11),
+        BackgroundTransparency = 1,
+        Image = "rbxassetid://10734943674",
+        ImageColor3 = Color3.fromRGB(150, 155, 172),
+        ZIndex = 101,
+    }, searchHolder)
+
+    local globalSearchBox = new("TextBox", {
+        Name = "GlobalSearchBox",
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0, 21, 0.5, 0),
+        Size = UDim2.new(1, -38, 1, 0),
+        BackgroundTransparency = 1,
+        ClearTextOnFocus = false,
+        FontFace = font(Enum.FontWeight.Regular),
+        PlaceholderText = "Search...",
+        PlaceholderColor3 = Color3.fromRGB(130, 135, 150),
+        Text = "",
+        TextColor3 = WHITE,
+        TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        ZIndex = 101,
+    }, searchHolder)
+
+    local clearSearchBtn = new("TextButton", {
+        Name = "ClearSearch",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -4, 0.5, 0),
+        Size = UDim2.new(0, 14, 0, 14),
+        BackgroundTransparency = 1,
+        AutoButtonColor = false,
+        FontFace = font(Enum.FontWeight.Bold),
+        Text = "x",
+        TextColor3 = Color3.fromRGB(156, 163, 185),
+        TextSize = 11,
+        Visible = false,
+        ZIndex = 102,
+    }, searchHolder)
+
+    globalSearchBox.Focused:Connect(function()
+        TweenService:Create(searchStroke, TweenInfo.new(0.18), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.05}):Play()
+        TweenService:Create(searchIcon, TweenInfo.new(0.18), {ImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247)}):Play()
+    end)
+    globalSearchBox.FocusLost:Connect(function()
+        TweenService:Create(searchStroke, TweenInfo.new(0.2), {Color = genv.uiline or Color3.fromRGB(48, 50, 64), Transparency = 0.25}):Play()
+        TweenService:Create(searchIcon, TweenInfo.new(0.2), {ImageColor3 = Color3.fromRGB(150, 155, 172)}):Play()
+    end)
+    bindTap(clearSearchBtn, function()
+        globalSearchBox.Text = ""
+    end)
+
+    local isPremHeader = (Library.IsPremium == true) or (genv and genv._MoondietyPremium == true)
+    local headerTierHovered = false
+    local headerTierTag = new("TextButton", {
+        Name = "HeaderTierTag",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -78, 0.5, 0),
+        Size = isPremHeader and UDim2.new(0, 64, 0, 20) or UDim2.new(0, 58, 0, 20),
+        BackgroundColor3 = isPremHeader and Color3.fromRGB(45, 18, 58) or Color3.fromRGB(24, 26, 34),
+        BorderSizePixel = 0,
+        AutoButtonColor = false,
+        Text = "",
+        ZIndex = 100,
+    }, Top)
+    corner(headerTierTag, 6)
+    local headerTierStroke = stroke(headerTierTag, isPremHeader and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(55, 58, 74), 1, isPremHeader and 0.2 or 0.4)
+
+    local headerTierLabel = new("TextLabel", {
+        Name = "TierLabel",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        FontFace = font(Enum.FontWeight.Bold),
+        Text = isPremHeader and "PREMIUM" or "FREE",
+        TextColor3 = isPremHeader and Color3.fromRGB(230, 200, 255) or Color3.fromRGB(156, 163, 185),
+        TextSize = 9,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        ZIndex = 101,
+    }, headerTierTag)
+    local tierLabelTween = nil
+    local tierLabelVersion = 0
+    local function animateTierLabel(text, color)
+        if not headerTierLabel or not headerTierLabel.Parent then return end
+        if headerTierLabel.Text == text then
+            tierLabelVersion += 1
+            if tierLabelTween then pcall(function() tierLabelTween:Cancel() end); tierLabelTween = nil end
+            TweenService:Create(headerTierLabel, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                TextColor3 = color,
+                TextTransparency = 0
+            }):Play()
+            return
+        end
+        tierLabelVersion += 1
+        local version = tierLabelVersion
+        if tierLabelTween then pcall(function() tierLabelTween:Cancel() end) end
+        tierLabelTween = TweenService:Create(headerTierLabel, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            TextTransparency = 1
+        })
+        tierLabelTween:Play()
+        tierLabelTween.Completed:Connect(function()
+            if version ~= tierLabelVersion or not headerTierLabel.Parent then return end
+            headerTierLabel.Text = text
+            headerTierLabel.TextColor3 = color
+            tierLabelTween = TweenService:Create(headerTierLabel, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                TextTransparency = 0
+            })
+            tierLabelTween:Play()
+        end)
+    end
+
+    headerTierTag.MouseEnter:Connect(function()
+        headerTierHovered = true
+        if Library.UpdateHUDThemes then Library.UpdateHUDThemes() end
+    end)
+    headerTierTag.MouseLeave:Connect(function()
+        headerTierHovered = false
+        if Library.UpdateHUDThemes then Library.UpdateHUDThemes() end
+    end)
+    headerTierTag.MouseButton1Click:Connect(function()
+        if not Library.IsPremium then
+            Library:ShowPremiumPrompt()
+        else
+            Library:Notify({
+                Title = "Moondiety Premium",
+                Content = "Lifetime permanent premium license active.",
+                Duration = 2,
+                Type = "Success"
+            })
+        end
+    end)
+    Library.HeaderTierTag = headerTierTag
 
     local controls = new("Frame", {
         Name = "Controls",
@@ -4114,8 +5363,8 @@ function Library.new(selfOrOpts, options)
 
     local minimizeBtn = new("TextButton", {
         Name = "Minimize",
-        BackgroundColor3 = Color3.fromRGB(28, 30, 38),
-        BackgroundTransparency = 0.4,
+        BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 30)):lerp(WHITE, 0.06),
+        BackgroundTransparency = 0,
         BorderSizePixel = 0,
         Size = UDim2.new(0, 24, 0, 24),
         AutoButtonColor = false,
@@ -4124,13 +5373,13 @@ function Library.new(selfOrOpts, options)
         LayoutOrder = 1,
     }, controls)
     corner(minimizeBtn, 6)
-    local minStroke = stroke(minimizeBtn, Color3.fromRGB(48, 50, 64), 1, 0.5)
+    local minStroke = stroke(minimizeBtn, genv.uiline or Color3.fromRGB(48, 50, 64), 1, 0.15)
 
-    local minBar = new("Frame", {
+     local minBar = new("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
         Size = UDim2.new(0, 10, 0, 2),
-        BackgroundColor3 = Color3.fromRGB(200, 205, 220),
+        BackgroundColor3 = Color3.fromRGB(156, 163, 185),
         BorderSizePixel = 0,
         ZIndex = 101,
     }, minimizeBtn)
@@ -4139,18 +5388,18 @@ function Library.new(selfOrOpts, options)
     minimizeBtn.MouseEnter:Connect(function()
         TweenService:Create(minimizeBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(42, 45, 58), BackgroundTransparency = 0.1}):Play()
         if minStroke then TweenService:Create(minStroke, TweenInfo.new(0.15), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.2}):Play() end
-        TweenService:Create(minBar, TweenInfo.new(0.15), {BackgroundColor3 = WHITE}):Play()
+       TweenService:Create(minBar, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(235, 238, 245)}):Play()
     end)
     minimizeBtn.MouseLeave:Connect(function()
-        TweenService:Create(minimizeBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(28, 30, 38), BackgroundTransparency = 0.4}):Play()
-        if minStroke then TweenService:Create(minStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(48, 50, 64), Transparency = 0.5}):Play() end
-        TweenService:Create(minBar, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(200, 205, 220)}):Play()
+        TweenService:Create(minimizeBtn, TweenInfo.new(0.2), {BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 30)):lerp(WHITE, 0.06), BackgroundTransparency = 0}):Play()
+        if minStroke then TweenService:Create(minStroke, TweenInfo.new(0.2), {Color = genv.uiline or Color3.fromRGB(48, 50, 64), Transparency = 0.15}):Play() end
+        TweenService:Create(minBar, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(156, 163, 185)}):Play()
     end)
 
-    local closeBtn = new("TextButton", {
+      local closeBtn = new("TextButton", {
         Name = "Close",
-        BackgroundColor3 = Color3.fromRGB(28, 30, 38),
-        BackgroundTransparency = 0.4,
+        BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 30)):lerp(WHITE, 0.06),
+        BackgroundTransparency = 0,
         BorderSizePixel = 0,
         Size = UDim2.new(0, 24, 0, 24),
         AutoButtonColor = false,
@@ -4159,14 +5408,14 @@ function Library.new(selfOrOpts, options)
         LayoutOrder = 2,
     }, controls)
     corner(closeBtn, 6)
-    local closeStroke = stroke(closeBtn, Color3.fromRGB(48, 50, 64), 1, 0.5)
+    local closeStroke = stroke(closeBtn, genv.uiline or Color3.fromRGB(48, 50, 64), 1, 0.15)
 
-    local closeBar1 = new("Frame", {
+     local closeBar1 = new("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
         Size = UDim2.new(0, 10, 0, 2),
         Rotation = 45,
-        BackgroundColor3 = Color3.fromRGB(200, 205, 220),
+        BackgroundColor3 = Color3.fromRGB(156, 163, 185),
         BorderSizePixel = 0,
         ZIndex = 101,
     }, closeBtn)
@@ -4177,7 +5426,7 @@ function Library.new(selfOrOpts, options)
         Position = UDim2.new(0.5, 0, 0.5, 0),
         Size = UDim2.new(0, 10, 0, 2),
         Rotation = -45,
-        BackgroundColor3 = Color3.fromRGB(200, 205, 220),
+        BackgroundColor3 = Color3.fromRGB(156, 163, 185),
         BorderSizePixel = 0,
         ZIndex = 101,
     }, closeBtn)
@@ -4186,14 +5435,14 @@ function Library.new(selfOrOpts, options)
     closeBtn.MouseEnter:Connect(function()
         TweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(220, 38, 38), BackgroundTransparency = 0}):Play()
         if closeStroke then TweenService:Create(closeStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(239, 68, 68), Transparency = 0}):Play() end
-        TweenService:Create(closeBar1, TweenInfo.new(0.15), {BackgroundColor3 = WHITE}):Play()
-        TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = WHITE}):Play()
+      TweenService:Create(closeBar1, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(235, 238, 245)}):Play()
+TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(235, 238, 245)}):Play()
     end)
     closeBtn.MouseLeave:Connect(function()
-        TweenService:Create(closeBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(28, 30, 38), BackgroundTransparency = 0.4}):Play()
-        if closeStroke then TweenService:Create(closeStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(48, 50, 64), Transparency = 0.5}):Play() end
-        TweenService:Create(closeBar1, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(200, 205, 220)}):Play()
-        TweenService:Create(closeBar2, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(200, 205, 220)}):Play()
+        TweenService:Create(closeBtn, TweenInfo.new(0.2), {BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 30)):lerp(WHITE, 0.06), BackgroundTransparency = 0}):Play()
+        if closeStroke then TweenService:Create(closeStroke, TweenInfo.new(0.2), {Color = genv.uiline or Color3.fromRGB(48, 50, 64), Transparency = 0.15}):Play() end
+        TweenService:Create(closeBar1, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(156, 163, 185)}):Play()
+        TweenService:Create(closeBar2, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(156, 163, 185)}):Play()
     end)
 
     local NotifLayout = new("Frame", {
@@ -4244,14 +5493,14 @@ function Library.new(selfOrOpts, options)
             Name = "PromptCard",
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(0, 396, 0, 186),
+            Size = UDim2.new(0, 356, 0, 186),
             BackgroundColor3 = cardBg,
             BorderSizePixel = 0,
             ClipsDescendants = false,
             ZIndex = 1201,
         }, promptOverlay)
         corner(promptCard, 16)
-        stroke(promptCard, cardLine, 1, 0.5)
+        local promptCardStroke = stroke(promptCard, cardLine, 1, 0.5)
 
         local cardGlowLine = new("Frame", {
             Name = "CardGlowLine",
@@ -4382,7 +5631,7 @@ function Library.new(selfOrOpts, options)
         local cancelBtn = new("TextButton", {
             Name = "CancelBtn",
             Position = UDim2.new(0, 0, 0, 0),
-            Size = UDim2.new(0.48, -4, 1, 0),
+            Size = UDim2.new(0.5, -3, 1, 0),
             BackgroundColor3 = btnBg,
             BorderSizePixel = 0,
             AutoButtonColor = false,
@@ -4397,8 +5646,8 @@ function Library.new(selfOrOpts, options)
 
         local confirmBtn = new("TextButton", {
             Name = "ConfirmBtn",
-            Position = UDim2.new(0.52, 4, 0, 0),
-            Size = UDim2.new(0.48, -4, 1, 0),
+            Position = UDim2.new(0.5, 3, 0, 0),
+            Size = UDim2.new(0.5, -3, 1, 0),
             BackgroundColor3 = isDanger and Color3.fromRGB(225, 29, 72) or themeAccent,
             BorderSizePixel = 0,
             AutoButtonColor = false,
@@ -4410,11 +5659,7 @@ function Library.new(selfOrOpts, options)
         }, footer)
         corner(confirmBtn, 8)
         if isDanger then
-            new("UIGradient", {
-                Color = ColorSequence.new(Color3.fromRGB(244, 63, 94), Color3.fromRGB(205, 20, 60)),
-                Rotation = 45,
-            }, confirmBtn)
-            stroke(confirmBtn, Color3.fromRGB(255, 90, 120), 1, 0.4)
+            stroke(confirmBtn, Color3.fromRGB(255, 90, 100), 1, 0.35)
         else
             new("UIGradient", {
                 Color = ColorSequence.new(themeAccent, themeAccent:lerp(Color3.fromRGB(0, 0, 0), 0.25)),
@@ -4428,7 +5673,7 @@ function Library.new(selfOrOpts, options)
                 BackgroundColor3 = btnBg:lerp(WHITE, 0.08),
                 TextColor3 = WHITE,
             }):Play()
-            TweenService:Create(cancelStroke, TweenInfo.new(0.18), {Color = statusColor, Transparency = 0.4}):Play()
+            TweenService:Create(cancelStroke, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Color = statusColor, Transparency = 0.4}):Play()
         end)
         cancelBtn.MouseLeave:Connect(function()
             TweenService:Create(cancelBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -4440,8 +5685,9 @@ function Library.new(selfOrOpts, options)
 
         confirmBtn.MouseEnter:Connect(function()
             local base = isDanger and Color3.fromRGB(225, 29, 72) or themeAccent
-            TweenService:Create(confirmBtn, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                BackgroundColor3 = base:lerp(WHITE, 0.15),
+            TweenService:Create(confirmBtn, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                BackgroundColor3 = isDanger and Color3.fromRGB(255, 75, 85) or base:lerp(WHITE, 0.15),
+                TextColor3 = WHITE,
             }):Play()
         end)
         confirmBtn.MouseLeave:Connect(function()
@@ -4451,14 +5697,49 @@ function Library.new(selfOrOpts, options)
             }):Play()
         end)
 
+        local promptHoveredCancel = false
+        local promptHoveredConfirm = false
+        cancelBtn.MouseEnter:Connect(function() promptHoveredCancel = true end)
+        cancelBtn.MouseLeave:Connect(function() promptHoveredCancel = false end)
+        confirmBtn.MouseEnter:Connect(function() promptHoveredConfirm = true end)
+        confirmBtn.MouseLeave:Connect(function() promptHoveredConfirm = false end)
+
+        Library.ActivePromptThemeUpdater = function()
+            if not promptCard or not promptCard.Parent then return end
+            local currentContainer = genv.uicontainer or Color3.fromRGB(19, 20, 24)
+            local currentLine = genv.uiline or Color3.fromRGB(34, 35, 42)
+            local currentAccent = genv.accent or Color3.fromRGB(168, 85, 247)
+            local currentButton = genv.buttoncolor or Color3.fromRGB(27, 28, 33)
+            local currentStatus = isDanger and Color3.fromRGB(244, 63, 94) or currentAccent
+            promptCard.BackgroundColor3 = currentContainer
+            if promptCardStroke then promptCardStroke.Color = currentLine end
+            divider.BackgroundColor3 = currentLine
+            if cancelStroke then cancelStroke.Color = currentLine end
+            cancelBtn.BackgroundColor3 = promptHoveredCancel and currentButton:lerp(WHITE, 0.08) or currentButton
+            confirmBtn.BackgroundColor3 = isDanger
+                and (promptHoveredConfirm and Color3.fromRGB(255, 75, 85) or Color3.fromRGB(225, 29, 72))
+                or (promptHoveredConfirm and currentAccent:lerp(WHITE, 0.15) or currentAccent)
+            tagLabel.TextColor3 = currentStatus
+            iconImg.ImageColor3 = currentStatus
+            local glowGradient = cardGlowLine:FindFirstChildOfClass("UIGradient")
+            if glowGradient then
+                glowGradient.Color = ColorSequence.new{
+                    ColorSequenceKeypoint.new(0, currentStatus),
+                    ColorSequenceKeypoint.new(0.5, WHITE),
+                    ColorSequenceKeypoint.new(1, currentStatus),
+                }
+            end
+        end
+        Library.ActivePromptThemeUpdater()
+
         local cardScale = new("UIScale", {
-            Scale = 0.92,
+            Scale = 1,
         }, promptCard)
 
         TweenService:Create(promptOverlay, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             BackgroundTransparency = 0.55,
         }):Play()
-        TweenService:Create(cardScale, TweenInfo.new(0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        TweenService:Create(cardScale, TweenInfo.new(0.26, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
             Scale = 1,
         }):Play()
 
@@ -4470,10 +5751,13 @@ function Library.new(selfOrOpts, options)
                 BackgroundTransparency = 1,
             }):Play()
             local closeTween = TweenService:Create(cardScale, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                Scale = 0.92,
+                Scale = 0.98,
             })
             closeTween:Play()
             closeTween.Completed:Once(function()
+                if Library.ActivePromptThemeUpdater then
+                    Library.ActivePromptThemeUpdater = nil
+                end
                 promptOverlay:Destroy()
                 if confirmed then
                     if onConfirm then onConfirm() end
@@ -4488,6 +5772,879 @@ function Library.new(selfOrOpts, options)
         end)
         bindTap(confirmBtn, function()
             dismiss(true)
+        end)
+    end
+
+    function Library:UpdateTierTags()
+        local isPrem = (self.IsPremium == true) or (genv and genv._MoondietyPremium == true)
+        self.IsPremium = isPrem
+
+        if self.HeaderTierTag and self.HeaderTierTag.Parent then
+            local tagBtn = self.HeaderTierTag
+            local tagLabel = tagBtn:FindFirstChild("TierLabel")
+            local tagStroke = tagBtn:FindFirstChildOfClass("UIStroke")
+
+            local cContainer = genv.uicontainer or Color3.fromRGB(19, 20, 24)
+            local cLine = genv.uiline or Color3.fromRGB(34, 35, 42)
+            local cAccent = genv.accent or Color3.fromRGB(168, 85, 247)
+            local showUpgrade = (not isPrem) and headerTierHovered
+
+
+            tagBtn.Size = isPrem and UDim2.new(0, 72, 0, 22) or UDim2.new(0, 58, 0, 20)
+
+            local targetBackground = isPrem
+                and cAccent:lerp(cContainer, 0.55)
+                or cContainer:lerp(WHITE, showUpgrade and 0.08 or 0.06)
+
+            TweenService:Create(
+                tagBtn,
+                TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+                {BackgroundColor3 = targetBackground}
+            ):Play()
+
+            if tagStroke then
+                TweenService:Create(
+                    tagStroke,
+                    TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                    {
+                        Color = (isPrem or showUpgrade) and cAccent or cLine,
+                        Transparency = (isPrem or showUpgrade) and 0.15 or 0.25
+                    }
+                ):Play()
+            end
+
+                       if tagLabel then
+                animateTierLabel(
+                    isPrem and "PREMIUM" or (showUpgrade and "UPGRADE" or "FREE"),
+                    (isPrem or showUpgrade) and WHITE
+                        or Color3.fromRGB(156, 163, 185)
+                )
+                tagLabel.TextSize = 10
+            end
+        end
+
+
+        if self.UserAvatarStatusDot and self.UserAvatarStatusDot.Parent then
+            self.UserAvatarStatusDot.BackgroundColor3 = isPrem and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(34, 197, 94)
+        end
+
+        if self.UserAvatarStroke and self.UserAvatarStroke.Parent then
+            self.UserAvatarStroke.Color = isPrem and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(44, 46, 58)
+            self.UserAvatarStroke.Transparency = isPrem and 0.2 or 0.6
+        end
+
+    end
+
+    function Library:UnlockAll()
+        self.IsPremium = true
+        if genv then
+            genv._MoondietyPremium = true
+        end
+        if self.LockedElements then
+            for _, ov in ipairs(self.LockedElements) do
+                if typeof(ov) == "Instance" and ov.Parent then
+                    pcall(function() ov:Destroy() end)
+                end
+            end
+            table.clear(self.LockedElements)
+        end
+        if self.LockedObjects then
+            for _, obj in ipairs(self.LockedObjects) do
+                if type(obj) == "table" then
+                    obj.isLocked = false
+                end
+            end
+            table.clear(self.LockedObjects)
+        end
+        if self.UpdateTierTags then
+            self:UpdateTierTags()
+        end
+    end
+
+    function Library:LockElement(frame, obj)
+        if self.IsPremium or not frame or not frame:IsA("GuiObject") then return end
+        if obj then
+            obj.isLocked = true
+            table.insert(self.LockedObjects, obj)
+        end
+
+        local overlay = new("TextButton", {
+            Name = "BlockedOverlay",
+            BackgroundColor3 = genv.blockedoverlay or Color3.fromRGB(12, 13, 18),
+            BackgroundTransparency = 0.88,
+            BorderSizePixel = 0,
+            Size = UDim2.new(1, 0, 1, 0),
+            ZIndex = 15,
+            Active = true,
+            AutoButtonColor = false,
+            Text = "",
+        }, frame)
+        table.insert(genv.UIElements, overlay)
+        corner(overlay, 10)
+
+        local overlayStroke = stroke(overlay, Color3.fromRGB(48, 42, 54), 1, 0.6)
+
+        local lockBadge = new("Frame", {
+            Name = "LockBadge",
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -10, 0.5, 0),
+            Size = UDim2.new(0, 0, 0, 22),
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundColor3 = Color3.fromRGB(30, 20, 26),
+            BackgroundTransparency = 0.15,
+            BorderSizePixel = 0,
+            ZIndex = 16,
+        }, overlay)
+        corner(lockBadge, 6)
+        local badgeStroke = stroke(lockBadge, Color3.fromRGB(180, 50, 75), 1, 0.35)
+
+        new("UIPadding", {
+            PaddingLeft = UDim.new(0, 7),
+            PaddingRight = UDim.new(0, 7),
+        }, lockBadge)
+
+        new("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            HorizontalAlignment = Enum.HorizontalAlignment.Center,
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Padding = UDim.new(0, 5),
+        }, lockBadge)
+
+        local lockIcon = new("ImageLabel", {
+            Name = "LockIcon",
+            Size = UDim2.new(0, 12, 0, 12),
+            BackgroundTransparency = 1,
+            Image = "rbxassetid://134724289526879",
+            ImageColor3 = Color3.fromRGB(244, 63, 94),
+            LayoutOrder = 1,
+            ZIndex = 17,
+        }, lockBadge)
+        table.insert(genv.UIElements, lockIcon)
+
+        local lockLabel = new("TextLabel", {
+            Name = "BlockedText",
+            BackgroundTransparency = 1,
+            Size = UDim2.new(0, 0, 1, 0),
+            AutomaticSize = Enum.AutomaticSize.X,
+            FontFace = font(Enum.FontWeight.SemiBold),
+            TextColor3 = Color3.fromRGB(250, 120, 140),
+            TextSize = 11,
+            Text = "LOCKED",
+            LayoutOrder = 2,
+            ZIndex = 17,
+        }, lockBadge)
+        table.insert(genv.UIElements, lockLabel)
+
+        overlay.MouseEnter:Connect(function()
+            TweenService:Create(overlay, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundTransparency = 0.78,
+            }):Play()
+            TweenService:Create(overlayStroke, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                Color = Color3.fromRGB(244, 63, 94),
+                Transparency = 0.2,
+            }):Play()
+            TweenService:Create(lockBadge, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                BackgroundColor3 = Color3.fromRGB(180, 30, 60),
+                BackgroundTransparency = 0,
+            }):Play()
+            TweenService:Create(badgeStroke, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                Color = Color3.fromRGB(255, 95, 135),
+                Transparency = 0,
+            }):Play()
+            TweenService:Create(lockIcon, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                ImageColor3 = WHITE,
+            }):Play()
+            lockLabel.Text = "UNLOCK"
+            lockLabel.TextColor3 = WHITE
+        end)
+
+        overlay.MouseLeave:Connect(function()
+            TweenService:Create(overlay, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundTransparency = 0.88,
+            }):Play()
+            TweenService:Create(overlayStroke, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                Color = Color3.fromRGB(48, 42, 54),
+                Transparency = 0.6,
+            }):Play()
+            TweenService:Create(lockBadge, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                BackgroundColor3 = Color3.fromRGB(30, 20, 26),
+                BackgroundTransparency = 0.15,
+            }):Play()
+            TweenService:Create(badgeStroke, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                Color = Color3.fromRGB(180, 50, 75),
+                Transparency = 0.35,
+            }):Play()
+            TweenService:Create(lockIcon, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                ImageColor3 = Color3.fromRGB(244, 63, 94),
+            }):Play()
+            lockLabel.Text = "LOCKED"
+            lockLabel.TextColor3 = Color3.fromRGB(250, 120, 140)
+        end)
+
+        bindTap(overlay, function()
+            Library:ShowPremiumPrompt()
+        end)
+
+        table.insert(self.LockedElements, overlay)
+        return overlay
+    end
+
+    function Library:ShowPremiumPrompt()
+        if self.IsPremium then return end
+        if self.ActivePremiumPrompt and self.ActivePremiumPrompt.Parent then return end
+
+        local targetParent = screen or getSafeGuiParent()
+        if not targetParent then return end
+
+        local promptGui = new("TextButton", {
+            Name = "MoondietyPremiumModal",
+            Size = UDim2.fromScale(1, 1),
+            Position = UDim2.new(0, 0, 0, 0),
+            BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            AutoButtonColor = false,
+            Text = "",
+            ZIndex = 5000,
+        }, targetParent)
+        self.ActivePremiumPrompt = promptGui
+
+        local root = new("Frame", {
+            Name = "Root",
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(0, 460, 0, 268),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ZIndex = 5001,
+        }, promptGui)
+
+        local cardScale = new("UIScale", {
+            Scale = 0.88,
+        }, root)
+
+        local shadow = new("ImageLabel", {
+            Name = "Shadow",
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 5),
+            Size = UDim2.new(1, 64, 1, 64),
+            BackgroundTransparency = 1,
+            Image = "rbxassetid://17290899982",
+            ImageColor3 = Color3.fromRGB(0, 0, 0),
+            ImageTransparency = 0.35,
+            ZIndex = 5001,
+        }, root)
+
+        local ambientGlow = new("Frame", {
+            Name = "AmbientGlow",
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(1, 18, 1, 18),
+            BackgroundColor3 = genv.accent or Color3.fromRGB(244, 63, 94),
+            BackgroundTransparency = 0.88,
+            BorderSizePixel = 0,
+            ZIndex = 5001,
+        }, root)
+        corner(ambientGlow, 22)
+        ambientGlow.BackgroundTransparency = 1
+
+        local card = new("Frame", {
+            Name = "Card",
+            Size = UDim2.new(1, 0, 1, 0),
+            BackgroundColor3 = Color3.fromRGB(18, 19, 26),
+            BorderSizePixel = 0,
+            ZIndex = 5002,
+        }, root)
+        corner(card, 14)
+        local cardStroke = stroke(card, genv.accent or Color3.fromRGB(244, 63, 94), 1, 1)
+
+        local watermark = new("ImageLabel", {
+            Name = "Watermark",
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.88, 0, 0.52, 0),
+            Size = UDim2.new(0, 190, 0, 190),
+            BackgroundTransparency = 1,
+            Image = "rbxassetid://133495621202705",
+            ImageColor3 = genv.accent or Color3.fromRGB(244, 63, 94),
+            ImageTransparency = 0.95,
+            ZIndex = 5003,
+        }, card)
+
+        local header = new("Frame", {
+            Name = "Header",
+            Size = UDim2.new(1, 0, 0, 48),
+            Position = UDim2.new(0, 0, 0, 0),
+            BackgroundTransparency = 1,
+            ZIndex = 5004,
+        }, card)
+
+        local logoBadge = new("Frame", {
+            Name = "LogoBadge",
+            Size = UDim2.new(0, 30, 0, 30),
+            Position = UDim2.new(0, 16, 0.5, 0),
+            AnchorPoint = Vector2.new(0, 0.5),
+            BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(genv.accent or Color3.fromRGB(34, 197, 94), 0.08),
+            BorderSizePixel = 0,
+            ZIndex = 5005,
+        }, header)
+        corner(logoBadge, 8)
+        stroke(logoBadge, genv.uiline or Color3.fromRGB(48, 52, 68), 1, 0.4)
+
+        new("ImageLabel", {
+            Name = "Logo",
+            Size = UDim2.new(0, 20, 0, 20),
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            BackgroundTransparency = 1,
+            Image = "rbxassetid://133495621202705",
+            ZIndex = 5006,
+        }, logoBadge)
+
+        local titleLabel = new("TextLabel", {
+            Name = "Title",
+            Position = UDim2.new(0, 54, 0, 8),
+            Size = UDim2.new(0, 150, 0, 19),
+            BackgroundTransparency = 1,
+            FontFace = font(),
+            Text = mainName or "Moondiety",
+            TextColor3 = WHITE,
+            TextSize = 16,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 5005,
+        }, header)
+
+        local subTitleLabel = new("TextLabel", {
+            Name = "SubTitle",
+            Position = UDim2.new(0, 54, 0, 26),
+            Size = UDim2.new(0, 150, 0, 12),
+            BackgroundTransparency = 1,
+            FontFace = font(Enum.FontWeight.Bold),
+            Text = "PREMIUM  ACCESS",
+            TextColor3 = genv.accent or Color3.fromRGB(244, 63, 94),
+            TextSize = 9,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 5005,
+        }, header)
+
+        local pricePill = new("Frame", {
+            Name = "PricePill",
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -48, 0.5, 0),
+            Size = UDim2.new(0, 84, 0, 22),
+            BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(genv.accent or Color3.fromRGB(34, 197, 94), 0.08),
+            BorderSizePixel = 0,
+            ZIndex = 5005,
+        }, header)
+        corner(pricePill, 6)
+        stroke(pricePill, genv.uiline or Color3.fromRGB(50, 54, 72), 1, 0.35)
+
+        new("TextLabel", {
+            Name = "PriceLabel",
+            Size = UDim2.new(1, 0, 1, 0),
+            BackgroundTransparency = 1,
+            FontFace = font(Enum.FontWeight.Bold),
+            Text = "$10 Lifetime",
+            TextColor3 = genv.accent or Color3.fromRGB(34, 197, 94),
+            TextSize = 10,
+            TextXAlignment = Enum.TextXAlignment.Center,
+            ZIndex = 5006,
+        }, pricePill)
+
+        local closeBtn = new("TextButton", {
+            Name = "CloseButton",
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -16, 0.5, 0),
+            Size = UDim2.new(0, 24, 0, 24),
+            BackgroundColor3 = Color3.fromRGB(26, 28, 38),
+            BorderSizePixel = 0,
+            FontFace = font(Enum.FontWeight.Bold),
+            Text = "X",
+            TextColor3 = Color3.fromRGB(150, 155, 170),
+            TextSize = 10,
+            AutoButtonColor = false,
+            ZIndex = 5005,
+        }, header)
+        corner(closeBtn, 6)
+        local closeStroke = stroke(closeBtn, Color3.fromRGB(46, 50, 66), 1, 0.4)
+
+        closeBtn.MouseEnter:Connect(function()
+            local hoverAccent = genv.accent or Color3.fromRGB(244, 63, 94)
+            TweenService:Create(closeBtn, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundColor3 = hoverAccent,
+                TextColor3 = WHITE,
+            }):Play()
+            if closeStroke then
+                TweenService:Create(closeStroke, TweenInfo.new(0.16), {Color = hoverAccent, Transparency = 0}):Play()
+            end
+        end)
+        closeBtn.MouseLeave:Connect(function()
+            local baseContainer = genv.uicontainer or Color3.fromRGB(18, 19, 24)
+            local baseLine = genv.uiline or Color3.fromRGB(46, 50, 66)
+            TweenService:Create(closeBtn, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundColor3 = baseContainer:lerp(WHITE, 0.06),
+                TextColor3 = genv.tabtextcolor or Color3.fromRGB(205, 208, 218),
+            }):Play()
+            if closeStroke then
+                TweenService:Create(closeStroke, TweenInfo.new(0.18), {Color = baseLine, Transparency = 0.25}):Play()
+            end
+        end)
+
+        local headerDivider = new("Frame", {
+            Name = "HeaderDivider",
+            Position = UDim2.new(0, 0, 0, 48),
+            Size = UDim2.new(1, 0, 0, 1),
+            BackgroundColor3 = genv.accent or Color3.fromRGB(244, 63, 94),
+            BorderSizePixel = 0,
+            ZIndex = 5004,
+        }, card)
+        new("UIGradient", {
+            Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 1),
+                NumberSequenceKeypoint.new(0.5, 0.45),
+                NumberSequenceKeypoint.new(1, 1),
+            }),
+        }, headerDivider)
+
+        local infoCard = new("Frame", {
+            Name = "InfoCard",
+            Position = UDim2.new(0, 16, 0, 58),
+            Size = UDim2.new(1, -32, 0, 62),
+            BackgroundColor3 = Color3.fromRGB(25, 27, 36),
+            BorderSizePixel = 0,
+            ZIndex = 5004,
+        }, card)
+        corner(infoCard, 8)
+        stroke(infoCard, Color3.fromRGB(48, 52, 68), 1, 0.5)
+        local noteAccent = new("Frame", {
+            Name = "NoteAccent",
+            Position = UDim2.new(0, 8, 0, 8),
+            Size = UDim2.new(0, 3, 0, 44),
+            BackgroundColor3 = genv.accent or Color3.fromRGB(244, 63, 94),
+            BorderSizePixel = 0,
+            ZIndex = 5006,
+        }, infoCard)
+        pill(noteAccent)
+
+        new("TextLabel", {
+            Name = "InfoTitle",
+            Position = UDim2.new(0, 18, 0, 8),
+            Size = UDim2.new(1, -26, 0, 16),
+            BackgroundTransparency = 1,
+            FontFace = font(Enum.FontWeight.Bold),
+            Text = "Unlock All Exclusive Features",
+            TextColor3 = WHITE,
+            TextSize = 13,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 5005,
+        }, infoCard)
+
+        new("TextLabel", {
+            Name = "InfoDesc",
+            Position = UDim2.new(0, 18, 0, 26),
+            Size = UDim2.new(1, -26, 0, 34),
+            BackgroundTransparency = 1,
+            FontFace = font(Enum.FontWeight.Medium),
+            Text = 'Permanent key unlocks all locked features across every game & update.\nInstant delivery: PayPal, Cards, Crypto & more at <font color="#FFFFFF">moondiety.com/shop</font>',
+            RichText = true,
+            TextColor3 = Color3.fromRGB(180, 185, 200),
+            TextSize = 11,
+            TextWrapped = true,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            ZIndex = 5005,
+        }, infoCard)
+
+        local inputContainer = new("Frame", {
+            Name = "InputContainer",
+            Position = UDim2.new(0, 16, 0, 136),
+            Size = UDim2.new(1, -32, 0, 40),
+            BackgroundColor3 = Color3.fromRGB(25, 27, 36),
+            BorderSizePixel = 0,
+            ZIndex = 5004,
+        }, card)
+        corner(inputContainer, 8)
+        local inputStroke = stroke(inputContainer, Color3.fromRGB(48, 52, 68), 1, 0.5)
+
+        local inputIcon = new("ImageLabel", {
+            Name = "InputIcon",
+            Size = UDim2.new(0, 16, 0, 16),
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, 12, 0.5, 0),
+            BackgroundTransparency = 1,
+            Image = "rbxassetid://134724289526879",
+            ImageColor3 = Color3.fromRGB(160, 165, 180),
+            ZIndex = 5005,
+        }, inputContainer)
+
+
+        local textBox = new("TextBox", {
+            Name = "KeyInput",
+            Position = UDim2.new(0, 36, 0, 0),
+            Size = UDim2.new(1, -52, 1, 0),
+            BackgroundTransparency = 1,
+            FontFace = font(Enum.FontWeight.Regular),
+            PlaceholderText = "Enter license key here...",
+            PlaceholderColor3 = Color3.fromRGB(115, 120, 135),
+            Text = "",
+            TextColor3 = WHITE,
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ClearTextOnFocus = false,
+            ZIndex = 5005,
+        }, inputContainer)
+
+        textBox.Focused:Connect(function()
+            TweenService:Create(inputStroke, TweenInfo.new(0.2), {Color = genv.accent or Color3.fromRGB(244, 63, 94), Transparency = 0.1}):Play()
+            TweenService:Create(inputIcon, TweenInfo.new(0.2), {ImageColor3 = genv.accent or Color3.fromRGB(244, 63, 94)}):Play()
+        end)
+        textBox.FocusLost:Connect(function()
+            TweenService:Create(inputStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(48, 52, 68), Transparency = 0.5}):Play()
+            TweenService:Create(inputIcon, TweenInfo.new(0.2), {ImageColor3 = Color3.fromRGB(160, 165, 180)}):Play()
+        end)
+
+        local statusLabel = new("TextLabel", {
+            Name = "StatusLabel",
+            Position = UDim2.new(0, 18, 0, 182),
+            Size = UDim2.new(1, -36, 0, 16),
+            BackgroundTransparency = 1,
+            FontFace = font(Enum.FontWeight.Medium),
+            Text = "",
+            TextColor3 = Color3.fromRGB(244, 63, 94),
+            TextSize = 11,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 5004,
+        }, card)
+
+        local btnContainer = new("Frame", {
+            Name = "ButtonContainer",
+            Position = UDim2.new(0, 16, 0, 204),
+            Size = UDim2.new(1, -32, 0, 42),
+            BackgroundTransparency = 1,
+            ZIndex = 5004,
+        }, card)
+
+        new("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            Padding = UDim.new(0, 10),
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+        }, btnContainer)
+
+        local activateBase = Color3.fromRGB(190, 28, 48)
+        local activateBright = Color3.fromRGB(235, 48, 66)
+        local activateTextNormal = Color3.fromRGB(215, 219, 229)
+        local activateTextWhite = Color3.fromRGB(255, 255, 255)
+        local checkBtn = new("TextButton", {
+            Name = "CheckKeyButton",
+            Size = UDim2.new(0.5, -5, 1, 0),
+            BackgroundColor3 = activateBase,
+            BorderSizePixel = 0,
+            FontFace = font(Enum.FontWeight.Bold),
+            Text = "Activate Key",
+            TextColor3 = activateTextNormal,
+            TextTransparency = 0,
+            TextStrokeColor3 = Color3.fromRGB(255, 255, 255),
+            TextStrokeTransparency = 1,
+            TextSize = 13,
+            AutoButtonColor = false,
+            ZIndex = 5005,
+        }, btnContainer)
+        corner(checkBtn, 8)
+        local activateGradient = new("UIGradient", {
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(220, 43, 61)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(145, 18, 37)),
+            }),
+        }, checkBtn)
+        local activateStroke = stroke(checkBtn, Color3.fromRGB(245, 85, 100), 1, 0.35)
+
+        activateGradient.Enabled = false
+
+        local activateHovered = false
+        local function refreshActivateVisual()
+            local hasText = #textBox.Text:gsub("%s", "") > 0
+            local activeVisual = activateHovered or hasText
+            local baseColor = activeVisual and activateBright or activateBase
+            TweenService:Create(checkBtn, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundColor3 = baseColor,
+                TextColor3 = activeVisual and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(238, 240, 246),
+                TextTransparency = 0,
+                TextStrokeTransparency = 1,
+            }):Play()
+            if activateStroke then
+                TweenService:Create(activateStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    Color = activeVisual and Color3.fromRGB(255, 115, 125) or Color3.fromRGB(245, 85, 100),
+                    Transparency = activeVisual and 0.08 or 0.35,
+                    Thickness = activeVisual and 1.45 or 1,
+                }):Play()
+            end
+        end
+        checkBtn.MouseEnter:Connect(function()
+            activateHovered = true
+            refreshActivateVisual()
+        end)
+        checkBtn.MouseLeave:Connect(function()
+            activateHovered = false
+            refreshActivateVisual()
+        end)
+        textBox.Focused:Connect(refreshActivateVisual)
+        textBox:GetPropertyChangedSignal("Text"):Connect(refreshActivateVisual)
+        textBox.FocusLost:Connect(refreshActivateVisual)
+
+        local buyBtn = new("TextButton", {
+            Name = "BuyKeyButton",
+            Size = UDim2.new(0.5, -5, 1, 0),
+            BackgroundColor3 = Color3.fromRGB(30, 33, 46),
+            BorderSizePixel = 0,
+            FontFace = font(Enum.FontWeight.Bold),
+            Text = "Buy Key",
+            TextColor3 = Color3.fromRGB(240, 244, 252),
+            TextSize = 13,
+            AutoButtonColor = false,
+            ZIndex = 5005,
+        }, btnContainer)
+        corner(buyBtn, 8)
+        local buyStroke = stroke(buyBtn, genv.accent or Color3.fromRGB(34, 197, 94), 1, 0.18)
+        local buyHovered = false
+        local buyCopied = false
+        local function refreshBuyVisual()
+            local accent = genv.accent or Color3.fromRGB(34, 197, 94)
+            local container = genv.uicontainer or Color3.fromRGB(18, 19, 24)
+            local base = container:lerp(accent, 0.28)
+            local hover = container:lerp(accent, 0.43)
+            local copied = container:lerp(Color3.fromRGB(52, 211, 153), 0.34)
+            local target = buyCopied and copied or (buyHovered and hover or base)
+            TweenService:Create(buyBtn, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundColor3 = target,
+                TextColor3 = Color3.fromRGB(245, 255, 248),
+            }):Play()
+            if buyStroke then
+                TweenService:Create(buyStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    Color = buyCopied and Color3.fromRGB(52, 211, 153) or accent,
+                    Transparency = buyHovered and 0.04 or 0.18,
+                    Thickness = buyHovered and 1.5 or 1,
+                }):Play()
+            end
+        end
+        buyBtn.MouseEnter:Connect(function()
+            buyHovered = true
+            refreshBuyVisual()
+        end)
+        buyBtn.MouseLeave:Connect(function()
+            buyHovered = false
+            refreshBuyVisual()
+        end)
+
+        Library.UpdatePremiumPromptTheme = function()
+            if not (promptGui and promptGui.Parent) then return end
+            local cAccent = genv.accent or Color3.fromRGB(244, 63, 94)
+            local cContainer = genv.uicontainer or Color3.fromRGB(18, 19, 24)
+            local cLine = genv.uiline or Color3.fromRGB(48, 52, 68)
+            local cText = genv.tabtextcolor or WHITE
+            card.BackgroundColor3 = cContainer
+            card.BackgroundTransparency = 0
+            if cardStroke then cardStroke.Color = cLine; cardStroke.Transparency = 0.12 end
+            logoBadge.BackgroundColor3 = cContainer:lerp(WHITE, 0.06)
+            local logoStroke = logoBadge:FindFirstChildOfClass("UIStroke")
+            if logoStroke then logoStroke.Color = cLine end
+            titleLabel.TextColor3 = cText
+            subTitleLabel.TextColor3 = cAccent
+            pricePill.BackgroundColor3 = cContainer:lerp(WHITE, 0.06)
+            local priceStroke = pricePill:FindFirstChildOfClass("UIStroke")
+            if priceStroke then priceStroke.Color = cLine end
+            closeBtn.BackgroundColor3 = cContainer:lerp(WHITE, 0.06)
+            if closeStroke then closeStroke.Color = cLine end
+            headerDivider.BackgroundColor3 = cAccent
+            infoCard.BackgroundColor3 = cContainer:lerp(WHITE, 0.04)
+            local infoStroke = infoCard:FindFirstChildOfClass("UIStroke")
+            if infoStroke then infoStroke.Color = cLine end
+            local infoTitle = infoCard:FindFirstChild("InfoTitle")
+            local infoDesc = infoCard:FindFirstChild("InfoDesc")
+            if infoTitle then infoTitle.TextColor3 = cText end
+            if infoDesc then infoDesc.TextColor3 = cText:lerp(cContainer, 0.38) end
+            inputContainer.BackgroundColor3 = cContainer:lerp(WHITE, 0.04)
+            inputStroke.Color = cLine
+            inputIcon.ImageColor3 = cAccent
+            closeBtn.BackgroundColor3 = cContainer:lerp(WHITE, 0.06)
+            closeBtn.TextColor3 = genv.tabtextcolor or Color3.fromRGB(205, 208, 218)
+            if closeStroke then closeStroke.Color = cLine; closeStroke.Transparency = 0.25 end
+            checkBtn.BackgroundColor3 = Color3.fromRGB(190, 28, 48)
+            checkBtn.TextColor3 = Color3.fromRGB(238, 240, 246)
+            checkBtn.TextTransparency = 0
+            checkBtn.TextStrokeTransparency = 1
+            if activateStroke then activateStroke.Color = Color3.fromRGB(245, 85, 100); activateStroke.Transparency = 0.35; activateStroke.Thickness = 1 end
+            refreshActivateVisual()
+            if buyStroke then buyStroke.Color = cAccent end
+            refreshBuyVisual()
+            if statusLabel then statusLabel.TextColor3 = cAccent end
+        end
+        Library.UpdatePremiumPromptTheme()
+
+        TweenService:Create(promptGui, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundTransparency = 0.55,
+        }):Play()
+        TweenService:Create(cardScale, TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+            Scale = 1,
+        }):Play()
+
+        local isClosing = false
+        local function dismiss()
+            if isClosing then return end
+            isClosing = true
+            local tBackdrop = TweenService:Create(promptGui, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundTransparency = 1,
+            })
+            local tCard = TweenService:Create(cardScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+                Scale = 0.85,
+            })
+            tBackdrop:Play()
+            tCard:Play()
+            task.delay(0.22, function()
+                if promptGui and promptGui.Parent then
+                    promptGui:Destroy()
+                end
+                if self.ActivePremiumPrompt == promptGui then
+                    self.ActivePremiumPrompt = nil
+                end
+            end)
+        end
+
+        local function shakeCard()
+            task.spawn(function()
+                local orig = UDim2.new(0.5, 0, 0.5, 0)
+                local offsets = {-7, 7, -5, 5, -2, 2, 0}
+                for _, off in ipairs(offsets) do
+                    root.Position = UDim2.new(0.5, off, 0.5, 0)
+                    task.wait(0.025)
+                end
+                root.Position = orig
+            end)
+        end
+
+        bindTap(closeBtn, dismiss)
+        promptGui.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                local mousePos = input.Position
+                local rootPos = root.AbsolutePosition
+                local rootSz = root.AbsoluteSize
+                if mousePos.X < rootPos.X or mousePos.X > (rootPos.X + rootSz.X) or mousePos.Y < rootPos.Y or mousePos.Y > (rootPos.Y + rootSz.Y) then
+                    dismiss()
+                end
+            end
+        end)
+
+        bindTap(buyBtn, function()
+            local shopUrl = "https://moondiety.com/shop"
+            pcall(function()
+                if typeof(setclipboard) == "function" then
+                    setclipboard(shopUrl)
+                end
+            end)
+            pcall(function()
+                if typeof(openurl) == "function" then
+                    openurl(shopUrl)
+                end
+            end)
+            buyBtn.Text = "Link Copied!"
+            buyCopied = true
+            refreshBuyVisual()
+            task.delay(2, function()
+                if buyBtn and buyBtn.Parent then
+                    buyBtn.Text = "Buy Key"
+                    buyCopied = false
+                    refreshBuyVisual()
+                end
+            end)
+            statusLabel.TextColor3 = Color3.fromRGB(52, 211, 153)
+            statusLabel.Text = "Store link copied (moondiety.com/shop)"
+            Library:Notify({
+                Title = "Moondiety Store",
+                Content = "Store link copied (moondiety.com/shop). Instant automated delivery.",
+                Duration = 4,
+                Type = "Success",
+            })
+        end)
+
+        local isVerifying = false
+        bindTap(checkBtn, function()
+            if isVerifying then return end
+            local raw = textBox.Text or ""
+            local trimmed = raw:match("^%s*(.-)%s*$")
+            if not trimmed or #trimmed < 6 then
+                statusLabel.TextColor3 = Color3.fromRGB(244, 63, 94)
+                statusLabel.Text = "Please enter a valid license key."
+                TweenService:Create(inputStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(244, 63, 94), Transparency = 0}):Play()
+                task.delay(1, function()
+                    if inputStroke and inputStroke.Parent then
+                        TweenService:Create(inputStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(48, 52, 68), Transparency = 0.5}):Play()
+                    end
+                end)
+                shakeCard()
+                return
+            end
+
+            if genv and typeof(genv._MoondietyValidateAndActivateKey) == "function" then
+                isVerifying = true
+                checkBtn.Text = "Verifying..."
+                TweenService:Create(checkBtn, TweenInfo.new(0.2), {
+                    BackgroundColor3 = Color3.fromRGB(210, 115, 35),
+                }):Play()
+                statusLabel.TextColor3 = Color3.fromRGB(230, 235, 245)
+                statusLabel.Text = "Checking your license key..."
+
+                genv._MoondietyValidateAndActivateKey(trimmed, function(success, msg)
+                    isVerifying = false
+                    if success then
+                        self:UnlockAll()
+                        checkBtn.Text = "Activated!"
+                        refreshActivateVisual()
+                        statusLabel.TextColor3 = Color3.fromRGB(52, 211, 153)
+                        statusLabel.Text = "Key verified! All exclusive features unlocked."
+                        Library:Notify({
+                            Title = "Moondiety Premium",
+                            Content = "Key activated! All features unlocked.",
+                            Duration = 4,
+                            Type = "Success",
+                        })
+                        task.delay(0.45, dismiss)
+                    else
+                        checkBtn.Text = "Activate Key"
+                        refreshActivateVisual()
+                        statusLabel.TextColor3 = Color3.fromRGB(244, 63, 94)
+                        statusLabel.Text = msg or "Invalid or expired license key."
+                        TweenService:Create(inputStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(244, 63, 94), Transparency = 0}):Play()
+                        task.delay(1.5, function()
+                            if inputStroke and inputStroke.Parent then
+                                TweenService:Create(inputStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(48, 52, 68), Transparency = 0.5}):Play()
+                            end
+                        end)
+                        shakeCard()
+                    end
+                end)
+                return
+            end
+
+            local cacheFolder = "Moondiety/V2/Cache"
+            local isFld = (typeof(isfolder) == "function" and isfolder) or isFolderFn
+            local makeFld = (typeof(makefolder) == "function" and makefolder) or makeFolderFn
+            local wrtF = (typeof(writefile) == "function" and writefile) or writeFileFn
+
+            if isFld and not isFld(cacheFolder) and makeFld then
+                pcall(makeFld, cacheFolder)
+            end
+            if wrtF then
+                pcall(wrtF, cacheFolder .. "/key.txt", trimmed)
+            end
+
+            statusLabel.TextColor3 = Color3.fromRGB(245, 165, 35)
+            statusLabel.Text = "Key saved. Re-run via Moondiety loader to authenticate."
+            Library:Notify({
+                Title = "Moondiety Premium",
+                Content = "Key saved. Please execute via Moondiety loader to verify.",
+                Duration = 4,
+                Type = "Warning",
+            })
+            task.delay(1.5, dismiss)
         end)
     end
 
@@ -4536,37 +6693,37 @@ function Library.new(selfOrOpts, options)
         local NotifLogo = new("ImageLabel", {
             Name = "NotifLogo",
             AnchorPoint = Vector2.new(0, 0),
-            Position = UDim2.new(0, 16, 0, 14),
-            Size = UDim2.new(0, 16, 0, 16),
+            Position = UDim2.new(0, 13, 0, 15),
+            Size = UDim2.new(0, 28, 0, 28),
             BackgroundTransparency = 1,
             Image = "rbxassetid://133495621202705",
             ImageTransparency = 1,
             ZIndex = 952,
         }, NotifCard)
 
-       local TitleLabel = new("TextLabel", {
+        local TitleLabel = new("TextLabel", {
             Name = "Title",
-            Position = UDim2.new(0, 58, 0, 14),
-            Size = UDim2.new(1, -88, 0, 16),
+            Position = UDim2.new(0, 46, 0, 13),
+            Size = UDim2.new(1, -76, 0, 16),
             BackgroundTransparency = 1,
             FontFace = font(Enum.FontWeight.SemiBold),
             Text = title,
             TextColor3 = WHITE,
-            TextSize = 15,
+            TextSize = 13,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextTransparency = 1,
             ZIndex = 952,
         }, NotifCard)
 
-      local TextLabel = new("TextLabel", {
+        local TextLabel = new("TextLabel", {
             Name = "Text",
-            Position = UDim2.new(0, 58, 0, 35),
-            Size = UDim2.new(1, -74, 0, 0),
+            Position = UDim2.new(0, 46, 0, 33),
+            Size = UDim2.new(1, -76, 0, 0),
             BackgroundTransparency = 1,
             FontFace = font(Enum.FontWeight.Medium),
             Text = text,
             TextColor3 = Color3.fromRGB(170, 170, 170),
-            TextSize = 13,
+            TextSize = 12,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Top,
             TextWrapped = true,
@@ -4594,14 +6751,10 @@ function Library.new(selfOrOpts, options)
             accentBar = accentBar,
             nType = nType
         }
-            local textBounds = TextService:GetTextSize(text, 13, Enum.Font.GothamMedium, Vector2.new(224, 9999))
-            TextLabel.Size = UDim2.new(1, -74, 0, textBounds.Y)
+        local textBounds = TextService:GetTextSize(text, 12, Enum.Font.GothamMedium, Vector2.new(220, 9999))
+        TextLabel.Size = UDim2.new(1, -76, 0, textBounds.Y)
 
-            local logoH = math.clamp(21 + textBounds.Y, 24, 64)
-            NotifLogo.Size = UDim2.new(0, logoH, 0, logoH)
-            NotifLogo.Position = UDim2.new(0, 16, 0, 14)
-
-            local targetHeight = math.max(62, 35 + textBounds.Y + 14)
+        local targetHeight = math.max(56, 33 + textBounds.Y + 12)
         local slideIn = TweenService:Create(NotifCard, TweenInfo.new(0.5, Enum.EasingStyle.Circular, Enum.EasingDirection.Out), {
             Size = UDim2.new(1, 0, 0, targetHeight),
             Position = UDim2.new(0, 0, 0, 0),
@@ -4672,9 +6825,13 @@ function Library.new(selfOrOpts, options)
         if isMobileUser or not tipText or tipText == "" then return end
         local hover = false
         targetGui.MouseEnter:Connect(function()
+            if Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent then
+                tooltip.Visible = false
+                return
+            end
             hover = true
             task.delay(0.2, function()
-                if not hover or not targetGui.Parent then return end
+                if not hover or not targetGui.Parent or isInfoModalOpen or (Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent) then return end
                 tipLabel.Text = tipText
                 tooltip.Visible = true
                 local mouse = UserInputService:GetMouseLocation()
@@ -4880,7 +7037,6 @@ function Library.new(selfOrOpts, options)
         Text = string.format("<font color=\"#ffffff\"><b>%d</b></font> <font color=\"#8e92a4\">players</font>", #Players:GetPlayers()),
         ZIndex = 852,
     }, wmPlrBtn)
-
 
 
     Library.WatermarkFrame = watermark
@@ -5090,10 +7246,43 @@ function Library.new(selfOrOpts, options)
     end)
     wmPlrBtn.MouseButton1Click:Connect(toggleNearbyPopup)
 
+
+    local watermarkPositionFile = ROOT_FOLDER .. "/watermark_position.json"
+    pcall(function()
+        if isfile and isfile(watermarkPositionFile) and readfile then
+            local savedPosition = HttpService:JSONDecode(readfile(watermarkPositionFile))
+            if type(savedPosition) == "table" and tonumber(savedPosition.x) and tonumber(savedPosition.y) then
+                local view = screen.AbsoluteSize
+                local x = math.clamp(tonumber(savedPosition.x), watermark.AbsoluteSize.X + 10, view.X - 10)
+                local y = math.clamp(tonumber(savedPosition.y), 10, view.Y - watermark.AbsoluteSize.Y - 10)
+                watermark.Position = UDim2.fromOffset(x, y)
+            end
+        end
+    end)
+
+    local function saveWatermarkPosition()
+        pcall(function()
+            ensureFolder(ROOT_FOLDER)
+            local pos = watermark.Position
+            local view = screen.AbsoluteSize
+            local data = {
+                x = pos.X.Scale * view.X + pos.X.Offset,
+                y = pos.Y.Scale * view.Y + pos.Y.Offset,
+            }
+            writefile(watermarkPositionFile, HttpService:JSONEncode(data))
+        end)
+    end
+
     local wmDragging = false
     local wmDragStart, wmStartPos, wmMoved
     watermark.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if wmPlrBtn and wmPlrBtn.Parent then
+                local pPos, pSize = wmPlrBtn.AbsolutePosition, wmPlrBtn.AbsoluteSize
+                if input.Position.X >= pPos.X and input.Position.X <= pPos.X + pSize.X and input.Position.Y >= pPos.Y and input.Position.Y <= pPos.Y + pSize.Y then
+                    return
+                end
+            end
             wmDragging = true
             wmMoved = false
             wmDragStart = input.Position
@@ -5147,6 +7336,9 @@ function Library.new(selfOrOpts, options)
             if wmDragging and not wmMoved then
                 if openInfoModal then openInfoModal() end
             end
+            if wmDragging and wmMoved then
+                saveWatermarkPosition()
+            end
             wmDragging = false
         end
     end)
@@ -5167,7 +7359,9 @@ function Library.new(selfOrOpts, options)
     local kbScale = new("UIScale", {Scale = 1}, keybindList)
 
     keybindList.MouseEnter:Connect(function()
-        TweenService:Create(keybindList, TweenInfo.new(0.22), {BackgroundColor3 = Color3.fromRGB(22, 24, 32)}):Play()
+        local containerColor = genv.uicontainer or Color3.fromRGB(18, 19, 24)
+        local accentColor = genv.accent or Color3.fromRGB(34, 197, 94)
+        TweenService:Create(keybindList, TweenInfo.new(0.22), {BackgroundColor3 = containerColor:lerp(accentColor, 0.08)}):Play()
         if kbStroke then
             TweenService:Create(kbStroke, TweenInfo.new(0.22), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.15}):Play()
         end
@@ -5333,7 +7527,7 @@ end
             local row = new("TextButton", {
                 LayoutOrder = idx,
                 Size = UDim2.new(1, 0, 0, 26),
-                BackgroundColor3 = Color3.fromRGB(24, 26, 33),
+                BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(18, 19, 24)):lerp(genv.accent or Color3.fromRGB(34, 197, 94), 0.055),
                 BorderSizePixel = 0,
                 AutoButtonColor = false,
                 Text = "",
@@ -5345,11 +7539,11 @@ end
 
                 local rScale = new("UIScale", {Scale = 1}, row)
                 row.MouseEnter:Connect(function()
-                    TweenService:Create(row, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(30, 32, 42)}):Play()
+                    TweenService:Create(row, TweenInfo.new(0.15), {BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(18, 19, 24)):lerp(genv.accent or Color3.fromRGB(34, 197, 94), 0.13)}):Play()
                     TweenService:Create(rScale, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1.014}):Play()
                 end)
                 row.MouseLeave:Connect(function()
-                    TweenService:Create(row, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(24, 26, 33)}):Play()
+                    TweenService:Create(row, TweenInfo.new(0.2), {BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(18, 19, 24)):lerp(genv.accent or Color3.fromRGB(34, 197, 94), 0.055)}):Play()
                     TweenService:Create(rScale, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {Scale = 1}):Play()
                 end)
 
@@ -5385,7 +7579,7 @@ end
                 if kb.isButton then
                     local actBtn = new("TextButton", {
                         Size = UDim2.new(0, 34, 0, 16),
-                        BackgroundColor3 = Color3.fromRGB(36, 38, 48),
+                        BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(18, 19, 24)):lerp(genv.accent or Color3.fromRGB(34, 197, 94), 0.14),
                         BorderSizePixel = 0,
                         AutoButtonColor = false,
                         Text = "",
@@ -5414,7 +7608,7 @@ end
                         if kb.toggle then kb.toggle() elseif kb.callback then kb.callback() end
                         task.delay(0.12, function()
                             if actBtn and actBtn.Parent then
-                                TweenService:Create(actBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(36, 38, 48)}):Play()
+                                TweenService:Create(actBtn, TweenInfo.new(0.15), {BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(18, 19, 24)):lerp(genv.accent or Color3.fromRGB(34, 197, 94), 0.14)}):Play()
                                 actText.TextColor3 = genv.accent or WHITE
                                 TweenService:Create(rScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
                             end
@@ -5433,7 +7627,7 @@ end
                         ZIndex = 854,
                     }, rightHolder)
                     pill(switchTrack)
-                    local trackStrk = stroke(switchTrack, Color3.fromRGB(50, 53, 66), 1, 0.5)
+                    local trackStrk = stroke(switchTrack, genv.uiline or Color3.fromRGB(50, 53, 66), 1, 0.4)
 
                     local switchKnob = new("Frame", {
                         AnchorPoint = Vector2.new(0, 0.5),
@@ -5463,10 +7657,10 @@ keybindHudRows[kb.name] = {
                     local function toggleRow()
                         if tick() - lastTog < 0.15 then return end
                         lastTog = tick()
-                        TweenService:Create(row, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(34, 37, 48)}):Play()
+                        TweenService:Create(row, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(18, 19, 24)):lerp(genv.accent or Color3.fromRGB(34, 197, 94), 0.18)}):Play()
                         task.delay(0.1, function()
                             if row and row.Parent then
-                                TweenService:Create(row, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = Color3.fromRGB(24, 26, 33)}):Play()
+                                TweenService:Create(row, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(18, 19, 24)):lerp(genv.accent or Color3.fromRGB(34, 197, 94), 0.055)}):Play()
                             end
                         end)
                         if kb.toggle then
@@ -5483,12 +7677,12 @@ keybindHudRows[kb.name] = {
                 local badge = new("Frame", {
                     Size = UDim2.new(0, 0, 0, 17),
                     AutomaticSize = Enum.AutomaticSize.X,
-                    BackgroundColor3 = Color3.fromRGB(30, 32, 40),
+                    BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(18, 19, 24)):lerp(genv.accent or Color3.fromRGB(34, 197, 94), 0.10),
                     BorderSizePixel = 0,
                     ZIndex = 854,
                 }, rightHolder)
                 corner(badge, 4)
-                stroke(badge, Color3.fromRGB(48, 52, 66), 1, 0.5)
+                stroke(badge, genv.uiline or Color3.fromRGB(48, 52, 66), 1, 0.35)
                 new("UIPadding", {PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5)}, badge)
 
                 new("TextLabel", {
@@ -5498,15 +7692,15 @@ keybindHudRows[kb.name] = {
                     FontFace = font(Enum.FontWeight.Bold),
                     TextColor3 = genv.accent or WHITE,
                     TextSize = 10,
-                    Text = tostring(kb.key),
+                    Text = formatKeybindDisplay(kb.key),
                     ZIndex = 855,
                 }, badge)
 
                 row.MouseEnter:Connect(function()
-                    TweenService:Create(row, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(30, 33, 44)}):Play()
+                    TweenService:Create(row, TweenInfo.new(0.15), {BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(18, 19, 24)):lerp(genv.accent or Color3.fromRGB(34, 197, 94), 0.13)}):Play()
                 end)
                 row.MouseLeave:Connect(function()
-                    TweenService:Create(row, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(24, 26, 33)}):Play()
+                    TweenService:Create(row, TweenInfo.new(0.2), {BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(18, 19, 24)):lerp(genv.accent or Color3.fromRGB(34, 197, 94), 0.055)}):Play()
                 end)
             end
         kbCountText.Text = tostring(count)
@@ -5563,7 +7757,7 @@ keybindHudRows[kb.name] = {
     end)
     island.MouseLeave:Connect(function()
         if islandStroke then
-            TweenService:Create(islandStroke, TweenInfo.new(0.25), {Color = Color3.fromRGB(36, 38, 48), Transparency = 0.45}):Play()
+            TweenService:Create(islandStroke, TweenInfo.new(0.25), {Color = genv.uiline or Color3.fromRGB(36, 38, 48), Transparency = 0.25}):Play()
         end
     end)
     local islandScale = new("UIScale", {Scale = 1}, island)
@@ -5618,7 +7812,7 @@ keybindHudRows[kb.name] = {
         BackgroundTransparency = 1,
         ZIndex = 852,
     }, islandCompact)
-    
+
     local eqBars = {}
     for i = 1, 4 do
         local bar = new("Frame", {
@@ -5662,7 +7856,7 @@ keybindHudRows[kb.name] = {
         BorderSizePixel = 0,
         ZIndex = 853,
     }, expHeader)
-    pill(playerHead)
+    corner(playerHead, 8)
     stroke(playerHead, genv.uiline or Color3.fromRGB(45, 48, 60), 1, 0.4)
     task.spawn(function()
         local ok, url = pcall(function()
@@ -5794,13 +7988,13 @@ keybindHudRows[kb.name] = {
     local pingTile = new("Frame", {
         AnchorPoint = Vector2.new(1, 0),
         Position = UDim2.new(1, 0, 0, 0),
-        Size = UDim2.new(0.485, 0, 0, 32),
-        BackgroundColor3 = Color3.fromRGB(18, 19, 25),
+        Size = UDim2.new(0.485, 0, 0, 30),
+        BackgroundColor3 = Color3.fromRGB(22, 24, 30),
         BorderSizePixel = 0,
         ZIndex = 853,
     }, expMetrics)
-    corner(pingTile, 8)
-    stroke(pingTile, Color3.fromRGB(36, 38, 48), 1, 0.4)
+    corner(pingTile, 7)
+    stroke(pingTile, genv.uiline or Color3.fromRGB(35, 37, 46), 1, 0.3)
     new("UIPadding", {PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8)}, pingTile)
     new("UIListLayout", {
         FillDirection = Enum.FillDirection.Horizontal,
@@ -5829,13 +8023,13 @@ keybindHudRows[kb.name] = {
 
     local plrTile = new("Frame", {
         Position = UDim2.new(0, 0, 0, 38),
-        Size = UDim2.new(0.485, 0, 0, 32),
-        BackgroundColor3 = Color3.fromRGB(18, 19, 25),
+        Size = UDim2.new(0.485, 0, 0, 30),
+        BackgroundColor3 = Color3.fromRGB(22, 24, 30),
         BorderSizePixel = 0,
         ZIndex = 853,
     }, expMetrics)
-    corner(plrTile, 8)
-    stroke(plrTile, Color3.fromRGB(36, 38, 48), 1, 0.4)
+    corner(plrTile, 7)
+    stroke(plrTile, genv.uiline or Color3.fromRGB(35, 37, 46), 1, 0.3)
     new("UIPadding", {PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8)}, plrTile)
     new("UIListLayout", {
         FillDirection = Enum.FillDirection.Horizontal,
@@ -5865,13 +8059,13 @@ keybindHudRows[kb.name] = {
     local actTile = new("Frame", {
         AnchorPoint = Vector2.new(1, 0),
         Position = UDim2.new(1, 0, 0, 38),
-        Size = UDim2.new(0.485, 0, 0, 32),
-        BackgroundColor3 = Color3.fromRGB(18, 19, 25),
+        Size = UDim2.new(0.485, 0, 0, 30),
+        BackgroundColor3 = Color3.fromRGB(22, 24, 30),
         BorderSizePixel = 0,
         ZIndex = 853,
     }, expMetrics)
-    corner(actTile, 8)
-    stroke(actTile, Color3.fromRGB(36, 38, 48), 1, 0.4)
+    corner(actTile, 7)
+    stroke(actTile, genv.uiline or Color3.fromRGB(35, 37, 46), 1, 0.3)
     new("UIPadding", {PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8)}, actTile)
     new("UIListLayout", {
         FillDirection = Enum.FillDirection.Horizontal,
@@ -5894,7 +8088,7 @@ keybindHudRows[kb.name] = {
         TextSize = 11,
         TextXAlignment = Enum.TextXAlignment.Left,
         RichText = true,
-        Text = "<font color=\"#8e92a4\">Online</font>  <font color=\"#ffffff\"><b>0</b></font>",
+        Text = "<font color=\"#8e92a4\">Online users</font>  <font color=\"#ffffff\"><b>0</b></font>",
         ZIndex = 854,
     }, actTile)
 
@@ -5904,17 +8098,56 @@ keybindHudRows[kb.name] = {
         end
     end)
 
-    local restoreBtn = new("TextButton", {
+    local moreAboutHovered = false
+    local moreAboutBtn = new("TextButton", {
+        Name = "MoreAboutMoondietyButton",
         Position = UDim2.new(0, 0, 0, 140),
         Size = UDim2.new(1, 0, 0, 32),
-        BackgroundColor3 = Color3.fromRGB(26, 28, 38),
+        BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(18, 19, 24)):lerp(genv.accent or Color3.fromRGB(34, 197, 94), 0.12),
+        BorderSizePixel = 0,
+        AutoButtonColor = false,
+        Text = "",
+        ZIndex = 853,
+    }, islandExpanded)
+    corner(moreAboutBtn, 10)
+    local moreAboutStroke = stroke(moreAboutBtn, genv.uiline or Color3.fromRGB(44, 48, 64), 1, 0.35)
+    local moreAboutLabel = new("TextLabel", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(1, -20, 1, 0),
+        BackgroundTransparency = 1,
+        FontFace = font(Enum.FontWeight.Bold),
+        TextColor3 = WHITE,
+        TextSize = 11,
+        Text = "More about Moondiety",
+        ZIndex = 854,
+    }, moreAboutBtn)
+    moreAboutBtn.MouseEnter:Connect(function()
+        moreAboutHovered = true
+        local containerColor = genv.uicontainer or Color3.fromRGB(18, 19, 24)
+        local accentColor = genv.accent or Color3.fromRGB(34, 197, 94)
+        TweenService:Create(moreAboutBtn, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = containerColor:lerp(accentColor, 0.20)}):Play()
+        if moreAboutStroke then TweenService:Create(moreAboutStroke, TweenInfo.new(0.18), {Color = accentColor, Transparency = 0.12}):Play() end
+    end)
+    moreAboutBtn.MouseLeave:Connect(function()
+        moreAboutHovered = false
+        local containerColor = genv.uicontainer or Color3.fromRGB(18, 19, 24)
+        local accentColor = genv.accent or Color3.fromRGB(34, 197, 94)
+        TweenService:Create(moreAboutBtn, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = containerColor:lerp(accentColor, 0.12)}):Play()
+        if moreAboutStroke then TweenService:Create(moreAboutStroke, TweenInfo.new(0.22), {Color = genv.uiline or containerColor:lerp(accentColor, 0.24), Transparency = 0.35}):Play() end
+    end)
+
+    local restoreBtn = new("TextButton", {
+        Position = UDim2.new(0, 0, 0, 178),
+        Size = UDim2.new(1, 0, 0, 32),
+        BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(19, 20, 24)):lerp(genv.accent or Color3.fromRGB(34, 197, 94), 0.12),
         BorderSizePixel = 0,
         AutoButtonColor = false,
         Text = "",
         ZIndex = 853,
     }, islandExpanded)
     corner(restoreBtn, 10)
-    local restStrk = stroke(restoreBtn, Color3.fromRGB(44, 48, 64), 1, 0.5)
+    local restStrk = stroke(restoreBtn, genv.uiline or Color3.fromRGB(44, 48, 64), 1, 0.35)
 
     local restIcon = new("ImageLabel", {
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -5939,32 +8172,107 @@ keybindHudRows[kb.name] = {
     }, restoreBtn)
 
     restoreBtn.MouseEnter:Connect(function()
-        TweenService:Create(restoreBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(34, 37, 50)}):Play()
-        if restStrk then TweenService:Create(restStrk, TweenInfo.new(0.15), {Color = genv.accent or Color3.fromRGB(168, 85, 247)}):Play() end
+        Library.IslandRestoreHovered = true
+        local containerColor = genv.uicontainer or Color3.fromRGB(19, 20, 24)
+        local accentColor = genv.accent or Color3.fromRGB(34, 197, 94)
+        local base = containerColor:lerp(accentColor, 0.12)
+        Library.IslandRestoreBaseColor = base
+        TweenService:Create(restoreBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = base:lerp(accentColor, 0.10)}):Play()
+        TweenService:Create(restLabel, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextColor3 = WHITE}):Play()
+        if restStrk then TweenService:Create(restStrk, TweenInfo.new(0.2), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.18}):Play() end
     end)
     restoreBtn.MouseLeave:Connect(function()
-        TweenService:Create(restoreBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(26, 28, 38)}):Play()
-        if restStrk then TweenService:Create(restStrk, TweenInfo.new(0.2), {Color = Color3.fromRGB(44, 48, 64)}):Play() end
+        Library.IslandRestoreHovered = false
+        local containerColor = genv.uicontainer or Color3.fromRGB(19, 20, 24)
+        local accentColor = genv.accent or Color3.fromRGB(34, 197, 94)
+        local base = containerColor:lerp(accentColor, 0.12)
+        Library.IslandRestoreBaseColor = base
+        TweenService:Create(restoreBtn, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = base}):Play()
+        if restStrk then TweenService:Create(restStrk, TweenInfo.new(0.22), {Color = genv.uiline or Color3.fromRGB(44, 48, 64), Transparency = 0.35}):Play() end
+        TweenService:Create(restLabel, TweenInfo.new(0.2), {TextColor3 = WHITE}):Play()
     end)
     local islandExpandedState = false
+    local islandCompactPosition = island.Position
+    Library.IslandCompactPosition = islandCompactPosition
+    Library.SetIslandCompactPosition = function(position)
+        islandCompactPosition = position
+        Library.IslandCompactPosition = position
+        island.Position = position
+    end
+    local islandCompactAnchor = island.AnchorPoint
+    local islandExpandedUpward = false
+    local islandHoverTransition = false
+    local islandDragging = false
+    local islandMoved = false
+    local islandDragStart, islandStartPos
+    local islandSizeTween
+    local islandPositionTween
+    local islandCornerTween
+    local islandHoverCheckToken = 0
+
     local function setIslandExpanded(state)
+        if islandExpandedState == state or islandHoverTransition then return end
+
+        islandHoverTransition = true
         islandExpandedState = state
-        local targetSize = state and UDim2.new(0, 320, 0, 194) or UDim2.new(0, 204, 0, 32)
+
+        local compactHeight = 32
+        local expandedHeight = 232
+        local heightDifference = expandedHeight - compactHeight
+        local targetSize = state
+            and UDim2.new(0, 320, 0, expandedHeight)
+            or UDim2.new(0, 204, 0, compactHeight)
         local targetRadius = state and 22 or 17
+        local tweenInfo = TweenInfo.new(0.36, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+        if state then
+            islandCompactAnchor = island.AnchorPoint
+
+            local viewHeight = screen.AbsoluteSize.Y
+            local compactTop = islandCompactPosition.Y.Scale * viewHeight + islandCompactPosition.Y.Offset
+
+            islandExpandedUpward = compactTop > viewHeight - expandedHeight - 6
+
+            island.AnchorPoint = islandCompactAnchor
+        end
+
+        local targetPosition
+        if state and islandExpandedUpward then
+            targetPosition = UDim2.new(
+                islandCompactPosition.X.Scale,
+                islandCompactPosition.X.Offset,
+                islandCompactPosition.Y.Scale,
+                islandCompactPosition.Y.Offset - heightDifference
+            )
+        elseif not state then
+            targetPosition = islandCompactPosition
+        else
+            targetPosition = islandCompactPosition
+        end
 
         local alpha = state and 1 or 0
-        TweenService:Create(islandTitle, TweenInfo.new(0.2), {TextTransparency = alpha}):Play()
-        TweenService:Create(islandLogo, TweenInfo.new(0.2), {ImageTransparency = alpha}):Play()
-        TweenService:Create(islandDot, TweenInfo.new(0.2), {BackgroundTransparency = alpha}):Play()
+
+        TweenService:Create(islandTitle, TweenInfo.new(0.18), {
+            TextTransparency = alpha
+        }):Play()
+
+        TweenService:Create(islandLogo, TweenInfo.new(0.18), {
+            ImageTransparency = alpha
+        }):Play()
+
+        TweenService:Create(islandDot, TweenInfo.new(0.18), {
+            BackgroundTransparency = alpha
+        }):Play()
+
         for _, bar in ipairs(eqBars) do
-            TweenService:Create(bar, TweenInfo.new(0.2), {BackgroundTransparency = (state and 1 or 0)}):Play()
+            TweenService:Create(bar, TweenInfo.new(0.18), {
+                BackgroundTransparency = state and 1 or 0
+            }):Play()
         end
 
         if state then
             islandExpanded.Visible = true
-            task.delay(0.2, function()
-                if islandExpandedState then islandCompact.Visible = false end
-            end)
+            islandCompact.Visible = true
+
             if islandUsername and islandUsername.Parent then
                 islandUsername.Text = "@" .. LocalPlayer.Name .. "  •  " .. getExecName()
             end
@@ -5972,37 +8280,91 @@ keybindHudRows[kb.name] = {
             islandCompact.Visible = true
             islandExpanded.Visible = false
         end
+
+        if islandSizeTween then islandSizeTween:Cancel() end
+        if islandPositionTween then islandPositionTween:Cancel() end
+        if islandCornerTween then islandCornerTween:Cancel() end
+
         if islandCorner then
-            TweenService:Create(islandCorner, TweenInfo.new(0.32, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {CornerRadius = UDim.new(0, targetRadius)}):Play()
+            islandCornerTween = TweenService:Create(islandCorner, tweenInfo, {
+                CornerRadius = UDim.new(0, targetRadius)
+            })
+            islandCornerTween:Play()
         end
-        TweenService:Create(island, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = targetSize}):Play()
+
+        islandSizeTween = TweenService:Create(island, tweenInfo, {
+            Size = targetSize
+        })
+        islandPositionTween = TweenService:Create(island, tweenInfo, {
+            Position = targetPosition
+        })
+
+        islandSizeTween:Play()
+        islandPositionTween:Play()
+
+        local completedState = state
+        islandSizeTween.Completed:Once(function(playbackState)
+            if playbackState ~= Enum.PlaybackState.Completed then return end
+            if islandExpandedState ~= completedState then return end
+
+            if completedState then
+                islandCompact.Visible = false
+            else
+                island.AnchorPoint = islandCompactAnchor
+                islandExpandedUpward = false
+            end
+
+            islandHoverTransition = false
+        end)
     end
 
     Library.SetIslandExpanded = setIslandExpanded
 
     island.MouseEnter:Connect(function()
+        if islandDragging then return end
+        islandHoverCheckToken += 1
         if Library.IslandStyle == "Expand on Hover" or Library.IslandStyle == "Show on Hover" then
             setIslandExpanded(true)
         end
     end)
+
     island.MouseLeave:Connect(function()
-        if (Library.IslandStyle == "Expand on Hover" or Library.IslandStyle == "Show on Hover") and not islandDragging then
-            task.delay(0.12, function()
-                if not islandExpandedState or islandDragging then return end
-                local mPos = UserInputService:GetMouseLocation()
-                local aPos = island.AbsolutePosition
-                local aSize = island.AbsoluteSize
-                if mPos.X >= aPos.X and mPos.X <= aPos.X + aSize.X and mPos.Y >= aPos.Y and mPos.Y <= aPos.Y + aSize.Y then
-                    return
-                end
-                setIslandExpanded(false)
-            end)
+        if Library.IslandStyle ~= "Expand on Hover" and Library.IslandStyle ~= "Show on Hover" then
+            return
         end
+        if not islandExpandedState or islandDragging then return end
+
+        islandHoverCheckToken += 1
+        local checkToken = islandHoverCheckToken
+
+        task.spawn(function()
+            while islandHoverTransition do
+                task.wait(0.03)
+                if checkToken ~= islandHoverCheckToken then return end
+            end
+
+            task.wait(0.18)
+
+            if checkToken ~= islandHoverCheckToken then return end
+            if not islandExpandedState or islandDragging or islandHoverTransition then return end
+
+            local mousePosition = UserInputService:GetMouseLocation()
+            local islandPosition = island.AbsolutePosition
+            local islandSize = island.AbsoluteSize
+            local padding = 14
+
+            local insideIsland =
+                mousePosition.X >= islandPosition.X - padding
+                and mousePosition.X <= islandPosition.X + islandSize.X + padding
+                and mousePosition.Y >= islandPosition.Y - padding
+                and mousePosition.Y <= islandPosition.Y + islandSize.Y + padding
+
+            if not insideIsland then
+                setIslandExpanded(false)
+            end
+        end)
     end)
 
-    local islandDragging = false
-    local islandMoved = false
-    local islandDragStart, islandStartPos
     island.InputBegan:Connect(function(input)
         if not Library.IslandDraggable then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -6010,6 +8372,9 @@ keybindHudRows[kb.name] = {
             islandMoved = false
             islandDragStart = input.Position
             islandStartPos = island.Position
+            if not islandExpandedState then
+                islandCompactAnchor = island.AnchorPoint
+            end
             TweenService:Create(islandScale, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {Scale = 0.96}):Play()
         end
     end)
@@ -6018,24 +8383,50 @@ keybindHudRows[kb.name] = {
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             local delta = input.Position - islandDragStart
             if delta.Magnitude > 4 then islandMoved = true end
+
             local view = screen.AbsoluteSize
+            local currentWidth = islandExpandedState and 320 or 204
+            local compactHeight = 32
+            local expandedHeight = 232
+            local heightDifference = expandedHeight - compactHeight
+            local halfWidth = currentWidth / 2
+
             local curX = islandStartPos.X.Scale * view.X + islandStartPos.X.Offset + delta.X
-            local curY = islandStartPos.Y.Scale * view.Y + islandStartPos.Y.Offset + delta.Y
-            curX = math.clamp(curX, 160, view.X - 160)
-            curY = math.clamp(curY, 6, view.Y - 180)
-            island.Position = UDim2.fromOffset(curX, curY)
+            local visualY = islandStartPos.Y.Scale * view.Y + islandStartPos.Y.Offset + delta.Y
+            local compactY = visualY + ((islandExpandedState and islandExpandedUpward) and heightDifference or 0)
+
+            local maxX = math.max(halfWidth + 6, view.X - halfWidth - 6)
+            local bottomMargin = (islandExpandedState and not islandExpandedUpward) and expandedHeight or compactHeight
+            local maxY = math.max(6, view.Y - bottomMargin)
+            curX = math.clamp(curX, halfWidth + 6, maxX)
+            compactY = math.clamp(compactY, 6, maxY)
+
+            islandCompactPosition = UDim2.fromOffset(curX, compactY)
+            Library.IslandCompactPosition = islandCompactPosition
+            island.AnchorPoint = islandCompactAnchor
+
+            if islandExpandedState then
+                local expandedVisualY = compactY - (islandExpandedUpward and heightDifference or 0)
+                island.Position = UDim2.fromOffset(curX, expandedVisualY)
+            else
+                island.Position = islandCompactPosition
+            end
         end
     end)
     bind(UserInputService.InputEnded, function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             if islandDragging then
                 islandDragging = false
+                if islandMoved then
+                    Library.IslandCompactPosition = islandCompactPosition
+                    Library:save_flags("__island_position")
+                end
                 TweenService:Create(islandScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), {Scale = 1}):Play()
                 if not islandMoved then
                     if Library.IslandStyle == "Click to Expand" or ((Library.IslandStyle == "Expand on Hover" or Library.IslandStyle == "Show on Hover") and input.UserInputType == Enum.UserInputType.Touch) then
                         setIslandExpanded(not islandExpandedState)
                     elseif Library.IslandStyle == "Compact Pill" then
-                        setHidden(false)
+                        if Library.setHidden then Library.setHidden(false) end
                     end
                 end
             elseif islandExpandedState and (Library.IslandStyle == "Click to Expand" or ((Library.IslandStyle == "Expand on Hover" or Library.IslandStyle == "Show on Hover") and input.UserInputType == Enum.UserInputType.Touch)) then
@@ -6053,27 +8444,31 @@ keybindHudRows[kb.name] = {
         Name = "ToggleBar",
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, 16, 0.5, 0),
-        Size = UDim2.new(0, 48, 0, 48),
+        Size = UDim2.new(0, 40, 0, 40),
         BackgroundColor3 = genv.uicontainer or Color3.fromRGB(18, 19, 25),
+        BackgroundTransparency = Library.HudButtonTransparency or 0,
         BorderSizePixel = 0,
         AutoButtonColor = false,
         Text = "",
         Visible = false,
         ZIndex = 800,
     }, screen)
-    corner(ToggleBtn, 14)
-    local toggleStroke = stroke(ToggleBtn, genv.accent or Color3.fromRGB(168, 85, 247), 1.5, 0.3)
+    local toggleCorner = corner(ToggleBtn, 10)
+    local toggleStroke = stroke(ToggleBtn, genv.accent or Color3.fromRGB(168, 85, 247), 1.2, 0.3)
     Library.ToggleBarBtn = ToggleBtn
+    Library.ToggleBarCorner = toggleCorner
+    Library.ToggleBarStroke = toggleStroke
 
     local toggleDot = new("Frame", {
         AnchorPoint = Vector2.new(1, 0),
-        Position = UDim2.new(1, -6, 0, 6),
-        Size = UDim2.new(0, 5, 0, 5),
+        Position = UDim2.new(1, -5, 0, 5),
+        Size = UDim2.new(0, 4, 0, 4),
         BackgroundColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
         BorderSizePixel = 0,
         ZIndex = 802,
     }, ToggleBtn)
     pill(toggleDot)
+    Library.ToggleBarDot = toggleDot
 
     task.spawn(function()
         while ToggleBtn and ToggleBtn.Parent do
@@ -6088,12 +8483,14 @@ keybindHudRows[kb.name] = {
     local toggleIcon = new("ImageLabel", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = UDim2.new(0, 26, 0, 26),
+        Size = UDim2.new(0, 22, 0, 22),
         BackgroundTransparency = 1,
         Image = "rbxassetid://133495621202705",
         ImageColor3 = WHITE,
         ZIndex = 801,
     }, ToggleBtn)
+    Library.ToggleBarIcon = toggleIcon
+    Library:UpdateToggleBarCustomization()
 
     local toggleScale = new("UIScale", {Scale = 1}, ToggleBtn)
 
@@ -6120,24 +8517,31 @@ keybindHudRows[kb.name] = {
 
     ToggleBtn.MouseEnter:Connect(function()
         TweenService:Create(toggleScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1.12}):Play()
-        TweenService:Create(ToggleBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(26, 28, 38)}):Play()
+        TweenService:Create(ToggleBtn, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(26, 28, 38),
+            BackgroundTransparency = math.clamp((Library.HudButtonTransparency or 0) * 0.8, 0, 1)
+        }):Play()
         if toggleStroke then
             TweenService:Create(toggleStroke, TweenInfo.new(0.2), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0}):Play()
         end
         wobbleToggleIcon()
     end)
+    local toggleDragging = false
+    local toggleDragStart, toggleStartPos, toggleMoved
     ToggleBtn.MouseLeave:Connect(function()
         if not toggleDragging then
             TweenService:Create(toggleScale, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Scale = 1}):Play()
-            TweenService:Create(ToggleBtn, TweenInfo.new(0.25), {BackgroundColor3 = genv.uicontainer or Color3.fromRGB(18, 19, 25)}):Play()
+            TweenService:Create(ToggleBtn, TweenInfo.new(0.25), {
+                BackgroundColor3 = genv.uicontainer or Color3.fromRGB(18, 19, 25),
+                BackgroundTransparency = Library.HudButtonTransparency or 0
+            }):Play()
             if toggleStroke then
-                TweenService:Create(toggleStroke, TweenInfo.new(0.2), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.35}):Play()
+                local alpha = (Library.HudGlowEnabled ~= false) and math.clamp(0.4 * (1 - (Library.HudGlowIntensity or 1) * 0.7), 0, 0.8) or 0.7
+                TweenService:Create(toggleStroke, TweenInfo.new(0.2), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = alpha}):Play()
             end
         end
     end)
 
-    local toggleDragging = false
-    local toggleDragStart, toggleStartPos, toggleMoved
     ToggleBtn.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             toggleDragging = true
@@ -6155,8 +8559,11 @@ keybindHudRows[kb.name] = {
             local view = screen.AbsoluteSize
             local curX = toggleStartPos.X.Scale * view.X + toggleStartPos.X.Offset + delta.X
             local curY = toggleStartPos.Y.Scale * view.Y + toggleStartPos.Y.Offset + delta.Y
-            curX = math.clamp(curX, 0, view.X - 48)
-            curY = math.clamp(curY, 0, view.Y - 48)
+            local btnW = ToggleBtn.AbsoluteSize.X > 0 and ToggleBtn.AbsoluteSize.X or 48
+            local btnH = ToggleBtn.AbsoluteSize.Y > 0 and ToggleBtn.AbsoluteSize.Y or 48
+            local halfH = btnH * 0.5
+            curX = math.clamp(curX, 0, math.max(0, view.X - btnW))
+            curY = math.clamp(curY, halfH, math.max(halfH, view.Y - halfH))
             ToggleBtn.Position = UDim2.fromOffset(curX, curY)
         end
     end)
@@ -6189,6 +8596,8 @@ keybindHudRows[kb.name] = {
     local notchStroke = stroke(NotchBar, genv.accent or Color3.fromRGB(55, 58, 70), 1, 0.4)
     Library.NotchBarBtn = NotchBar
 
+    local notchDragging = false
+    local notchDragStart, notchStartPos, notchMoved
     NotchBar.MouseEnter:Connect(function()
         TweenService:Create(NotchBar, TweenInfo.new(0.25, Enum.EasingStyle.Back), {Size = UDim2.new(0, 142, 0, 32)}):Play()
         if notchStroke then
@@ -6236,8 +8645,6 @@ keybindHudRows[kb.name] = {
     }, NotchBar)
     pill(notchDot)
 
-    local notchDragging = false
-    local notchDragStart, notchStartPos, notchMoved
     NotchBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             notchDragging = true
@@ -6289,11 +8696,17 @@ keybindHudRows[kb.name] = {
     end
     Library.UpdateToggleBarVisibility = updateToggleVisibility
     updateToggleVisibility()
+    task.defer(function()
+        if Library.UpdateHUDThemes then pcall(Library.UpdateHUDThemes) end
+    end)
+
+    local tabs
 
     local modalData = {
         actionButtons = {},
         linkRows = {},
-        metricTiles = {}
+        metricTiles = {},
+        cardGradients = {}
     }
     local function updateHUDThemes()
         local cContainer = genv.uicontainer or Color3.fromRGB(19, 20, 24)
@@ -6301,6 +8714,52 @@ keybindHudRows[kb.name] = {
         local cAccent = genv.accent or Color3.fromRGB(59, 130, 246)
         local cShadow = genv.shadowcolor or Color3.fromRGB(0, 0, 0)
 
+        if Library.ActivePromptThemeUpdater then
+            pcall(Library.ActivePromptThemeUpdater)
+        end
+
+        for _, tabObject in ipairs(tabs:GetChildren()) do
+            if tabObject.Name == "Tab" and tabObject:GetAttribute("MoondietyPremiumTab") == true then
+                local tabStroke = tabObject:FindFirstChildOfClass("UIStroke")
+                if tabStroke then
+                    tabStroke.Color = cAccent
+                    tabStroke.Transparency = 0.08
+                    tabStroke.Thickness = 1.35
+                end
+                local tabTitle = tabObject:FindFirstChild("TextLabel")
+                if tabTitle then tabTitle.TextColor3 = WHITE end
+            end
+        end
+
+        if headerTierTag then
+            local prem = (Library.IsPremium == true) or (genv and genv._MoondietyPremium == true)
+            local showUpgrade = (not prem) and headerTierHovered
+            local tierBaseColor = prem and cAccent:lerp(cContainer, 0.55) or cContainer:lerp(WHITE, showUpgrade and 0.08 or 0.06)
+
+            TweenService:Create(headerTierTag, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = tierBaseColor}):Play()
+            if headerTierStroke then
+                headerTierStroke.Color = (prem or showUpgrade) and cAccent or cLine
+                headerTierStroke.Transparency = (prem or showUpgrade) and 0.15 or 0.25
+            end
+                     if headerTierLabel then
+                animateTierLabel(
+                    prem and "PREMIUM" or (showUpgrade and "UPGRADE" or "FREE"),
+                    (prem or showUpgrade) and WHITE or Color3.fromRGB(156, 163, 185)
+                )
+                headerTierLabel.TextSize = 10
+            end
+        end
+        if minimizeBtn then
+            minimizeBtn.BackgroundColor3 = cContainer:lerp(WHITE, 0.06)
+            if minStroke then minStroke.Color = cLine; minStroke.Transparency = 0.15 end
+            if minBar then minBar.BackgroundColor3 = Color3.fromRGB(156, 163, 185) end
+        end
+        if closeBtn then
+            closeBtn.BackgroundColor3 = cContainer:lerp(WHITE, 0.06)
+            if closeStroke then closeStroke.Color = cLine; closeStroke.Transparency = 0.15 end
+            if closeBar1 then closeBar1.BackgroundColor3 = Color3.fromRGB(156, 163, 185) end
+            if closeBar2 then closeBar2.BackgroundColor3 = Color3.fromRGB(156, 163, 185) end
+        end
         if Container then
             Container.BackgroundColor3 = cContainer
             local cStroke = Container:FindFirstChildOfClass("UIStroke")
@@ -6337,6 +8796,11 @@ keybindHudRows[kb.name] = {
         end
         local cardBg = cContainer:lerp(WHITE, 0.04)
         local rowBg = cContainer:lerp(WHITE, 0.06)
+        for _, cardGradient in ipairs(modalData.cardGradients) do
+            if cardGradient and cardGradient.Parent then
+                cardGradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(205, 210, 228))
+            end
+        end
         if modalData.commCard then
             modalData.commCard.BackgroundColor3 = cardBg
             if modalData.commStroke then modalData.commStroke.Color = cLine end
@@ -6346,6 +8810,7 @@ keybindHudRows[kb.name] = {
             modalData.supportedCard.BackgroundColor3 = cardBg
             if modalData.supportedStroke then modalData.supportedStroke.Color = cLine end
             if modalData.suppHeaderIcon then modalData.suppHeaderIcon.ImageColor3 = cAccent end
+            if modalData.suppHeaderGlyph then modalData.suppHeaderGlyph.TextColor3 = cAccent end
             if modalData.scriptUsersPill then modalData.scriptUsersPill.BackgroundColor3 = rowBg end
             if modalData.scriptUsersStroke then modalData.scriptUsersStroke.Color = cAccent end
         end
@@ -6358,8 +8823,10 @@ keybindHudRows[kb.name] = {
             modalData.gameCard.BackgroundColor3 = cardBg
             if modalData.gameStroke then modalData.gameStroke.Color = cLine end
             if modalData.gameHeaderIcon then modalData.gameHeaderIcon.ImageColor3 = cAccent end
+            if modalData.gameHeaderGlyph then modalData.gameHeaderGlyph.TextColor3 = cAccent end
             if modalData.plrCount then modalData.plrCount.TextColor3 = cAccent end
             if modalData.plrBadge then modalData.plrBadge.BackgroundColor3 = rowBg end
+            if modalData.plrBadgeStroke then modalData.plrBadgeStroke.Color = cLine end
             if modalData.gameIcon then
                 local gStrk = modalData.gameIcon:FindFirstChildOfClass("UIStroke")
                 if gStrk then gStrk.Color = cLine end
@@ -6369,6 +8836,7 @@ keybindHudRows[kb.name] = {
             modalData.perfCard.BackgroundColor3 = cardBg
             if modalData.perfStroke then modalData.perfStroke.Color = cLine end
             if modalData.perfHeaderIcon then modalData.perfHeaderIcon.ImageColor3 = cAccent end
+            if modalData.perfHeaderGlyph then modalData.perfHeaderGlyph.TextColor3 = cAccent end
         end
         local copyBtnBg = cContainer:lerp(WHITE, 0.08)
         for _, lr in ipairs(modalData.linkRows) do
@@ -6376,14 +8844,14 @@ keybindHudRows[kb.name] = {
             if lr.rowStrk then lr.rowStrk.Color = cLine end
             if lr.icon then lr.icon.ImageColor3 = cAccent end
             if lr.copyBtn then lr.copyBtn.BackgroundColor3 = copyBtnBg end
-            if lr.copyStrk then lr.copyStrk.Color = cLine end
+            if lr.copyStrk then lr.copyStrk.Color = cLine; lr.copyStrk.Thickness = 1.15; lr.copyStrk.Transparency = 0.18 end
         end
         if modalData.modalClose then
             modalData.modalClose.BackgroundColor3 = copyBtnBg
             if modalData.modalCloseStroke then modalData.modalCloseStroke.Color = cLine end
         end
         if modalData.scriptUsersLabel and modalData.scriptUsersLabel.Parent then
-            modalData.scriptUsersLabel.Text = string.format("<font color=\"#%s\"><b>%d</b></font> Active Script Users Rn", colorToHex(cAccent), scriptActiveUsers)
+            modalData.scriptUsersLabel.Text = string.format("<font color=\"#%s\"><b>%d</b></font>     Online users", colorToHex(cAccent), scriptActiveUsers)
         end
         for _, sb in ipairs(allCustomScrollbars) do
             if sb.thumb and sb.thumb.Parent then sb.thumb.BackgroundColor3 = cAccent end
@@ -6419,14 +8887,41 @@ keybindHudRows[kb.name] = {
             if kbCountStroke then kbCountStroke.Color = cAccent end
             if kbCountText then kbCountText.TextColor3 = cAccent end
         end
-        if userCard then
-            userCard.BackgroundColor3 = genv.tabcolor or cContainer
-            if userCardStroke then userCardStroke.Color = cLine end
+        if modalData.userCard then
+            modalData.userCard.BackgroundColor3 = genv.tabcolor or cContainer
+            if modalData.userCardStroke then modalData.userCardStroke.Color = cLine end
+        end
+        if moreAboutBtn and moreAboutBtn.Parent then
+            local moreAboutBase = cContainer:lerp(cAccent, 0.12)
+            local moreAboutHover = cContainer:lerp(cAccent, 0.22)
+            moreAboutBtn.BackgroundColor3 = moreAboutHovered and moreAboutHover or moreAboutBase
+            if moreAboutStroke then
+                moreAboutStroke.Color = moreAboutHovered and cAccent or cLine
+                moreAboutStroke.Transparency = moreAboutHovered and 0.12 or 0.35
+            end
+        end
+        if restoreBtn and restoreBtn.Parent then
+            local restoreBase = cContainer:lerp(cAccent, 0.12)
+            local restoreHover = restoreBase:lerp(cAccent, 0.10)
+            Library.IslandRestoreBaseColor = restoreBase
+            restoreBtn.BackgroundColor3 = Library.IslandRestoreHovered and restoreHover or restoreBase
+            if restStrk then
+                restStrk.Color = Library.IslandRestoreHovered and cAccent or cLine
+                restStrk.Transparency = Library.IslandRestoreHovered and 0.18 or 0.35
+            end
         end
         if island then
-            island.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+            island.BackgroundColor3 = cContainer
             if islandStroke then islandStroke.Color = cLine end
-            if restoreBtn then restoreBtn.BackgroundColor3 = cAccent end
+
+            local metricSurface = cContainer:lerp(cAccent, 0.07)
+            for _, metricTile in ipairs({fpsTile, pingTile, plrTile, actTile}) do
+                if metricTile and metricTile.Parent then
+                    metricTile.BackgroundColor3 = metricSurface
+                    local metricStroke = metricTile:FindFirstChildOfClass("UIStroke")
+                    if metricStroke then metricStroke.Color = cLine; metricStroke.Transparency = 0.3 end
+                end
+            end
             if expSep then expSep.BackgroundColor3 = cLine end
             if islandGameLabel then islandGameLabel.TextColor3 = cAccent end
             if fpsTileIcon then fpsTileIcon.ImageColor3 = cAccent end
@@ -6501,55 +8996,19 @@ keybindHudRows[kb.name] = {
             islandFpsVal.Text = string.format("<font color=\"#8e92a4\">FPS</font>  <font color=\"#ffffff\"><b>%d</b></font>", currentFps)
             islandPingVal.Text = string.format("<font color=\"#8e92a4\">Ping</font>  <font color=\"#ffffff\"><b>%d</b><font color=\"#8e92a4\"> ms</font></font>", ping)
             islandPlrVal.Text = string.format("<font color=\"#8e92a4\">Players</font>  <font color=\"#ffffff\"><b>%d</b></font>", playerCount)
-            islandActiveVal.Text = string.format("<font color=\"#8e92a4\">Online</font>  <font color=\"#ffffff\"><b>%s</b></font>", (scriptActiveUsers >= 10000 and formatCount(scriptActiveUsers)) or tostring(scriptActiveUsers))
+            islandActiveVal.Text = string.format("<font color=\"#8e92a4\">Online users</font>  <font color=\"#ffffff\"><b>%s</b></font>", (scriptActiveUsers >= 10000 and formatCount(scriptActiveUsers)) or tostring(scriptActiveUsers))
 
             wmPingText.Text = string.format("<font color=\"#ffffff\"><b>%d</b></font> <font color=\"#8e92a4\">ms</font>", ping)
 
             wmFpsText.Text = string.format("<font color=\"#ffffff\"><b>%d</b></font> <font color=\"#8e92a4\">fps</font>", currentFps)
             wmPlrText.Text = string.format("<font color=\"#ffffff\"><b>%d</b></font> <font color=\"#8e92a4\">players</font>", playerCount)
 
-           
-            islandDot.BackgroundColor3 = (currentFps >= 45 and ping <= 120) and SUCCESS_COLOR or ((currentFps >= 25) and WARNING_COLOR or ERROR_COLOR)          
+
+            islandDot.BackgroundColor3 = (currentFps >= 45 and ping <= 120) and SUCCESS_COLOR or ((currentFps >= 25) and WARNING_COLOR or ERROR_COLOR)
 
             if nearbyFrame and nearbyFrame.Visible then
                 updateNearbyPlayers()
             end
-            task.spawn(function()
-                while screen and screen.Parent do
-                    local ping = 0
-                    local okPing, pVal = pcall(function()
-                        return math.floor(LocalPlayer:GetNetworkPing() * 1000)
-                    end)
-                    if okPing and pVal and pVal > 0 then
-                        ping = pVal
-                    else
-                        local okStat, sVal = pcall(function()
-                            return math.floor(StatsService.Network.ServerStatsItem["Data Ping"]:GetValue())
-                        end)
-                        if okStat and sVal then ping = sVal end
-                    end
-
-                    if island.Visible and islandCompact.Visible then
-                        local eqColor = (ping <= 80) and Color3.fromRGB(52, 211, 153) or ((ping <= 150) and Color3.fromRGB(251, 191, 36) or Color3.fromRGB(248, 113, 113))
-                        local t = tick()
-                        for i, bar in ipairs(eqBars) do
-                            if bar and bar.Parent then
-                                local isActive = false
-                                if ping <= 80 then isActive = true
-                                elseif ping <= 150 then isActive = (i <= 3)
-                                else isActive = (i <= 1) end
-                                
-                                local baseH = 4 + (i * 2)
-                                local h = isActive and (baseH + math.sin(t * 8 + i * 1.5) * 3) or 3
-                                bar.Size = UDim2.new(0, 3, 0, math.max(2, h))
-                                bar.BackgroundColor3 = isActive and eqColor or Color3.fromRGB(40, 40, 45)
-                            end
-                        end
-                    end
-                    
-                    task.wait(0.03)
-                end
-            end)
             if modalData.infoModal and modalData.infoModal.Visible then
                 if modalData.pingVal then modalData.pingVal.Text = ping .. " ms" end
                 if modalData.fpsVal then modalData.fpsVal.Text = currentFps .. " fps" end
@@ -6563,6 +9022,42 @@ keybindHudRows[kb.name] = {
             end
 
             task.wait(0.5)
+        end
+    end)
+
+    task.spawn(function()
+        while screen and screen.Parent do
+            if island.Visible and islandCompact.Visible then
+                local ping = 0
+                local okPing, pVal = pcall(function()
+                    return math.floor(LocalPlayer:GetNetworkPing() * 1000)
+                end)
+                if okPing and pVal and pVal > 0 then
+                    ping = pVal
+                else
+                    local okStat, sVal = pcall(function()
+                        return math.floor(StatsService.Network.ServerStatsItem["Data Ping"]:GetValue())
+                    end)
+                    if okStat and sVal then ping = sVal end
+                end
+
+                local eqColor = (ping <= 80) and Color3.fromRGB(52, 211, 153) or ((ping <= 150) and Color3.fromRGB(251, 191, 36) or Color3.fromRGB(248, 113, 113))
+                local t = tick()
+                for i, bar in ipairs(eqBars) do
+                    if bar and bar.Parent then
+                        local isActive = false
+                        if ping <= 80 then isActive = true
+                        elseif ping <= 150 then isActive = (i <= 3)
+                        else isActive = (i <= 1) end
+
+                        local baseH = 4 + (i * 2)
+                        local h = isActive and (baseH + math.sin(t * 8 + i * 1.5) * 3) or 3
+                        bar.Size = UDim2.new(0, 3, 0, math.max(2, h))
+                        bar.BackgroundColor3 = isActive and eqColor or Color3.fromRGB(40, 40, 45)
+                    end
+                end
+            end
+            task.wait(0.04)
         end
     end)
 
@@ -6586,7 +9081,7 @@ keybindHudRows[kb.name] = {
         if Library.IslandEnabled then
             island.Visible = state
             if state then
-                if Library.IslandStyle == "Always Show" then
+                if Library.IslandStyle == "Always Show" or Library.IslandStyle == "Always Expanded" then
                     setIslandExpanded(true)
                 else
                     setIslandExpanded(false)
@@ -6619,13 +9114,10 @@ keybindHudRows[kb.name] = {
             CancelText = "Cancel",
             Danger = true,
             OnConfirm = function()
-                Library:disconnect()
-                if Library.HudGui then
-                    pcall(function() Library.HudGui:Destroy() end)
-                    Library.HudGui = nil
+                pcall(function() Library:Unload() end)
+                if screen and screen.Parent then
+                    pcall(function() screen:Destroy() end)
                 end
-                Library.ActionButtons = {}
-                pcall(function() screen:Destroy() end)
             end,
         })
     end)
@@ -6652,14 +9144,65 @@ keybindHudRows[kb.name] = {
     local function beginDrag(input)
         if Library.slider_drag then return end
         if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+        if searchHolder and searchHolder.Parent then
+            local sPos, sSize = searchHolder.AbsolutePosition, searchHolder.AbsoluteSize
+            if input.Position.X >= sPos.X and input.Position.X <= sPos.X + sSize.X and input.Position.Y >= sPos.Y and input.Position.Y <= sPos.Y + sSize.Y then
+                return
+            end
+        end
         Library.dragging = true
         dragInput = input
         Library.drag_position = input.Position
         Library.start_position = MainHolder.Position
     end
 
+
     Top.InputBegan:Connect(beginDrag)
-    Container.InputBegan:Connect(beginDrag)
+
+    local seeThroughActive = false
+    local lastSeeThroughCheck = 0
+    local seeThroughTweenInfo = TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local function applySeeThrough(state)
+        if seeThroughActive == state then return end
+        seeThroughActive = state
+        if Container and Container.Parent then
+            TweenService:Create(Container, seeThroughTweenInfo, {BackgroundTransparency = state and 0.55 or 0}):Play()
+        end
+        if Shadow and Shadow.Parent then
+            TweenService:Create(Shadow, seeThroughTweenInfo, {ImageTransparency = state and 0.85 or 0}):Play()
+        end
+        if modalData.userCard and modalData.userCard.Parent then
+            TweenService:Create(modalData.userCard, seeThroughTweenInfo, {BackgroundTransparency = state and 0.55 or 0}):Play()
+        end
+        local curTab = Library.Tab and Library.Tab.current_tab
+        if curTab and curTab.section and curTab.section.Parent then
+            for _, child in curTab.section:GetChildren() do
+                if (child:IsA("Frame") or child:IsA("TextButton")) and child.Name ~= "Divider" and child.Name ~= "Title" then
+                    TweenService:Create(child, seeThroughTweenInfo, {BackgroundTransparency = state and 0.45 or 0}):Play()
+                end
+            end
+        end
+    end
+
+    bind(RunService.Heartbeat, function()
+        local now = tick()
+        if now - lastSeeThroughCheck < 0.08 then return end
+        lastSeeThroughCheck = now
+        if Library.hidden or not Container or not Container.Parent then
+            if seeThroughActive then applySeeThrough(false) end
+            return
+        end
+        local moving = false
+        local char = LocalPlayer and LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum and hum.MoveDirection.Magnitude > 0.05 then
+            moving = true
+        end
+        local wantSeeThrough = (Library.slider_drag == true) or moving
+        if wantSeeThrough ~= seeThroughActive then
+            applySeeThrough(wantSeeThrough)
+        end
+    end)
 
     bind(UserInputService.InputChanged, function(input)
         if not Library.dragging then return end
@@ -6672,31 +9215,41 @@ keybindHudRows[kb.name] = {
         if not Library.drag_position or not Library.start_position then return end
         local delta = input.Position - Library.drag_position
         local start = Library.start_position
-        local position = UDim2.new(start.X.Scale, start.X.Offset + delta.X, start.Y.Scale, start.Y.Offset + delta.Y)
-        MainHolder.Position = position
+        local view = screen.AbsoluteSize
+        local px = start.X.Scale * view.X + start.X.Offset + delta.X
+        local py = start.Y.Scale * view.Y + start.Y.Offset + delta.Y
+        px = math.clamp(px, 60, math.max(60, view.X - 60))
+        py = math.clamp(py, 40, math.max(40, view.Y - 40))
+        MainHolder.Position = UDim2.fromOffset(px, py)
     end)
 
     bind(UserInputService.InputBegan, function(input, processed)
         if processed then return end
         if not Library.exist() then return end
-        if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+        local pressed
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            pressed = input.KeyCode.Name
+        elseif input.UserInputType.Name:match("^MouseButton%d+$") then
+            pressed = input.UserInputType.Name
+        else
+            return
+        end
         local chosenKey = Library.Flags.toggleui or "H"
         local keyName = (typeof(chosenKey) == "EnumItem" and chosenKey.Name) or tostring(chosenKey)
-        if input.KeyCode.Name == keyName then
+        if pressed == keyName then
             setHidden(not Library.hidden)
         end
     end)
 
 
-
-    local tabs = new("ScrollingFrame", {
+    tabs = new("ScrollingFrame", {
         Name = "Tabs",
         Active = true,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ClipsDescendants = true,
         Position = UDim2.new(0, 10, 0, 58),
-        Size = UDim2.new(0.21, -10, 1, -138),
+        Size = UDim2.new(0.21, -10, 1, -68),
         ScrollBarThickness = 0,
         ScrollBarImageTransparency = 1,
         CanvasSize = UDim2.new(0, 0, 0, 0),
@@ -6714,106 +9267,19 @@ keybindHudRows[kb.name] = {
     corner(tabs, 8)
 
     tabsLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        local need = tabsLayout.AbsoluteContentSize.Y + 16
-        tabs.CanvasSize = UDim2.new(0, 0, 0, math.max(need, tabs.AbsoluteSize.Y))
-        tabs.ScrollingEnabled = need > tabs.AbsoluteSize.Y
+        local s = (Library.ContainerScale and Library.ContainerScale.Scale > 0) and Library.ContainerScale.Scale or (Library.UIScale or 1)
+        local need = (tabsLayout.AbsoluteContentSize.Y / s) + 16
+        local avail = tabs.AbsoluteSize.Y / s
+        tabs.CanvasSize = UDim2.new(0, 0, 0, math.max(need, avail))
+        tabs.ScrollingEnabled = need > avail
     end)
 
-    local userCard = new("TextButton", {
-        Name = "UserCard",
-        BackgroundColor3 = genv.tabcolor or genv.uicontainer or Color3.fromRGB(22, 23, 29),
-        BorderSizePixel = 0,
-        AutoButtonColor = false,
-        Text = "",
-        Position = UDim2.new(0, 10, 1, -68),
-        Size = UDim2.new(0.21, -10, 0, 56),
-        ZIndex = 20,
-    }, Container)
-    table.insert(genv.UIElements, userCard)
-    corner(userCard, 9)
-    local userCardStroke = stroke(userCard, genv.uiline or Color3.fromRGB(36, 38, 48), 1, 0.5)
+    modalData.userCard, modalData.userCardStroke = buildUserCard(Container, attachTooltip)
 
-    local avatar = new("ImageLabel", {
-        Name = "Avatar",
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 8, 0.5, 0),
-        Size = UDim2.new(0, 32, 0, 32),
-        BackgroundColor3 = Color3.fromRGB(18, 19, 24),
-        BackgroundTransparency = 0,
-        BorderSizePixel = 0,
-        ZIndex = 21,
-    }, userCard)
-    corner(avatar, 8)
-    stroke(avatar, Color3.fromRGB(44, 46, 58), 1, 0.6)
-
-    local nickLabel = new("TextLabel", {
-        BackgroundTransparency = 1,
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 48, 0.36, 0),
-        Size = UDim2.new(1, -72, 0, 14),
-        FontFace = font(Enum.FontWeight.Bold),
-        TextColor3 = Color3.fromRGB(240, 242, 248),
-        TextSize = 12,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Text = LocalPlayer.DisplayName,
-        ZIndex = 21,
-    }, userCard)
-    nickLabel:SetAttribute("ThemeText", true)
-    table.insert(genv.UIElements, nickLabel)
-
-    local userTagLabel = new("TextLabel", {
-        BackgroundTransparency = 1,
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 48, 0.68, 0),
-        Size = UDim2.new(1, -72, 0, 12),
-        FontFace = font(Enum.FontWeight.Regular),
-        TextColor3 = Color3.fromRGB(140, 144, 158),
-        TextSize = 11,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        Text = "@" .. LocalPlayer.Name,
-        ZIndex = 21,
-    }, userCard)
-
-    local userChevron = new("ImageLabel", {
-        Name = "UserChevron",
-        AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -10, 0.5, 0),
-        Size = UDim2.new(0, 14, 0, 14),
-        BackgroundTransparency = 1,
-        Image = "rbxassetid://92473583511724",
-        ImageColor3 = Color3.fromRGB(120, 124, 138),
-        ZIndex = 21,
-    }, userCard)
-
-    userCard.MouseEnter:Connect(function()
-        local baseCol = genv.tabcolor or genv.uicontainer or Color3.fromRGB(22, 23, 29)
-        TweenService:Create(userCard, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {BackgroundColor3 = baseCol:lerp(WHITE, 0.08)}):Play()
-        if userCardStroke then
-            TweenService:Create(userCardStroke, TweenInfo.new(0.2), {Color = genv.accent or Color3.fromRGB(168, 85, 247), Transparency = 0.2}):Play()
-        end
-        TweenService:Create(userChevron, TweenInfo.new(0.2, Enum.EasingStyle.Back), {Position = UDim2.new(1, -7, 0.5, 0), ImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247)}):Play()
-    end)
-
-    userCard.MouseLeave:Connect(function()
-        local baseCol = genv.tabcolor or genv.uicontainer or Color3.fromRGB(22, 23, 29)
-        TweenService:Create(userCard, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {BackgroundColor3 = baseCol}):Play()
-        if userCardStroke then
-            TweenService:Create(userCardStroke, TweenInfo.new(0.2), {Color = genv.uiline or Color3.fromRGB(36, 38, 48), Transparency = 0.5}):Play()
-        end
-        TweenService:Create(userChevron, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Position = UDim2.new(1, -10, 0.5, 0), ImageColor3 = Color3.fromRGB(120, 124, 138)}):Play()
-    end)
-
-    task.spawn(function()
-        local ok, content = pcall(function()
-            return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
-        end)
-        if ok and content then avatar.Image = content end
-    end)
-
-    local function initModal()
+    modalData.initModal = function()
         local isModalOpen = false
+        local lastModalOpened = 0
+        local modalAvatar = nil
         local infoModalOverlay = new("TextButton", {
             Name = "InfoModalOverlay",
             BackgroundColor3 = Color3.fromRGB(0, 0, 0),
@@ -6851,7 +9317,17 @@ keybindHudRows[kb.name] = {
         openInfoModal = function()
             if isModalOpen then return end
             isModalOpen = true
-            if updateHUDThemes then updateHUDThemes() end
+            isInfoModalOpen = true
+            lastModalOpened = os.clock()
+            if modalAvatar then
+                if Library.UserAvatar and Library.UserAvatar.Image ~= "" and modalAvatar.Image ~= Library.UserAvatar.Image then
+                    modalAvatar.Image = Library.UserAvatar.Image
+                elseif modalAvatar.Image == "" then
+                    modalAvatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=100&h=100"
+                end
+            end
+            if updateHUDThemes then pcall(updateHUDThemes) end
+            tooltip.Visible = false
             infoModalOverlay.Visible = true
             infoModal.Visible = true
             modalScale.Scale = 0.88
@@ -6863,6 +9339,8 @@ keybindHudRows[kb.name] = {
         closeInfoModal = function()
             if not isModalOpen then return end
             isModalOpen = false
+            isInfoModalOpen = false
+            tooltip.Visible = false
             local twO = TweenService:Create(infoModalOverlay, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {BackgroundTransparency = 1})
             local twM = TweenService:Create(modalScale, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {Scale = 0.88})
             twO:Play()
@@ -6876,11 +9354,13 @@ keybindHudRows[kb.name] = {
         end
 
         infoModalOverlay.MouseButton1Click:Connect(closeInfoModal)
-        userCard.MouseButton1Click:Connect(openInfoModal)
-        userCard.TouchTap:Connect(openInfoModal)
+        bindTap(modalData.userCard, openInfoModal)
+        bindTap(moreAboutBtn, function()
+            if openInfoModal then openInfoModal() end
+        end)
 
         UserInputService.InputBegan:Connect(function(input)
-            if not isModalOpen then return end
+            if not isModalOpen or (os.clock() - lastModalOpened < 0.25) then return end
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 local mousePos = input.Position
                 local modalPos = infoModal.AbsolutePosition
@@ -6900,13 +9380,14 @@ keybindHudRows[kb.name] = {
             ZIndex = 892,
         }, infoModal)
 
-        local modalAvatar = new("ImageLabel", {
+        modalAvatar = new("ImageLabel", {
             Name = "ModalAvatar",
             AnchorPoint = Vector2.new(0, 0.5),
             Position = UDim2.new(0, 0, 0.5, 0),
             Size = UDim2.new(0, 36, 0, 36),
             BackgroundColor3 = Color3.fromRGB(28, 30, 38),
             BorderSizePixel = 0,
+            Image = (Library.UserAvatar and Library.UserAvatar.Image ~= "") and Library.UserAvatar.Image or ("rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=100&h=100"),
             ZIndex = 893,
         }, modalHeader)
         corner(modalAvatar, 8)
@@ -6916,7 +9397,7 @@ keybindHudRows[kb.name] = {
             local ok, content = pcall(function()
                 return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
             end)
-            if ok and content then modalAvatar.Image = content end
+            if ok and content and content ~= "" then modalAvatar.Image = content end
         end)
 
         new("TextLabel", {
@@ -6945,40 +9426,6 @@ keybindHudRows[kb.name] = {
             ZIndex = 893,
         }, modalHeader)
 
-        local modalOnlinePill = new("Frame", {
-            Name = "OnlinePill",
-            AnchorPoint = Vector2.new(1, 0.5),
-            Position = UDim2.new(1, -38, 0.5, 0),
-            Size = UDim2.new(0, 68, 0, 22),
-            BackgroundColor3 = Color3.fromRGB(18, 34, 24),
-            BorderSizePixel = 0,
-            ZIndex = 893,
-        }, modalHeader)
-        corner(modalOnlinePill, 11)
-        stroke(modalOnlinePill, Color3.fromRGB(34, 197, 94), 1, 0.5)
-
-        local onlineDot = new("Frame", {
-            AnchorPoint = Vector2.new(0, 0.5),
-            Position = UDim2.new(0, 8, 0.5, 0),
-            Size = UDim2.new(0, 6, 0, 6),
-            BackgroundColor3 = Color3.fromRGB(34, 197, 94),
-            BorderSizePixel = 0,
-            ZIndex = 894,
-        }, modalOnlinePill)
-        corner(onlineDot, 3)
-
-        new("TextLabel", {
-            BackgroundTransparency = 1,
-            AnchorPoint = Vector2.new(0, 0.5),
-            Position = UDim2.new(0, 18, 0.5, 0),
-            Size = UDim2.new(1, -22, 1, 0),
-            FontFace = font(Enum.FontWeight.Medium),
-            TextColor3 = Color3.fromRGB(74, 222, 128),
-            TextSize = 11,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            Text = "Online",
-            ZIndex = 894,
-        }, modalOnlinePill)
 
         local modalClose = new("TextButton", {
             Name = "ModalClose",
@@ -7051,6 +9498,11 @@ keybindHudRows[kb.name] = {
             corner(modalCommCard, 10)
             modalData.commCard = modalCommCard
             modalData.commStroke = stroke(modalCommCard, genv.uiline or Color3.fromRGB(36, 38, 48), 1, 0.5)
+            local modalCommCardGradient = new("UIGradient", {
+                Rotation = 90,
+                Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(205, 210, 228)),
+            }, modalCommCard)
+            table.insert(modalData.cardGradients, modalCommCardGradient)
             new("UIPadding", {
                 PaddingTop = UDim.new(0, 9),
                 PaddingBottom = UDim.new(0, 9),
@@ -7218,7 +9670,14 @@ keybindHudRows[kb.name] = {
                 ZIndex = 895,
             }, dRow)
             corner(dCopyBtn, 7)
-            local dCopyStrk = stroke(dCopyBtn, genv.uiline or Color3.fromRGB(50, 52, 68), 1, 0.5)
+            local dCopyStrk = stroke(dCopyBtn, genv.uiline or Color3.fromRGB(70, 73, 88), 1, 0.18)
+            new("UIGradient", {
+                Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(205, 210, 228)),
+                }),
+                Rotation = 0,
+            }, dCopyBtn)
 
             local dCopyIcon = new("ImageLabel", {
                 AnchorPoint = Vector2.new(0, 0.5),
@@ -7286,7 +9745,7 @@ keybindHudRows[kb.name] = {
                         dCopyIcon.Image = "rbxassetid://78979572434545"
                         dCopyIcon.ImageColor3 = WHITE
                         dCopyBtn.BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(WHITE, 0.09)
-                        if dCopyStrk then dCopyStrk.Color = genv.uiline or Color3.fromRGB(50, 52, 68) end
+                        if dCopyStrk then dCopyStrk.Color = genv.uiline or Color3.fromRGB(70, 73, 88); dCopyStrk.Thickness = 1.15; dCopyStrk.Transparency = 0.18 end
                     end
                 end)
             end)
@@ -7369,7 +9828,14 @@ keybindHudRows[kb.name] = {
                 ZIndex = 895,
             }, wRow)
             corner(wCopyBtn, 7)
-            local wCopyStrk = stroke(wCopyBtn, genv.uiline or Color3.fromRGB(50, 52, 68), 1, 0.5)
+            local wCopyStrk = stroke(wCopyBtn, genv.uiline or Color3.fromRGB(70, 73, 88), 1, 0.18)
+            new("UIGradient", {
+                Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(205, 210, 228)),
+                }),
+                Rotation = 0,
+            }, wCopyBtn)
 
             local wCopyIcon = new("ImageLabel", {
                 AnchorPoint = Vector2.new(0, 0.5),
@@ -7437,7 +9903,7 @@ keybindHudRows[kb.name] = {
                         wCopyIcon.Image = "rbxassetid://78979572434545"
                         wCopyIcon.ImageColor3 = WHITE
                         wCopyBtn.BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(WHITE, 0.09)
-                        if wCopyStrk then wCopyStrk.Color = genv.uiline or Color3.fromRGB(50, 52, 68) end
+                        if wCopyStrk then wCopyStrk.Color = genv.uiline or Color3.fromRGB(70, 73, 88); wCopyStrk.Thickness = 1.15; wCopyStrk.Transparency = 0.18 end
                     end
                 end)
             end)
@@ -7458,6 +9924,11 @@ keybindHudRows[kb.name] = {
             corner(modalSupportedCard, 10)
             modalData.supportedCard = modalSupportedCard
             modalData.supportedStroke = stroke(modalSupportedCard, genv.uiline or Color3.fromRGB(36, 38, 48), 1, 0.5)
+            local modalSupportedCardGradient = new("UIGradient", {
+                Rotation = 90,
+                Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(205, 210, 228)),
+            }, modalSupportedCard)
+            table.insert(modalData.cardGradients, modalSupportedCardGradient)
             new("UIPadding", {
                 PaddingTop = UDim.new(0, 9),
                 PaddingBottom = UDim.new(0, 9),
@@ -7482,43 +9953,86 @@ keybindHudRows[kb.name] = {
                 Position = UDim2.new(0, 0, 0.5, 0),
                 Size = UDim2.new(0, 13, 0, 13),
                 BackgroundTransparency = 1,
-                Image = "rbxassetid://106482186851411",
+                Image = "rbxassetid://99293705721130",
                 ImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
                 ZIndex = 894,
             }, suppTitleRow)
             modalData.suppHeaderIcon = suppHeaderIcon
+            suppHeaderIcon.ImageTransparency = 0
+            suppHeaderIcon.ImageColor3 = WHITE
+            modalData.suppHeaderGlyph = new("TextLabel", {
+                AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0), Size = UDim2.new(0, 14, 0, 16),
+                BackgroundTransparency = 1, FontFace = font(Enum.FontWeight.Bold), Text = "", TextSize = 14,
+                TextColor3 = genv.accent or Color3.fromRGB(168, 85, 247), TextXAlignment = Enum.TextXAlignment.Center, Visible = false, ZIndex = 895,
+            }, suppTitleRow)
+
+            local isUnivMode = (options.SubName and tostring(options.SubName):lower():find("universal")) ~= nil or (genv.hubsubname and tostring(genv.hubsubname):lower():find("universal")) ~= nil
+            local gamesList = {}
+            for _, g in ipairs(SupportedGames) do
+                table.insert(gamesList, g)
+            end
+            if isUnivMode then
+                local alreadyListed = false
+                for _, g in ipairs(gamesList) do
+                    local placeMatch = g.PlaceId and game.PlaceId == g.PlaceId
+                    if g.PlaceIds then
+                        for _, placeId in ipairs(g.PlaceIds) do
+                            if game.PlaceId == placeId then placeMatch = true break end
+                        end
+                    end
+                    if (g.UniverseId and game.GameId == g.UniverseId) or placeMatch then
+                        alreadyListed = true
+                        break
+                    end
+                end
+                if not alreadyListed then
+                    table.insert(gamesList, 1, {
+                        Name = "Universal",
+                        UniverseId = game.GameId,
+                        PlaceId = game.PlaceId,
+                        Playing = #Players:GetPlayers(),
+                        IsUniversal = true,
+                    })
+                end
+            end
 
             new("TextLabel", {
                 BackgroundTransparency = 1,
                 AnchorPoint = Vector2.new(0, 0.5),
                 Position = UDim2.new(0, 18, 0.5, 0),
-                Size = UDim2.new(1, -195, 1, 0),
+                Size = UDim2.new(1, -132, 1, 0),
                 FontFace = font(Enum.FontWeight.Bold),
                 TextColor3 = WHITE,
                 TextSize = 11,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                Text = "Supported Games (" .. tostring(#SupportedGames) .. ")",
+                Text = "Supported Games (" .. tostring(#gamesList) .. ")",
                 ZIndex = 894,
             }, suppTitleRow)
 
             local scriptUsersPill = new("Frame", {
                 AnchorPoint = Vector2.new(1, 0.5),
                 Position = UDim2.new(1, 0, 0.5, 0),
-                Size = UDim2.new(0, 185, 0, 22),
+                Size = UDim2.new(0, 0, 0, 22),
+                AutomaticSize = Enum.AutomaticSize.X,
                 BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(WHITE, 0.06),
                 BorderSizePixel = 0,
                 ZIndex = 894,
             }, suppTitleRow)
             corner(scriptUsersPill, 6)
-            local scriptUsersStroke = stroke(scriptUsersPill, genv.accent or Color3.fromRGB(168, 85, 247), 1, 0.6)
+            new("UIPadding", {PaddingRight = UDim.new(0, 8)}, scriptUsersPill)
+            new("UIGradient", {
+                Rotation = 90,
+                Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(205, 210, 228)),
+            }, scriptUsersPill)
+            local scriptUsersStroke = stroke(scriptUsersPill, genv.accent or Color3.fromRGB(168, 85, 247), 1, 0.42)
             modalData.scriptUsersPill = scriptUsersPill
             modalData.scriptUsersStroke = scriptUsersStroke
 
             local userDot = new("Frame", {
                 AnchorPoint = Vector2.new(0, 0.5),
-                Position = UDim2.new(0, 8, 0.5, 0),
-                Size = UDim2.new(0, 6, 0, 6),
-                BackgroundColor3 = Color3.fromRGB(34, 197, 94),
+                Position = UDim2.new(0, 8, 0.5, 1),
+                Size = UDim2.new(0, 7, 0, 7),
+                BackgroundColor3 = Color3.fromRGB(57, 255, 136),
                 BorderSizePixel = 0,
                 ZIndex = 895,
             }, scriptUsersPill)
@@ -7528,21 +10042,22 @@ keybindHudRows[kb.name] = {
                 BackgroundTransparency = 1,
                 AnchorPoint = Vector2.new(0, 0.5),
                 Position = UDim2.new(0, 19, 0.5, 0),
-                Size = UDim2.new(1, -21, 1, 0),
+                Size = UDim2.new(0, 0, 1, 0),
+                AutomaticSize = Enum.AutomaticSize.X,
                 FontFace = font(Enum.FontWeight.Medium),
                 TextColor3 = WHITE,
                 TextSize = 10,
                 RichText = true,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 TextYAlignment = Enum.TextYAlignment.Center,
-                Text = string.format("<font color=\"#%s\"><b>%d</b></font> Active Script Users Rn", colorToHex(genv.accent or Color3.fromRGB(168, 85, 247)), scriptActiveUsers),
+                Text = string.format("<font color=\"#%s\"><b>%d</b></font>   Online users", colorToHex(genv.accent or Color3.fromRGB(168, 85, 247)), scriptActiveUsers),
                 ZIndex = 895,
             }, scriptUsersPill)
             modalData.scriptUsersLabel = scriptUsersLabel
 
             table.insert(scriptUserListeners, function(count)
                 if scriptUsersLabel and scriptUsersLabel.Parent then
-                    scriptUsersLabel.Text = string.format("<font color=\"#%s\"><b>%d</b></font> Active Script Users Rn", colorToHex(genv.accent or Color3.fromRGB(168, 85, 247)), count)
+                    scriptUsersLabel.Text = string.format("<font color=\"#%s\"><b>%d</b></font>   Online users", colorToHex(genv.accent or Color3.fromRGB(168, 85, 247)), count)
                 end
             end)
 
@@ -7559,8 +10074,14 @@ keybindHudRows[kb.name] = {
                 Padding = UDim.new(0, 5),
             }, gamesContainer)
 
-            for idx, gInfo in ipairs(SupportedGames) do
-                local isCurrent = (gInfo.UniverseId and game.GameId == gInfo.UniverseId) or (gInfo.PlaceId and game.PlaceId == gInfo.PlaceId)
+            for idx, gInfo in ipairs(gamesList) do
+                local placeMatch = gInfo.PlaceId and game.PlaceId == gInfo.PlaceId
+                if gInfo.PlaceIds then
+                    for _, placeId in ipairs(gInfo.PlaceIds) do
+                        if game.PlaceId == placeId then placeMatch = true break end
+                    end
+                end
+                local isCurrent = gInfo.IsUniversal or (gInfo.UniverseId and game.GameId == gInfo.UniverseId) or placeMatch
                 local gRow = new("Frame", {
                     BackgroundColor3 = isCurrent and Color3.fromRGB(32, 28, 42) or Color3.fromRGB(20, 21, 28),
                     BorderSizePixel = 0,
@@ -7571,9 +10092,9 @@ keybindHudRows[kb.name] = {
                 corner(gRow, 7)
                 local gRowStrk = stroke(gRow, isCurrent and (genv.accent or Color3.fromRGB(168, 85, 247)) or (genv.uiline or Color3.fromRGB(38, 40, 50)), 1, isCurrent and 0.3 or 0.6)
 
-                local thumbUri = (gInfo.UniverseId and gInfo.UniverseId > 0)
+                local thumbUri = gInfo.IsUniversal and "rbxassetid://133495621202705" or ((gInfo.UniverseId and gInfo.UniverseId > 0)
                     and ("rbxthumb://type=GameIcon&id=" .. tostring(gInfo.UniverseId) .. "&w=150&h=150")
-                    or ("rbxthumb://type=AutoGameIcon&id=" .. tostring(gInfo.PlaceId) .. "&w=150&h=150")
+                    or ("rbxthumb://type=AutoGameIcon&id=" .. tostring(gInfo.PlaceId) .. "&w=150&h=150"))
                 local gThumb = new("ImageLabel", {
                     AnchorPoint = Vector2.new(0, 0.5),
                     Position = UDim2.new(0, 6, 0.5, 0),
@@ -7599,6 +10120,7 @@ keybindHudRows[kb.name] = {
                     ZIndex = 895,
                 }, gRow)
 
+                local playText = gInfo.IsUniversal and "<font color=\"#4ade80\">●</font> Universal active" or string.format("<font color=\"#4ade80\">●</font> %s playing", formatCount(gInfo.Playing))
                 local gPlayingLabel = new("TextLabel", {
                     BackgroundTransparency = 1,
                     Position = UDim2.new(0, 38, 0, 18),
@@ -7608,15 +10130,17 @@ keybindHudRows[kb.name] = {
                     TextSize = 10,
                     RichText = true,
                     TextXAlignment = Enum.TextXAlignment.Left,
-                    Text = string.format("<font color=\"#4ade80\">●</font> %s playing", formatCount(gInfo.Playing)),
+                    Text = playText,
                     ZIndex = 895,
                 }, gRow)
 
-                table.insert(supportedGamesListeners, function()
-                    if gPlayingLabel and gPlayingLabel.Parent then
-                        gPlayingLabel.Text = string.format("<font color=\"#4ade80\">●</font> %s playing", formatCount(gInfo.Playing))
-                    end
-                end)
+                if not gInfo.IsUniversal then
+                    table.insert(supportedGamesListeners, function()
+                        if gPlayingLabel and gPlayingLabel.Parent then
+                            gPlayingLabel.Text = string.format("<font color=\"#4ade80\">●</font> %s playing", formatCount(gInfo.Playing))
+                        end
+                    end)
+                end
 
                 if isCurrent then
                     local activeBadge = new("Frame", {
@@ -7642,7 +10166,7 @@ keybindHudRows[kb.name] = {
                         AnchorPoint = Vector2.new(1, 0.5),
                         Position = UDim2.new(1, -7, 0.5, 0),
                         Size = UDim2.new(0, 58, 0, 22),
-                        BackgroundColor3 = Color3.fromRGB(30, 32, 42),
+                        BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(18, 19, 24)):lerp(genv.accent or Color3.fromRGB(34, 197, 94), 0.13),
                         BorderSizePixel = 0,
                         AutoButtonColor = false,
                         FontFace = font(Enum.FontWeight.SemiBold),
@@ -7684,6 +10208,11 @@ keybindHudRows[kb.name] = {
             corner(modalGameCard, 10)
             modalData.gameCard = modalGameCard
             modalData.gameStroke = stroke(modalGameCard, genv.uiline or Color3.fromRGB(36, 38, 48), 1, 0.5)
+            local modalGameCardGradient = new("UIGradient", {
+                Rotation = 90,
+                Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(205, 210, 228)),
+            }, modalGameCard)
+            table.insert(modalData.cardGradients, modalGameCardGradient)
             new("UIPadding", {
                 PaddingTop = UDim.new(0, 9),
                 PaddingBottom = UDim.new(0, 9),
@@ -7710,6 +10239,12 @@ keybindHudRows[kb.name] = {
                 Image = "rbxassetid://106482186851411",
                 ImageColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
                 ZIndex = 894,
+            }, gameTitleRow)
+            modalData.gameHeaderIcon.ImageTransparency = 1
+            modalData.gameHeaderGlyph = new("TextLabel", {
+                AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0), Size = UDim2.new(0, 14, 0, 16),
+                BackgroundTransparency = 1, FontFace = font(Enum.FontWeight.Bold), Text = "◈", TextSize = 14,
+                TextColor3 = genv.accent or Color3.fromRGB(168, 85, 247), TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 895,
             }, gameTitleRow)
             new("TextLabel", {
                 BackgroundTransparency = 1,
@@ -7782,7 +10317,12 @@ keybindHudRows[kb.name] = {
             }, gameInfoRow)
             modalData.plrBadge = plrBadge
             corner(plrBadge, 6)
-            stroke(plrBadge, Color3.fromRGB(44, 46, 60), 1, 0.5)
+            local plrBadgeStroke = stroke(plrBadge, genv.uiline or Color3.fromRGB(65, 68, 84), 1, 0.28)
+            new("UIGradient", {
+                Rotation = 90,
+                Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(205, 210, 228)),
+            }, plrBadge)
+            modalData.plrBadgeStroke = plrBadgeStroke
 
             local modalPlrCount = new("TextLabel", {
                 BackgroundTransparency = 1,
@@ -7828,7 +10368,7 @@ keybindHudRows[kb.name] = {
                     ZIndex = 895,
                 }, gameActionsRow)
                 corner(btn, 6)
-                local btnStrk = stroke(btn, genv.uiline or Color3.fromRGB(44, 46, 58), 1, 0.5)
+                local btnStrk = stroke(btn, genv.uiline or Color3.fromRGB(65, 68, 84), 1, 0.28)
 
                 local btnIcon = new("ImageLabel", {
                     AnchorPoint = Vector2.new(0, 0.5),
@@ -7878,16 +10418,21 @@ keybindHudRows[kb.name] = {
                 end
             end)
 
+            local serverHopBusy = false
             createActionButton(2, "Server Hop", "rbxassetid://114238209622913", function()
+                if serverHopBusy then return end
+                serverHopBusy = true
                 task.spawn(function()
                     local ok, result = pcall(function()
                         local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Desc&limit=100"
                         if httpRequest then
                             local res = httpRequest({Url = url, Method = "GET"})
-                            return HttpService:JSONDecode(res.Body)
-                        else
+                            local body = res and (res.Body or res.body)
+                            return body and HttpService:JSONDecode(body) or nil
+                        elseif hasHttpGet then
                             return HttpService:JSONDecode(game:HttpGet(url))
                         end
+                        return nil
                     end)
                     if ok and result and result.data then
                         local candidates = {}
@@ -7898,11 +10443,17 @@ keybindHudRows[kb.name] = {
                         end
                         if #candidates > 0 then
                             local target = candidates[math.random(1, #candidates)]
-                            TeleportService:TeleportToPlaceInstance(game.PlaceId, target.id, LocalPlayer)
+                            pcall(function()
+                                TeleportService:TeleportToPlaceInstance(game.PlaceId, target.id, LocalPlayer)
+                            end)
+                            task.delay(3, function() serverHopBusy = false end)
                             return
                         end
                     end
-                    TeleportService:Teleport(game.PlaceId, LocalPlayer)
+                    pcall(function()
+                        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+                    end)
+                    task.delay(3, function() serverHopBusy = false end)
                 end)
             end)
 
@@ -7930,6 +10481,11 @@ keybindHudRows[kb.name] = {
             corner(modalPerfCard, 10)
             modalData.perfCard = modalPerfCard
             modalData.perfStroke = stroke(modalPerfCard, genv.uiline or Color3.fromRGB(36, 38, 48), 1, 0.5)
+            local modalPerfCardGradient = new("UIGradient", {
+                Rotation = 90,
+                Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(205, 210, 228)),
+            }, modalPerfCard)
+            table.insert(modalData.cardGradients, modalPerfCardGradient)
             new("UIPadding", {
                 PaddingTop = UDim.new(0, 9),
                 PaddingBottom = UDim.new(0, 9),
@@ -8032,15 +10588,80 @@ keybindHudRows[kb.name] = {
             createMetricTile(4, "rbxassetid://138635884129147", "Executor", (identifyexecutor and identifyexecutor()) or "Potassium")
         end
     end
-    initModal()
-    local WindowController = {}
-    local Tab = {}
-    local tabCount = 0
+    modalData.initModal()
+    Library.WindowController = {}
+    Library.Tab = {}
+    Library.AllTabs = {}
+    Library._tabCount = 0
+    local preSearchTab = nil
 
-    function Tab.open_tab(selfOrData, tabData)
+    local function applyGlobalSearch(rawQuery)
+        local q = string.lower((tostring(rawQuery or "")):match("^%s*(.-)%s*$") or "")
+        if clearSearchBtn then
+            clearSearchBtn.Visible = (q ~= "")
+        end
+        if q == "" then
+            for _, tEntry in ipairs(Library.AllTabs) do
+                if tEntry.tab then tEntry.tab.Visible = true end
+                if tEntry.items then
+                    for _, item in ipairs(tEntry.items) do
+                        item.hidden = false
+                    end
+                end
+                if tEntry.relayout then tEntry.relayout(false) end
+            end
+            if preSearchTab and preSearchTab.tab and preSearchTab.tab.Parent then
+                Library.Tab.open_tab(preSearchTab)
+            elseif Library.Tab.current_tab and Library.Tab.current_tab.tabModule and Library.Tab.current_tab.tabModule.relayout then
+                Library.Tab.current_tab.tabModule:relayout(false)
+            end
+            preSearchTab = nil
+            return
+        end
+        if not preSearchTab then
+            preSearchTab = Library.Tab.current_tab
+        end
+        local firstMatchTab = nil
+        local currentTabMatches = false
+        for _, tEntry in ipairs(Library.AllTabs) do
+            local matches = 0
+            if tEntry.items then
+                for _, item in ipairs(tEntry.items) do
+                    local matched = (item.searchName ~= "" and string.find(item.searchName, q, 1, true) ~= nil)
+                    item.hidden = not matched
+                    if matched then
+                        matches += 1
+                    end
+                end
+            end
+            if tEntry.relayout then tEntry.relayout(false) end
+            if tEntry.tab then
+                tEntry.tab.Visible = (matches > 0)
+            end
+            if matches > 0 then
+                if not firstMatchTab then
+                    firstMatchTab = tEntry
+                end
+                if Library.Tab.current_tab and Library.Tab.current_tab.tab == tEntry.tab then
+                    currentTabMatches = true
+                end
+            end
+        end
+        if not currentTabMatches and firstMatchTab then
+            Library.Tab.open_tab(firstMatchTab)
+        end
+    end
+    Library.ApplyGlobalSearch = applyGlobalSearch
+    if globalSearchBox then
+        globalSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+            applyGlobalSearch(globalSearchBox.Text)
+        end)
+    end
+
+    function Library.Tab.open_tab(selfOrData, tabData)
         local data = (type(selfOrData) == "table" and (selfOrData.section or selfOrData.tab)) and selfOrData or tabData
         if not data then return end
-        Tab.current_tab = data
+        Library.Tab.current_tab = data
         for _, object in ipairs(Container:GetChildren()) do
             local objName = object.Name
             if objName == "ItemsSection" or objName == "StickyLeft" or objName == "StickyRight" or objName == "StickyMerge" or objName == "ColorPalette" then
@@ -8059,6 +10680,7 @@ keybindHudRows[kb.name] = {
         if data.tab then
             TweenService:Create(data.tab.Fill, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
             if data.tab:FindFirstChild("TextLabel") then
+                local isPremiumTab = data.tab:GetAttribute("MoondietyPremiumTab") == true
                 data.tab.TextLabel.TextColor3 = WHITE
                 data.tab.TextLabel.FontFace = font(Enum.FontWeight.Bold)
                 TweenService:Create(data.tab.TextLabel, TweenInfo.new(0.25), {TextTransparency = 0, Position = UDim2.new(0, 34, 0.5, 0)}):Play()
@@ -8072,9 +10694,10 @@ keybindHudRows[kb.name] = {
                     TweenService:Create(object, TweenInfo.new(0.25), {BackgroundColor3 = genv.tabcolor or Color3.fromRGB(27, 28, 33)}):Play()
                     TweenService:Create(object.Fill, TweenInfo.new(0.25), {BackgroundTransparency = 1}):Play()
                     if object:FindFirstChild("TextLabel") then
-                        object.TextLabel.TextColor3 = Color3.fromRGB(150, 155, 170)
-                        object.TextLabel.FontFace = font(Enum.FontWeight.Medium)
-                        TweenService:Create(object.TextLabel, TweenInfo.new(0.25), {TextTransparency = 0.55, Position = UDim2.new(0, 32, 0.5, 0)}):Play()
+                        local isPremiumTab = object:GetAttribute("MoondietyPremiumTab") == true
+                        object.TextLabel.TextColor3 = isPremiumTab and WHITE or Color3.fromRGB(150, 155, 170)
+                        object.TextLabel.FontFace = font(isPremiumTab and Enum.FontWeight.SemiBold or Enum.FontWeight.Medium)
+                        TweenService:Create(object.TextLabel, TweenInfo.new(0.25), {TextTransparency = isPremiumTab and 0.2 or 0.55, Position = UDim2.new(0, 32, 0.5, 0)}):Play()
                     end
                     if object:FindFirstChild("Logo") then
                         object.Logo.ImageColor3 = Color3.fromRGB(150, 155, 170)
@@ -8085,8 +10708,9 @@ keybindHudRows[kb.name] = {
         end
     end
 
-    function Tab.create_tab(selfOrName, nameOrIcon, iconId)
+    function Library.Tab.create_tab(selfOrName, nameOrIcon, iconId)
         local name, rawIcon
+        local cfgTable = (type(selfOrName) == "table" and selfOrName) or (type(nameOrIcon) == "table" and nameOrIcon) or nil
         if type(selfOrName) == "table" and type(selfOrName.name) == "string" then
             name = selfOrName.name
             rawIcon = selfOrName.icon
@@ -8102,6 +10726,9 @@ keybindHudRows[kb.name] = {
             resolvedIcon = Library.Icons[resolvedIcon]
         end
         local hasIcon = resolvedIcon and tostring(resolvedIcon) ~= "" and tostring(resolvedIcon) ~= "0"
+        local normalizedTabName = (type(name) == "string") and string.lower(name) or ""
+        local isPremTab = (cfgTable and (cfgTable.premium == true or cfgTable.is_premium == true or cfgTable.premium_only == true))
+            or normalizedTabName == "premium" or normalizedTabName == "exclusive" or normalizedTabName == "pro"
         local iconImage = ""
         if hasIcon then
             local raw = tostring(resolvedIcon)
@@ -8115,14 +10742,19 @@ keybindHudRows[kb.name] = {
             Name = "Tab",
             BackgroundColor3 = genv.tabcolor or Color3.fromRGB(27, 28, 33),
             BorderSizePixel = 0,
-            Size = UDim2.new(1, 0, 0, 36),
+            Size = UDim2.new(1, -8, 0, 36),
             ZIndex = 2,
             AutoButtonColor = false,
             Text = "",
         }, tabs)
         table.insert(genv.UIElements, tabBtn)
         tabBtn.ClipsDescendants = true
-        corner(tabBtn, 7)
+        corner(tabBtn, 10)
+        tabBtn:SetAttribute("MoondietyPremiumTab", isPremTab == true)
+        local premiumTabStroke
+        if isPremTab then
+            premiumTabStroke = stroke(tabBtn, genv.accent or Color3.fromRGB(168, 85, 247), 1.25, 0.12)
+        end
         local tabScale = new("UIScale", {Scale = 1}, tabBtn)
 
         local Logo = new("ImageLabel", {
@@ -8138,18 +10770,19 @@ keybindHudRows[kb.name] = {
             ZIndex = 4,
         }, tabBtn)
 
+        local tabTextRightPad = 0
         local TabText = new("TextLabel", {
             Name = "TextLabel",
             AnchorPoint = Vector2.new(0, 0.5),
             Position = hasIcon and UDim2.new(0, 32, 0.5, 0) or UDim2.new(0, 12, 0.5, 0),
-            Size = hasIcon and UDim2.new(1, -40, 0, 14) or UDim2.new(1, -24, 0, 14),
+            Size = hasIcon and UDim2.new(1, -40 - tabTextRightPad, 0, 14) or UDim2.new(1, -24 - tabTextRightPad, 0, 14),
             BackgroundTransparency = 1,
-            FontFace = font(Enum.FontWeight.Medium),
+            FontFace = font(isPremTab and Enum.FontWeight.SemiBold or Enum.FontWeight.Medium),
             Text = name,
-            TextColor3 = Color3.fromRGB(150, 155, 170),
+            TextColor3 = isPremTab and WHITE or Color3.fromRGB(150, 155, 170),
             TextScaled = true,
             TextXAlignment = Enum.TextXAlignment.Left,
-            TextTransparency = 0.55,
+            TextTransparency = isPremTab and 0.2 or 0.55,
             ZIndex = 4,
         }, tabBtn)
 
@@ -8163,7 +10796,7 @@ keybindHudRows[kb.name] = {
             Size = UDim2.new(1, 0, 1, 0),
             ZIndex = 2,
         }, tabBtn)
-        corner(Fill, 7)
+        corner(Fill, 10)
 
         local gradient = new("UIGradient", {
             Name = "tabselectedcolor",
@@ -8275,6 +10908,7 @@ keybindHudRows[kb.name] = {
             BackgroundColor3 = genv.accent or Color3.fromRGB(168, 85, 247),
             BackgroundTransparency = 0.35,
             BorderSizePixel = 0,
+            Active = true,
             ZIndex = 82,
         }, customScrollBar)
         corner(scrollThumb, 3)
@@ -8288,28 +10922,41 @@ keybindHudRows[kb.name] = {
             return val
         end
 
+        local function getScrollbarScale()
+            local scale = Library.ContainerScale and Library.ContainerScale.Scale
+            return math.max(tonumber(scale) or tonumber(Library.UIScale) or 1, 0.01)
+        end
+
+        local function getScrollMetrics()
+            local canvasH = itemsSection.AbsoluteCanvasSize.Y
+            local windowH = itemsSection.AbsoluteWindowSize.Y
+            local maxScroll = math.max(0, canvasH - windowH)
+            return canvasH, windowH, maxScroll
+        end
+
         local function updateCustomScroll()
-            local winH = itemsSection.AbsoluteWindowSize.Y
-            local canH = itemsSection.CanvasSize.Y.Offset
-            local trackH = customScrollBar.AbsoluteSize.Y - 34
-            if canH <= winH or canH <= 0 or trackH <= 0 then
+            local uiScale = getScrollbarScale()
+            local canvasH, windowH, maxScroll = getScrollMetrics()
+            local trackH = (customScrollBar.AbsoluteSize.Y / uiScale) - 34
+
+            if canvasH <= windowH or canvasH <= 0 or trackH <= 0 then
                 scrollThumb.Visible = false
                 scrollTrack.BackgroundTransparency = 0.8
                 upArrowIcon.ImageTransparency = 0.6
                 downArrowIcon.ImageTransparency = 0.6
                 return
             end
+
             scrollThumb.Visible = true
             scrollTrack.BackgroundTransparency = 0.3
             upArrowIcon.ImageTransparency = 0
             downArrowIcon.ImageTransparency = 0
+
             local minThumb = math.min(20, trackH)
-            local maxThumb = math.max(minThumb, trackH)
-            local rawH = (winH / canH) * trackH
-            local thumbH = safeClamp(rawH, minThumb, maxThumb)
-            local maxScroll = math.max(1, canH - winH)
-            local progress = safeClamp(itemsSection.CanvasPosition.Y / maxScroll, 0, 1)
+            local thumbH = safeClamp((windowH / canvasH) * trackH, minThumb, trackH)
+            local progress = maxScroll > 0 and safeClamp(itemsSection.CanvasPosition.Y / maxScroll, 0, 1) or 0
             local thumbY = 17 + progress * math.max(0, trackH - thumbH)
+
             scrollThumb.Size = UDim2.new(0, 6, 0, thumbH)
             scrollThumb.Position = UDim2.new(0.5, 0, 0, thumbY)
         end
@@ -8318,6 +10965,9 @@ keybindHudRows[kb.name] = {
         itemsSection:GetPropertyChangedSignal("CanvasSize"):Connect(updateCustomScroll)
         itemsSection:GetPropertyChangedSignal("AbsoluteWindowSize"):Connect(updateCustomScroll)
         customScrollBar:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateCustomScroll)
+        if Library.ContainerScale then
+            Library.ContainerScale:GetPropertyChangedSignal("Scale"):Connect(updateCustomScroll)
+        end
         itemsSection:GetPropertyChangedSignal("Visible"):Connect(function()
             customScrollBar.Visible = itemsSection.Visible
             if customScrollBar.Visible then updateCustomScroll() end
@@ -8348,8 +10998,7 @@ keybindHudRows[kb.name] = {
             TweenService:Create(downArrowIcon, TweenInfo.new(0.2), {ImageColor3 = Color3.fromRGB(150, 155, 175)}):Play()
         end)
         bindTap(downArrowBtn, function()
-            local winH = itemsSection.AbsoluteWindowSize.Y
-            local maxScroll = math.max(0, itemsSection.CanvasSize.Y.Offset - winH)
+            local _, _, maxScroll = getScrollMetrics()
             local curY = itemsSection.CanvasPosition.Y
             local newY = math.min(maxScroll, curY + 50)
             TweenService:Create(itemsSection, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
@@ -8358,13 +11007,13 @@ keybindHudRows[kb.name] = {
         end)
 
         bindTap(scrollTrack, function(pos)
-            local trackH = customScrollBar.AbsoluteSize.Y - 34
-            local winH = itemsSection.AbsoluteWindowSize.Y
-            local canH = itemsSection.CanvasSize.Y.Offset
+            local uiScale = getScrollbarScale()
+            local trackH = (customScrollBar.AbsoluteSize.Y / uiScale) - 34
+            local canH, winH, maxScroll = getScrollMetrics()
             if canH > winH and trackH > 0 then
-                local relY = safeClamp(pos.Y - (customScrollBar.AbsolutePosition.Y + 17), 0, trackH)
+                local relY = safeClamp((pos.Y - (customScrollBar.AbsolutePosition.Y + 17 * uiScale)) / uiScale, 0, trackH)
                 local ratio = relY / trackH
-                local maxScroll = math.max(1, canH - winH)
+                maxScroll = math.max(1, maxScroll)
                 TweenService:Create(itemsSection, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
                     CanvasPosition = Vector2.new(itemsSection.CanvasPosition.X, ratio * maxScroll)
                 }):Play()
@@ -8390,6 +11039,9 @@ keybindHudRows[kb.name] = {
         scrollThumb.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 thumbDragging = true
+                Library.dragging = false
+                Library.drag_position = nil
+                Library.start_position = nil
                 dragStartY = input.Position.Y
                 dragStartScrollY = itemsSection.CanvasPosition.Y
                 local moveConn, endConn
@@ -8399,17 +11051,17 @@ keybindHudRows[kb.name] = {
                         return
                     end
                     if moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch then
-                        local trackH = customScrollBar.AbsoluteSize.Y - 34
-                        local winH = itemsSection.AbsoluteWindowSize.Y
-                        local canH = itemsSection.CanvasSize.Y.Offset
+                        local uiScale = getScrollbarScale()
+                        local trackH = (customScrollBar.AbsoluteSize.Y / uiScale) - 34
+                        local canH, winH, maxScroll = getScrollMetrics()
                         if canH > winH and trackH > 0 then
                             local minThumb = math.min(20, trackH)
                             local maxThumb = math.max(minThumb, trackH)
-                            local thumbH = safeClamp((winH / canH) * trackH, minThumb, maxThumb)
+                            local thumbH = safeClamp((winH / canH) * trackH, minThumb, trackH)
                             local scrollableTrack = trackH - thumbH
                             if scrollableTrack > 0 then
-                                local deltaY = moveInput.Position.Y - dragStartY
-                                local maxScroll = math.max(1, canH - winH)
+                                local deltaY = (moveInput.Position.Y - dragStartY) / uiScale
+                                maxScroll = math.max(1, maxScroll)
                                 local deltaScroll = (deltaY / scrollableTrack) * maxScroll
                                 itemsSection.CanvasPosition = Vector2.new(itemsSection.CanvasPosition.X, safeClamp(dragStartScrollY + deltaScroll, 0, maxScroll))
                             end
@@ -8440,12 +11092,12 @@ keybindHudRows[kb.name] = {
                     local t = {h = e.height}
                     if e.side == "right" then
                         t.pos = UDim2.new(RIGHT_X, 0, 0, rightY)
-                        t.w = LEFT_W
+                        t.w = LEFT_W - 0.012
                         rightY = rightY + e.height + GAP
                     elseif e.side == "middle" then
                         local y = math.max(leftY, rightY)
                         t.pos = UDim2.new(0, 0, 0, y)
-                        t.w = 1
+                        t.w   = 0.97986
                         leftY = y + e.height + GAP
                         rightY = leftY
                     else
@@ -8457,8 +11109,9 @@ keybindHudRows[kb.name] = {
                 end
             end
 
-            local totalY = math.max(leftY, rightY) + 60
-            local windowH = itemsSection.AbsoluteWindowSize.Y
+            local totalY = math.max(leftY, rightY) + 18
+            local windowScale = getScrollbarScale()
+            local windowH = itemsSection.AbsoluteWindowSize.Y / windowScale
             local maxScroll = math.max(0, totalY - windowH)
             local targetScroll = math.min(itemsSection.CanvasPosition.Y, maxScroll)
             local targetCanvas = UDim2.new(0, 0, 0, totalY)
@@ -8574,14 +11227,23 @@ local stickyMerge = makeSticky("StickyMerge", SECTION_X, SECTION_W, 49)
             layer.Visible = anyStuck
         end
 
-        bind(RunService.RenderStepped, function()
+        local function refreshSticky()
+            if Library and Library.hidden then
+                stickyLayerLeft.Visible = false
+                stickyLayerRight.Visible = false
+                stickyMerge.Visible = false
+                return
+            end
             updateSticky(stickyLeftList, stickyLayerLeft)
             updateSticky(stickyRightList, stickyLayerRight)
             stickyMerge.Visible = stickyLayerLeft.Visible and stickyLayerRight.Visible
-        end)
+        end
+
+        itemsSection:GetPropertyChangedSignal("CanvasPosition"):Connect(refreshSticky)
+        itemsSection:GetPropertyChangedSignal("Visible"):Connect(refreshSticky)
 
         tabBtn.MouseEnter:Connect(function()
-            if Tab.current_tab and Tab.current_tab.tab == tabBtn then
+            if Library.Tab.current_tab and Library.Tab.current_tab.tab == tabBtn then
                 TweenService:Create(tabScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1.03}):Play()
                 TweenService:Create(Logo, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, 12, 0.5, 0)}):Play()
                 TweenService:Create(TabText, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, 36, 0.5, 0)}):Play()
@@ -8594,14 +11256,14 @@ local stickyMerge = makeSticky("StickyMerge", SECTION_X, SECTION_W, 49)
         end)
         tabBtn.MouseLeave:Connect(function()
             TweenService:Create(tabScale, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Scale = 1}):Play()
-            if Tab.current_tab and Tab.current_tab.tab == tabBtn then
+            if Library.Tab.current_tab and Library.Tab.current_tab.tab == tabBtn then
                 TweenService:Create(Logo, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 10, 0.5, 0)}):Play()
                 TweenService:Create(TabText, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 34, 0.5, 0)}):Play()
                 return
             end
             TweenService:Create(tabBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {BackgroundColor3 = genv.tabcolor or Color3.fromRGB(27, 28, 33)}):Play()
             TweenService:Create(Logo, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 8, 0.5, 0), ImageTransparency = 0.55}):Play()
-            TweenService:Create(TabText, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 32, 0.5, 0), TextTransparency = 0.55}):Play()
+            TweenService:Create(TabText, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 32, 0.5, 0), TextTransparency = isPremTab and 0.2 or 0.55}):Play()
         end)
 
         local Module = {}
@@ -8609,14 +11271,24 @@ local stickyMerge = makeSticky("StickyMerge", SECTION_X, SECTION_W, 49)
             relayout(anim)
         end
 
+        local tabRecord = {
+            name = name,
+            tab = tabBtn,
+            section = itemsSection,
+            tabModule = Module,
+            items = ItemsList,
+            relayout = relayout,
+        }
+        table.insert(Library.AllTabs, tabRecord)
+
         bindTap(tabBtn, function()
-            Tab.open_tab({tab = tabBtn, section = itemsSection, tabModule = Module})
+            Library.Tab.open_tab(tabRecord)
         end)
 
-        if tabCount == 0 then
-            Tab.open_tab({tab = tabBtn, section = itemsSection, tabModule = Module})
+        if tabBtn.Visible and not Library.Tab.current_tab then
+            Library.Tab.open_tab(tabRecord)
         end
-        tabCount += 1
+        Library._tabCount += 1
 
         local function resolve(arg1, arg2)
             if type(arg1) == "table" and (arg1.name or arg1.title or arg1.flag or arg1.section or arg1.callback) then
@@ -8660,16 +11332,12 @@ local stickyMerge = makeSticky("StickyMerge", SECTION_X, SECTION_W, 49)
     obj.MouseEnter:Connect(function()
         local baseCol = genv[themeKey] or fallback or Color3.fromRGB(27, 28, 33)
         TweenService:Create(obj, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {BackgroundColor3 = baseCol:lerp(WHITE, 0.06)}):Play()
-        if not noPress then
-            TweenService:Create(rScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1.014}):Play()
-        end
+        TweenService:Create(rScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1.014}):Play()
     end)
     obj.MouseLeave:Connect(function()
         local baseCol = genv[themeKey] or fallback or Color3.fromRGB(27, 28, 33)
         TweenService:Create(obj, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {BackgroundColor3 = baseCol}):Play()
-        if not noPress then
-            TweenService:Create(rScale, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {Scale = 1}):Play()
-        end
+        TweenService:Create(rScale, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {Scale = 1}):Play()
     end)
     if not noPress then
         obj.InputBegan:Connect(function(input)
@@ -8765,14 +11433,45 @@ end
         end
 
         local function makeToggleObject(cfg, Switch, Circle)
-            local obj = {state = cfg.enabled or false, callback = cfg.callback, flag = cfg.flag}
-            if Library.savedFlags and type(Library.savedFlags[cfg.flag]) == "boolean" then
+            local isLocked = (cfg.locked == true or cfg.premium == true or cfg.is_premium == true) and (not Library.IsPremium)
+            local obj = {state = false, callback = cfg.callback, flag = cfg.flag, isLocked = isLocked}
+            if isLocked then
+                obj.state = false
+            elseif cfg.flag and SystemSettings[cfg.flag] then
+                if cfg.flag == "universal_autoload_script" or cfg.flag == "autoload_script_hop" then
+                    obj.state = Library:GetAutoLoadScript()
+                elseif Library.SavedSettings and Library.SavedSettings[cfg.flag] ~= nil then
+                    obj.state = (Library.SavedSettings[cfg.flag] == true)
+                elseif Library.Flags and Library.Flags[cfg.flag] ~= nil then
+                    obj.state = (Library.Flags[cfg.flag] == true)
+                elseif cfg.enabled ~= nil then
+                    obj.state = (cfg.enabled == true)
+                end
+            elseif cfg.flag == "autoload_config_toggle" then
+                obj.state = (select(2, Library:GetAutoload()) == true)
+            elseif cfg.flag and Library.savedFlags and type(Library.savedFlags[cfg.flag]) == "boolean" then
                 obj.state = Library.savedFlags[cfg.flag]
+            elseif cfg.enabled ~= nil then
+                obj.state = (cfg.enabled == true)
+            end
+            if isLocked then
+                obj.state = false
             end
 
             function obj:UpdateToggle(newState, skipCallback)
+                if self.isLocked and not Library.IsPremium then
+                    self.state = false
+                    if self.flag then Library.Flags[self.flag] = false end
+                    Switch:SetAttribute("State", false)
+                    TweenService:Create(Switch, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = genv.togglecoloroff or Color3.fromRGB(60, 64, 72)}):Play()
+                    TweenService:Create(Circle, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0, 2, 0.5, 0)}):Play()
+                    if not skipCallback then
+                        Library:ShowPremiumPrompt()
+                    end
+                    return
+                end
                 if newState ~= nil then self.state = newState else self.state = not self.state end
-                Library.Flags[self.flag] = self.state
+                if self.flag then Library.Flags[self.flag] = self.state end
                 Switch:SetAttribute("State", self.state)
                 local tiSlide = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
                 local colorTi = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -8783,10 +11482,10 @@ end
                     TweenService:Create(Switch, colorTi, {BackgroundColor3 = genv.togglecoloroff or Color3.fromRGB(60, 64, 72)}):Play()
                     TweenService:Create(Circle, tiSlide, {Position = UDim2.new(0, 2, 0.5, 0)}):Play()
                 end
-                if Library.UpdateActionButtonStateByFlag then
+                if self.flag and Library.UpdateActionButtonStateByFlag then
                     Library:UpdateActionButtonStateByFlag(self.flag, self.state)
                 end
-                if not skipCallback then
+                if not skipCallback and self.flag then
                     Library.save_flags(self.flag)
                 end
                 if Library.UpdateKeybindHudStates then
@@ -8799,41 +11498,48 @@ end
 
             function obj:GetValue() return self.state end
             function obj:SetValue(v, skipCallback)
+                if self.isLocked and not Library.IsPremium then
+                    self.state = false
+                    return
+                end
                 if self.state == v and (not skipCallback) then return end
                 self:UpdateToggle(v, skipCallback == true)
             end
             obj.Set = obj.SetValue
 
-               Library.Flags[cfg.flag] = obj.state
-    Library:RegisterObject(cfg.flag, obj)
-    obj:UpdateToggle(obj.state, true)
+            if cfg.flag then
+                Library.Flags[cfg.flag] = obj.state
+                Library:RegisterObject(cfg.flag, obj)
+            end
+            obj:UpdateToggle(obj.state, true)
 
-    if obj.state and cfg.callback then
-        task.spawn(function()
-            pcall(cfg.callback, true)
-        end)
-    end
+            if obj.state and cfg.callback and (not (cfg.flag and (SystemSettings[cfg.flag] or cfg.flag == "autoload_config_toggle" or cfg.flag == "autosave_config_toggle"))) then
+                task.spawn(function()
+                    pcall(cfg.callback, true)
+                end)
+            end
 
-    return obj
-end
+            return obj
+        end
 
         function Module:create_title(arg)
             local cfg = resolve(self, arg)
             local side = getSide(cfg)
-           local title = new("TextLabel", {
-            Name = "Title",
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            Size = UDim2.new(1, 0, 0, 15),
-            ZIndex = 2,
-            FontFace = font(),
-            TextColor3 = WHITE,
-            TextScaled = false,
-            TextSize = 13,
-            Text = cfg.name or "",
-            TextXAlignment = Enum.TextXAlignment.Left,
-        }, itemsSection)
-            new("UIPadding", {PaddingLeft = UDim.new(0, 4)}, title)
+            local isPremTitle = (cfg.premium or cfg.is_premium or cfg.locked) == true
+            local title = new("TextLabel", {
+                Name = "Title",
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                Size = UDim2.new(1, 0, 0, 15),
+                ZIndex = 2,
+                FontFace = font(),
+                TextColor3 = WHITE,
+                TextScaled = false,
+                TextSize = 13,
+                Text = cfg.name or "",
+                TextXAlignment = side == "middle" and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left,
+            }, itemsSection)
+            new("UIPadding", {PaddingLeft = UDim.new(0, side == "middle" and 0 or 4)}, title)
             registerItem(title, side, 15, cfg.name)
 
             if side ~= "middle" then
@@ -8841,6 +11547,7 @@ end
                 local list = side == "right" and stickyRightList or stickyLeftList
                 local clone = title:Clone()
                 clone.Position = UDim2.new(0, 0, 0, 0)
+                clone.Size = UDim2.new(1, 0, 0, 15)
                 clone.Visible = false
                 clone.ZIndex = 51
                 clone.Parent = layer
@@ -8850,25 +11557,113 @@ end
 
         function Module:create_toggle(arg)
             local cfg = resolve(self, arg)
+            local isAutoLoadCfg = (cfg.flag == "autoload_config_toggle" or cfg.name == "Auto Load on Execution")
+            if isAutoLoadCfg then
+                cfg.name = "Auto Load Config on Execution"
+            end
+            cfg.flag = cfg.flag or cfg.name or "toggle"
             local side = getSide(cfg)
-           local toggle = row("Toggle", "togglecolor", nil, true)
+            local toggle = row("Toggle", "togglecolor", nil, true)
             local Switch, Circle = buildSwitch(toggle)
 
+            local canPin = (cfg.noPin ~= true) and (not tostring(cfg.flag):find("^hud_")) and (not isAutoLoadCfg) and (cfg.flag ~= "autosave_config_toggle")
             local rightPad = 50
             if cfg.colorpicker then rightPad = rightPad + 28 end
-            if cfg.keybind then rightPad = rightPad + 56 end
+            if cfg.keybind and not IsMobile then rightPad = rightPad + 56 end
+            if canPin then rightPad = rightPad + 24 end
 
             rowTexts(toggle, cfg.name, cfg.description, rightPad)
             attachTooltip(toggle, cfg.tooltip or cfg.desc)
             registerItem(toggle, side, ELEMENT_HEIGHT, cfg.name)
 
             local obj = makeToggleObject(cfg, Switch, Circle)
+            local inlineKbBox = nil
+            local pinBtn = nil
+
+            if canPin then
+                local pinX = -48
+                if cfg.keybind and not IsMobile then pinX = pinX - 54 end
+                if cfg.colorpicker then pinX = pinX - 28 end
+                local pinId = "pin_" .. tostring(cfg.flag or cfg.name)
+                pinBtn = new("TextButton", {
+                    Name = "PinBtn",
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    Position = UDim2.new(1, pinX, 0.5, 0),
+                    Size = UDim2.new(0, 20, 0, 20),
+                    BackgroundColor3 = genv.KeybindBox or Color3.fromRGB(24, 25, 30),
+                    BorderSizePixel = 0,
+                    AutoButtonColor = false,
+                    FontFace = font(Enum.FontWeight.Bold),
+                    Text = "P",
+                    TextColor3 = Color3.fromRGB(145, 150, 165),
+                    TextSize = 10,
+                    ZIndex = 4,
+                }, toggle)
+                corner(pinBtn, 4)
+                local pinStroke = stroke(pinBtn, Color3.fromRGB(45, 48, 60), 1, 0.5)
+                attachTooltip(pinBtn, "Pin button to screen")
+
+                local function refreshPinVisual(pinned)
+                    TweenService:Create(pinBtn, TweenInfo.new(0.18), {
+                        BackgroundColor3 = pinned and (genv.accent or Color3.fromRGB(168, 85, 247)) or (genv.KeybindBox or Color3.fromRGB(24, 25, 30)),
+                        TextColor3 = pinned and WHITE or Color3.fromRGB(145, 150, 165),
+                    }):Play()
+                    if pinStroke then
+                        pinStroke.Color = pinned and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(45, 48, 60)
+                    end
+                end
+
+                bindTap(pinBtn, function()
+                    if obj.isLocked and not Library.IsPremium then
+                        Library:ShowPremiumPrompt()
+                        return
+                    end
+                    local existing = Library.ActionButtons and Library.ActionButtons[pinId]
+                    if existing and existing.btn and existing.btn.Parent and existing.btn.Visible then
+                        Library:SetActionButtonVisible(pinId, false)
+                        refreshPinVisual(false)
+                    else
+                        if not Library.FloatingButtonsVisible then
+                            Library:SetFloatingButtonsVisible(true)
+                        end
+                        if existing and existing.btn and existing.btn.Parent then
+                            Library:SetActionButtonVisible(pinId, true)
+                            existing:SetState(obj:GetValue())
+                        else
+                            local count = 0
+                            for _ in pairs(Library.ActionButtons or {}) do count += 1 end
+                            local rowIdx = count % 5
+                            local colIdx = math.floor(count / 5)
+                            Library:RegisterActionButton({
+                                id = pinId,
+                                name = cfg.name or pinId,
+                                flag = cfg.flag,
+                                isToggle = true,
+                                state = obj:GetValue(),
+                                defaultPos = UDim2.new(math.clamp(0.86 - colIdx * 0.08, 0.15, 0.9), 0, math.clamp(0.28 + rowIdx * 0.11, 0.18, 0.82), 0),
+                                getState = function() return obj:GetValue() end,
+                                callback = function(st)
+                                    if cfg.callback then cfg.callback(st) end
+                                end,
+                            })
+                            if Library.HudGui then Library.HudGui.Enabled = true end
+                        end
+                        refreshPinVisual(true)
+                    end
+                end)
+            end
 
             local function addInlineKeybind(kbOpts)
                 kbOpts = kbOpts or {}
                 local kbFlag = kbOpts.flag or ((cfg.flag or "toggle") .. "_bind")
                 local rawKey = kbOpts.default or kbOpts.keycode or "None"
                 local defaultKey = (typeof(rawKey) == "EnumItem" and rawKey.Name) or tostring(rawKey)
+                local activeKey = defaultKey
+                if Library.savedFlags and Library.savedFlags[kbFlag] ~= nil and Library.savedFlags[kbFlag] ~= "" then
+                    activeKey = tostring(Library.savedFlags[kbFlag])
+                elseif Library.Flags and Library.Flags[kbFlag] ~= nil and Library.Flags[kbFlag] ~= "" then
+                    activeKey = tostring(Library.Flags[kbFlag])
+                end
 
                 local Box = new("TextButton", {
                     Name = "InlineKeybindBox",
@@ -8880,6 +11675,10 @@ end
                     Text = "",
                     ZIndex = 4,
                 }, toggle)
+                inlineKbBox = Box
+                if pinBtn then
+                    pinBtn.Position = UDim2.new(1, cfg.colorpicker and -130 or -102, 0.5, 0)
+                end
                 table.insert(genv.UIElements, Box)
                 corner(Box, 4)
                 stroke(Box, Color3.fromRGB(45, 48, 60), 1, 0.5)
@@ -8890,25 +11689,34 @@ end
                     TextColor3 = WHITE,
                     FontFace = font(),
                     TextSize = 10,
-                    Text = defaultKey,
+                    Text = formatKeybindDisplay(activeKey),
                     ZIndex = 5,
                 }, Box)
 
-                Library.Flags[kbFlag] = defaultKey
-                Library:RegisterKeybind(kbFlag, cfg.name or kbFlag, defaultKey, function()
+                Library.Flags[kbFlag] = activeKey
+                Library:RegisterKeybind(kbFlag, cfg.name or kbFlag, activeKey, function()
                     return obj:GetValue()
                 end, function()
+                    if obj.isLocked and not Library.IsPremium then
+                        Library:ShowPremiumPrompt()
+                        return
+                    end
                     obj:UpdateToggle(not obj:GetValue())
                 end, function()
+                    if obj.isLocked and not Library.IsPremium then
+                        Library:ShowPremiumPrompt()
+                        return
+                    end
                     obj:UpdateToggle(not obj:GetValue())
                 end)
 
                 local kbObj = {flag = kbFlag}
                 function kbObj:GetValue() return Library.Flags[kbFlag] end
                 function kbObj:SetValue(v)
-                    Library.Flags[kbFlag] = v
-                    Library:UpdateKeybind(kbFlag, v)
-                    KeyText.Text = tostring(v or "None")
+                    local strVal = tostring(v or "None")
+                    Library.Flags[kbFlag] = strVal
+                    Library:UpdateKeybind(kbFlag, strVal)
+                    KeyText.Text = formatKeybindDisplay(strVal)
                 end
                 Library:RegisterObject(kbFlag, kbObj)
 
@@ -8918,27 +11726,48 @@ end
                     setting = true
                     KeyText.Text = "..."
                     local conn
-                    conn = UserInputService.InputBegan:Connect(function(input)
-                        local pressed = input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode.Name
+                    task.defer(function()
+                    conn = bind(UserInputService.InputBegan, function(input)
+                        if Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent then return end
+                        local pressed
+                        if input.UserInputType == Enum.UserInputType.Keyboard then
+                            pressed = input.KeyCode.Name
+                        elseif input.UserInputType.Name:match("^MouseButton%d+$") then
+                            pressed = input.UserInputType.Name
+                        end
                         if not pressed then return end
                         Library.Flags[kbFlag] = pressed
                         Library:UpdateKeybind(kbFlag, pressed)
-                        KeyText.Text = pressed
+                        KeyText.Text = formatKeybindDisplay(pressed)
+                        Library.save_flags(kbFlag)
                         setting = false
                         conn:Disconnect()
+                    end)
                     end)
                 end)
 
                 bind(UserInputService.InputBegan, function(input, processed)
-                    if processed or setting then return end
-                    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode.Name == Library.Flags[kbFlag] then
+                    if (Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent) or processed or setting then return end
+                    local current = Library.Flags[kbFlag]
+                    if not current or current == "None" or current == "" then return end
+                    local pressed
+                    if input.UserInputType == Enum.UserInputType.Keyboard then
+                        pressed = input.KeyCode.Name
+                    elseif input.UserInputType.Name:match("^MouseButton%d+$") then
+                        pressed = input.UserInputType.Name
+                    end
+                    if pressed and pressed == current then
+                        if obj.isLocked and not Library.IsPremium then
+                            Library:ShowPremiumPrompt()
+                            return
+                        end
                         obj:UpdateToggle()
                         if kbOpts.callback then kbOpts.callback(obj:GetValue()) end
                     end
                 end)
             end
 
-            if cfg.keybind then
+            if cfg.keybind and not IsMobile then
                 addInlineKeybind(type(cfg.keybind) == "table" and cfg.keybind or {})
             end
 
@@ -8948,8 +11777,55 @@ end
             end
 
             bindTap(toggle, function(pos)
+                if pos then
+                    if pinBtn and pinBtn.Parent then
+                        local pPos, pSize = pinBtn.AbsolutePosition, pinBtn.AbsoluteSize
+                        if pos.X >= pPos.X - 2 and pos.X <= pPos.X + pSize.X + 2 and pos.Y >= pPos.Y - 2 and pos.Y <= pPos.Y + pSize.Y + 2 then
+                            return
+                        end
+                    end
+                    if inlineKbBox and inlineKbBox.Parent then
+                        local kPos, kSize = inlineKbBox.AbsolutePosition, inlineKbBox.AbsoluteSize
+                        if pos.X >= kPos.X - 2 and pos.X <= kPos.X + kSize.X + 2 and pos.Y >= kPos.Y - 2 and pos.Y <= kPos.Y + kSize.Y + 2 then
+                            return
+                        end
+                    end
+                end
+                if obj.isLocked and not Library.IsPremium then
+                    Library:ShowPremiumPrompt()
+                    return
+                end
                 obj:UpdateToggle()
             end)
+
+            if (cfg.locked or cfg.premium or cfg.is_premium) and not Library.IsPremium then
+                Library:LockElement(toggle, obj)
+            end
+
+            if isAutoLoadCfg and not Module._configShareAdded then
+                Module._configShareAdded = true
+                task.defer(function()
+                    if not itemsSection or not itemsSection.Parent then return end
+                    Module:create_button({
+                        name = "Copy Config Code",
+                        section = side,
+                        noPin = true,
+                        description = "Copies your current settings to clipboard",
+                        callback = function()
+                            Library:ExportConfig(Library.Flags.savedconfigs)
+                        end,
+                    })
+                    Module:create_button({
+                        name = "Import Config Code",
+                        section = side,
+                        noPin = true,
+                        description = "Loads settings from clipboard or Config Name box",
+                        callback = function()
+                            Library:ImportConfig()
+                        end,
+                    })
+                end)
+            end
 
             return obj
         end
@@ -8957,7 +11833,7 @@ end
         function Module:create_checkbox(arg)
             local cfg = resolve(self, arg)
             local side = getSide(cfg)
-            local checkbox = row("Checkbox1", "tabcolor")
+            local checkbox = row("Checkbox1", "tabcolor", nil, true)
             checkbox.Name = "Checkbox1"
 
             local Checkbox = new("Frame", {
@@ -8970,7 +11846,6 @@ end
             }, checkbox)
             table.insert(genv.UIElements, Checkbox)
             corner(Checkbox, 4)
-            local checkScale = new("UIScale", {Scale = 1}, Checkbox)
 
             local Glow = new("ImageLabel", {
                 Name = "Glow",
@@ -9004,48 +11879,55 @@ end
             attachTooltip(checkbox, cfg.tooltip or cfg.desc)
             registerItem(checkbox, side, ELEMENT_HEIGHT, cfg.name)
 
-            local obj = {state = cfg.enabled or false, callback = cfg.callback, flag = cfg.flag}
-            if Library.savedFlags and type(Library.savedFlags[cfg.flag]) == "boolean" then
+            local isLocked = (cfg.locked == true or cfg.premium == true or cfg.is_premium == true) and (not Library.IsPremium)
+            local obj = {state = cfg.enabled or false, callback = cfg.callback, flag = cfg.flag, isLocked = isLocked}
+            if isLocked then
+                obj.state = false
+            elseif cfg.flag and Library.savedFlags and type(Library.savedFlags[cfg.flag]) == "boolean" then
                 obj.state = Library.savedFlags[cfg.flag]
+            end
+            if isLocked then
+                obj.state = false
             end
 
             function obj:UpdateToggle(newState, skipCallback)
+                if self.isLocked and not Library.IsPremium then
+                    self.state = false
+                    if self.flag then Library.Flags[self.flag] = false end
+                    Fill.BackgroundTransparency = 1
+                    Glow.ImageTransparency = 1
+                    if not skipCallback then
+                        Library:ShowPremiumPrompt()
+                    end
+                    return
+                end
                 if newState ~= nil then self.state = newState else self.state = not self.state end
-                Library.Flags[self.flag] = self.state
+                if self.flag then Library.Flags[self.flag] = self.state end
                 local ti = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
                 TweenService:Create(Fill, ti, {BackgroundTransparency = self.state and 0 or 1}):Play()
                 TweenService:Create(Glow, ti, {ImageTransparency = self.state and 0 or 1}):Play()
-                if self.state then
-                    TweenService:Create(checkScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 1.18}):Play()
-                    task.delay(0.1, function()
-                        if Checkbox and Checkbox.Parent then
-                            TweenService:Create(checkScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
-                        end
-                    end)
-                else
-                    TweenService:Create(checkScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 0.88}):Play()
-                    task.delay(0.1, function()
-                        if Checkbox and Checkbox.Parent then
-                            TweenService:Create(checkScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
-                        end
-                    end)
-                end
                 if not skipCallback then
-                    Library.save_flags(self.flag)
+                    if self.flag then Library.save_flags(self.flag) end
                 end
                 if not skipCallback and self.callback then self.callback(self.state) end
             end
 
             function obj:GetValue() return self.state end
             function obj:SetValue(v, skipCallback)
+                if self.isLocked and not Library.IsPremium then
+                    self.state = false
+                    return
+                end
                 if self.state == v and (not skipCallback) then return end
                 self:UpdateToggle(v, skipCallback == true)
             end
             obj.Set = obj.SetValue
 
-               Library.Flags[cfg.flag] = obj.state
-    Library:RegisterObject(cfg.flag, obj)
-    obj:UpdateToggle(obj.state, true)
+            if cfg.flag then
+                Library.Flags[cfg.flag] = obj.state
+                Library:RegisterObject(cfg.flag, obj)
+            end
+            obj:UpdateToggle(obj.state, true)
 
     if obj.state and cfg.callback then
         task.spawn(function()
@@ -9054,8 +11936,17 @@ end
     end
 
     bindTap(checkbox, function()
+        if obj.isLocked and not Library.IsPremium then
+            Library:ShowPremiumPrompt()
+            return
+        end
         obj:UpdateToggle()
     end)
+
+    if (cfg.locked or cfg.premium or cfg.is_premium) and not Library.IsPremium then
+        Library:LockElement(checkbox, obj)
+    end
+
     return obj
 end
 
@@ -9249,7 +12140,7 @@ end
                 ColorSquare.BackgroundColor3 = c
                 Library.Flags[cflag] = {r, g, b}
                 if not skipCallback and cfg.color_callback then cfg.color_callback(c) end
-                if not skipSave then Library.save_flags() end
+                if not skipSave then Library.save_flags(cflag) end
             end
 
             local function setFromColor(color)
@@ -9257,7 +12148,7 @@ end
                 refreshVisuals(true, true)
             end
 
-            local savedColor = Library.savedFlags and Library.savedFlags[cflag]
+            local savedColor = (Library.SavedSettings and Library.SavedSettings[cflag]) or (Library.savedFlags and Library.savedFlags[cflag])
             if type(savedColor) == "table" and #savedColor >= 3 then
                 setFromColor(Color3.fromRGB(savedColor[1], savedColor[2], savedColor[3]))
             else
@@ -9314,14 +12205,134 @@ end
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                     if draggingSV or draggingHue then
                         draggingSV, draggingHue = false, false
-                        Library.save_flags()
+                        Library.save_flags(cflag)
                     end
                 end
             end)
 
             local obj = makeToggleObject(cfg, Switch, Circle)
+
+            local function addColorpickerKeybind(kbOpts)
+                kbOpts = kbOpts or {}
+                local kbFlag = kbOpts.flag or ((cfg.flag or "colorpicker") .. "_bind")
+                local rawKey = kbOpts.default or kbOpts.keycode or "None"
+                local defaultKey = (typeof(rawKey) == "EnumItem" and rawKey.Name) or tostring(rawKey)
+                local activeKey = defaultKey
+                if Library.savedFlags and Library.savedFlags[kbFlag] ~= nil and Library.savedFlags[kbFlag] ~= "" then
+                    activeKey = tostring(Library.savedFlags[kbFlag])
+                elseif Library.Flags and Library.Flags[kbFlag] ~= nil and Library.Flags[kbFlag] ~= "" then
+                    activeKey = tostring(Library.Flags[kbFlag])
+                end
+
+                local Box = new("TextButton", {
+                    Name = "InlineKeybindBox",
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    Position = UDim2.new(1, -78, 0.5, 0),
+                    Size = UDim2.new(0, 48, 0, 20),
+                    BackgroundColor3 = genv.KeybindBox or Color3.fromRGB(24, 25, 30),
+                    BorderSizePixel = 0,
+                    Text = "",
+                    ZIndex = 4,
+                }, toggle)
+                table.insert(genv.UIElements, Box)
+                corner(Box, 4)
+                stroke(Box, Color3.fromRGB(45, 48, 60), 1, 0.5)
+
+                local KeyText = new("TextLabel", {
+                    Size = UDim2.new(1, 0, 1, 0),
+                    BackgroundTransparency = 1,
+                    TextColor3 = WHITE,
+                    FontFace = font(),
+                    TextSize = 10,
+                    Text = formatKeybindDisplay(activeKey),
+                    ZIndex = 5,
+                }, Box)
+
+                Library.Flags[kbFlag] = activeKey
+                Library:RegisterKeybind(kbFlag, cfg.name or kbFlag, activeKey, function()
+                    return obj:GetValue()
+                end, function()
+                    if obj.isLocked and not Library.IsPremium then
+                        Library:ShowPremiumPrompt()
+                        return
+                    end
+                    obj:UpdateToggle(not obj:GetValue())
+                end, function()
+                    if obj.isLocked and not Library.IsPremium then
+                        Library:ShowPremiumPrompt()
+                        return
+                    end
+                    obj:UpdateToggle(not obj:GetValue())
+                end)
+
+                local kbObj = {flag = kbFlag}
+                function kbObj:GetValue() return Library.Flags[kbFlag] end
+                function kbObj:SetValue(v)
+                    local strVal = tostring(v or "None")
+                    Library.Flags[kbFlag] = strVal
+                    Library:UpdateKeybind(kbFlag, strVal)
+                    KeyText.Text = formatKeybindDisplay(strVal)
+                end
+                Library:RegisterObject(kbFlag, kbObj)
+
+                local setting = false
+                bindTap(Box, function()
+                    if setting then return end
+                    setting = true
+                    KeyText.Text = "..."
+                    local conn
+                    task.defer(function()
+                    conn = bind(UserInputService.InputBegan, function(input)
+                        if Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent then return end
+                        local pressed
+                        if input.UserInputType == Enum.UserInputType.Keyboard then
+                            pressed = input.KeyCode.Name
+                        elseif input.UserInputType.Name:match("^MouseButton%d+$") then
+                            pressed = input.UserInputType.Name
+                        end
+                        if not pressed then return end
+                        Library.Flags[kbFlag] = pressed
+                        Library:UpdateKeybind(kbFlag, pressed)
+                        KeyText.Text = formatKeybindDisplay(pressed)
+                        Library.save_flags(kbFlag)
+                        setting = false
+                        conn:Disconnect()
+                    end)
+                    end)
+                end)
+
+                bind(UserInputService.InputBegan, function(input, processed)
+                    if (Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent) or processed or setting then return end
+                    local current = Library.Flags[kbFlag]
+                    if not current or current == "None" or current == "" then return end
+                    local pressed
+                    if input.UserInputType == Enum.UserInputType.Keyboard then
+                        pressed = input.KeyCode.Name
+                    elseif input.UserInputType.Name:match("^MouseButton%d+$") then
+                        pressed = input.UserInputType.Name
+                    end
+                    if pressed and pressed == current then
+                        if obj.isLocked and not Library.IsPremium then
+                            Library:ShowPremiumPrompt()
+                            return
+                        end
+                        obj:UpdateToggle()
+                        if kbOpts.callback then kbOpts.callback(obj:GetValue()) end
+                    end
+                end)
+            end
+
+            if cfg.keybind and not IsMobile then
+                addColorpickerKeybind(type(cfg.keybind) == "table" and cfg.keybind or {})
+            end
+
+            function obj:AddKeybind(kbOpts)
+                addColorpickerKeybind(kbOpts)
+                return self
+            end
+
             function obj:GetColor() return Color3.fromHSV(h, s, v) end
-            function obj:SetColor(c) setFromColor(c); Library.save_flags() end
+            function obj:SetColor(c) setFromColor(c); Library.save_flags(cflag) end
 
             Library:RegisterObject(cflag, {
                 GetValue = function() return Library.Flags[cflag] end,
@@ -9367,8 +12378,13 @@ end
                 Palette.Visible = true
                 syncPosition()
                 if syncConn then syncConn:Disconnect() end
-                syncConn = RunService.Heartbeat:Connect(function()
-                    if open then syncPosition() end
+                syncConn = bind(RunService.Heartbeat, function()
+                    if not open or not Palette.Visible then
+                        open = false
+                        if syncConn then syncConn:Disconnect(); syncConn = nil end
+                        return
+                    end
+                    syncPosition()
                 end)
             end
 
@@ -9509,6 +12525,7 @@ end
             end
 
             if cfg.flag then Library:RegisterObject(cfg.flag, obj) end
+
             return obj
         end
 
@@ -9516,13 +12533,27 @@ end
             local cfg = resolve(self, arg)
             local side = getSide(cfg)
             local button = row("Button", "tabcolor")
-            local rightPad = cfg.keybind and 68 or 20
+            local canPin = (cfg.noPin ~= true) and (not tostring(cfg.flag or ""):find("^hud_"))
+            local rightPad = (cfg.keybind and not IsMobile) and 68 or 20
+            if canPin then rightPad = rightPad + 24 end
             rowTexts(button, cfg.name, cfg.description, rightPad)
             attachTooltip(button, cfg.tooltip or cfg.desc)
             registerItem(button, side, ELEMENT_HEIGHT, cfg.name)
 
+            local obj = {
+                button = button,
+                name = cfg.name,
+                callback = cfg.callback,
+            }
+            local inlineKbBox = nil
+            local pinBtn = nil
+
             local pressing = false
             local function fireButton()
+                if obj and obj.isLocked and not Library.IsPremium then
+                    Library:ShowPremiumPrompt()
+                    return
+                end
                 if pressing then return end
                 pressing = true
                 local baseColor = genv.buttoncolor or genv.originalColor or Color3.fromRGB(27, 28, 33)
@@ -9541,19 +12572,102 @@ end
                 end
             end
 
-            bindTap(button, fireButton)
+            if canPin then
+                local pinX = (cfg.keybind and not IsMobile) and -66 or -12
+                local pinId = "pin_btn_" .. tostring(cfg.flag or cfg.name or "button")
+                pinBtn = new("TextButton", {
+                    Name = "PinBtn",
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    Position = UDim2.new(1, pinX, 0.5, 0),
+                    Size = UDim2.new(0, 20, 0, 20),
+                    BackgroundColor3 = genv.KeybindBox or Color3.fromRGB(24, 25, 30),
+                    BorderSizePixel = 0,
+                    AutoButtonColor = false,
+                    FontFace = font(Enum.FontWeight.Bold),
+                    Text = "P",
+                    TextColor3 = Color3.fromRGB(145, 150, 165),
+                    TextSize = 10,
+                    ZIndex = 4,
+                }, button)
+                corner(pinBtn, 4)
+                local pinStroke = stroke(pinBtn, Color3.fromRGB(45, 48, 60), 1, 0.5)
+                attachTooltip(pinBtn, "Pin button to screen")
 
-            local obj = {
-                button = button,
-                name = cfg.name,
-                callback = cfg.callback,
-            }
+                local function refreshPinVisual(pinned)
+                    TweenService:Create(pinBtn, TweenInfo.new(0.18), {
+                        BackgroundColor3 = pinned and (genv.accent or Color3.fromRGB(168, 85, 247)) or (genv.KeybindBox or Color3.fromRGB(24, 25, 30)),
+                        TextColor3 = pinned and WHITE or Color3.fromRGB(145, 150, 165),
+                    }):Play()
+                    if pinStroke then
+                        pinStroke.Color = pinned and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(45, 48, 60)
+                    end
+                end
+
+                bindTap(pinBtn, function()
+                    if obj.isLocked and not Library.IsPremium then
+                        Library:ShowPremiumPrompt()
+                        return
+                    end
+                    local existing = Library.ActionButtons and Library.ActionButtons[pinId]
+                    if existing and existing.btn and existing.btn.Parent and existing.btn.Visible then
+                        Library:SetActionButtonVisible(pinId, false)
+                        refreshPinVisual(false)
+                    else
+                        if not Library.FloatingButtonsVisible then
+                            Library:SetFloatingButtonsVisible(true)
+                        end
+                        if existing and existing.btn and existing.btn.Parent then
+                            Library:SetActionButtonVisible(pinId, true)
+                        else
+                            local count = 0
+                            for _ in pairs(Library.ActionButtons or {}) do count += 1 end
+                            local rowIdx = count % 5
+                            local colIdx = math.floor(count / 5)
+                            Library:RegisterActionButton({
+                                id = pinId,
+                                name = cfg.name or pinId,
+                                isToggle = false,
+                                defaultPos = UDim2.new(math.clamp(0.86 - colIdx * 0.08, 0.15, 0.9), 0, math.clamp(0.28 + rowIdx * 0.11, 0.18, 0.82), 0),
+                                callback = function()
+                                    fireButton()
+                                end,
+                            })
+                            if Library.HudGui then Library.HudGui.Enabled = true end
+                        end
+                        refreshPinVisual(true)
+                    end
+                end)
+            end
+
+            bindTap(button, function(pos)
+                if pos then
+                    if pinBtn and pinBtn.Parent then
+                        local pPos, pSize = pinBtn.AbsolutePosition, pinBtn.AbsoluteSize
+                        if pos.X >= pPos.X - 2 and pos.X <= pPos.X + pSize.X + 2 and pos.Y >= pPos.Y - 2 and pos.Y <= pPos.Y + pSize.Y + 2 then
+                            return
+                        end
+                    end
+                    if inlineKbBox and inlineKbBox.Parent then
+                        local kPos, kSize = inlineKbBox.AbsolutePosition, inlineKbBox.AbsoluteSize
+                        if pos.X >= kPos.X - 2 and pos.X <= kPos.X + kSize.X + 2 and pos.Y >= kPos.Y - 2 and pos.Y <= kPos.Y + kSize.Y + 2 then
+                            return
+                        end
+                    end
+                end
+                fireButton()
+            end)
 
             local function addInlineKeybind(kbOpts)
                 kbOpts = kbOpts or {}
                 local kbFlag = kbOpts.flag or ((cfg.flag or cfg.name or "button") .. "_bind")
                 local rawKey = kbOpts.default or kbOpts.keycode or "None"
                 local defaultKey = (typeof(rawKey) == "EnumItem" and rawKey.Name) or tostring(rawKey)
+                local activeKey = defaultKey
+                if Library.savedFlags and Library.savedFlags[kbFlag] ~= nil and Library.savedFlags[kbFlag] ~= "" then
+                    activeKey = tostring(Library.savedFlags[kbFlag])
+                elseif Library.Flags and Library.Flags[kbFlag] ~= nil and Library.Flags[kbFlag] ~= "" then
+                    activeKey = tostring(Library.Flags[kbFlag])
+                end
 
                 local Box = new("TextButton", {
                     Name = "InlineKeybindBox",
@@ -9565,6 +12679,10 @@ end
                     Text = "",
                     ZIndex = 4,
                 }, button)
+                inlineKbBox = Box
+                if pinBtn then
+                    pinBtn.Position = UDim2.new(1, -66, 0.5, 0)
+                end
                 table.insert(genv.UIElements, Box)
                 corner(Box, 4)
                 stroke(Box, Color3.fromRGB(45, 48, 60), 1, 0.5)
@@ -9575,12 +12693,22 @@ end
                     TextColor3 = WHITE,
                     FontFace = font(),
                     TextSize = 10,
-                    Text = defaultKey,
+                    Text = formatKeybindDisplay(activeKey),
                     ZIndex = 5,
                 }, Box)
 
-                Library.Flags[kbFlag] = defaultKey
-                Library:RegisterKeybind(kbFlag, cfg.name or kbFlag, defaultKey, nil, fireButton, fireButton, true)
+                Library.Flags[kbFlag] = activeKey
+                Library:RegisterKeybind(kbFlag, cfg.name or kbFlag, activeKey, nil, fireButton, fireButton, true)
+
+                local kbObj = {flag = kbFlag}
+                function kbObj:GetValue() return Library.Flags[kbFlag] end
+                function kbObj:SetValue(v)
+                    local strVal = tostring(v or "None")
+                    Library.Flags[kbFlag] = strVal
+                    Library:UpdateKeybind(kbFlag, strVal)
+                    KeyText.Text = formatKeybindDisplay(strVal)
+                end
+                Library:RegisterObject(kbFlag, kbObj)
 
                 local setting = false
                 bindTap(Box, function()
@@ -9588,26 +12716,43 @@ end
                     setting = true
                     KeyText.Text = "..."
                     local conn
-                    conn = UserInputService.InputBegan:Connect(function(input)
-                        local pressed = input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode.Name
+                    task.defer(function()
+                    conn = bind(UserInputService.InputBegan, function(input)
+                        if Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent then return end
+                        local pressed
+                        if input.UserInputType == Enum.UserInputType.Keyboard then
+                            pressed = input.KeyCode.Name
+                        elseif input.UserInputType.Name:match("^MouseButton%d+$") then
+                            pressed = input.UserInputType.Name
+                        end
                         if not pressed then return end
                         Library.Flags[kbFlag] = pressed
                         Library:UpdateKeybind(kbFlag, pressed)
-                        KeyText.Text = pressed
+                        KeyText.Text = formatKeybindDisplay(pressed)
+                        Library.save_flags(kbFlag)
                         setting = false
                         conn:Disconnect()
+                    end)
                     end)
                 end)
 
                 bind(UserInputService.InputBegan, function(input, processed)
-                    if processed or setting then return end
-                    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode.Name == Library.Flags[kbFlag] then
+                    if (Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent) or processed or setting then return end
+                    local current = Library.Flags[kbFlag]
+                    if not current or current == "None" or current == "" then return end
+                    local pressed
+                    if input.UserInputType == Enum.UserInputType.Keyboard then
+                        pressed = input.KeyCode.Name
+                    elseif input.UserInputType.Name:match("^MouseButton%d+$") then
+                        pressed = input.UserInputType.Name
+                    end
+                    if pressed and pressed == current then
                         fireButton()
                     end
                 end)
             end
 
-            if cfg.keybind then
+            if cfg.keybind and not IsMobile then
                 addInlineKeybind(type(cfg.keybind) == "table" and cfg.keybind or {})
             end
 
@@ -9616,66 +12761,157 @@ end
                 return self
             end
 
+            if (cfg.locked or cfg.premium or cfg.is_premium) and not Library.IsPremium then
+                obj.isLocked = true
+                Library:LockElement(button, obj)
+            end
+
             return obj
         end
 
-        function Module.create_blocked_button(arg)
-            local cfg = resolve(nil, arg)
+        function Module.create_blocked_button(arg1, arg2)
+            local cfg = resolve(arg1, arg2)
             local side = getSide(cfg)
             local button = row("Button", "tabcolor")
             rowTexts(button, cfg.name or "Button", cfg.description, 20)
 
-            local overlay = new("Frame", {
-                Name = "BlockedOverlay",
-                BackgroundColor3 = genv.blockedoverlay or Color3.fromRGB(0, 0, 0),
-                BackgroundTransparency = 0.45,
-                BorderSizePixel = 0,
-                Size = UDim2.new(1, 0, 1, 0),
-                ZIndex = 5,
-                Active = true,
-            }, button)
-            table.insert(genv.UIElements, overlay)
-            corner(overlay, 10)
+            bindTap(button, function()
+                if not Library.IsPremium then
+                    if Library.ShowPremiumPrompt then
+                        Library:ShowPremiumPrompt()
+                    end
+                    return
+                end
+                if cfg.callback then
+                    pcall(cfg.callback)
+                end
+            end)
 
-            local lockRow = new("Frame", {
-                Name = "LockRow",
-                BackgroundTransparency = 1,
-                AnchorPoint = Vector2.new(0.5, 0.5),
-                Position = UDim2.new(0.5, 0, 0.5, 0),
-                Size = UDim2.new(0, 0, 0, 18),
-                AutomaticSize = Enum.AutomaticSize.X,
-                ZIndex = 6,
-            }, overlay)
+            if not Library.IsPremium then
+                local overlay = new("TextButton", {
+                    Name = "BlockedOverlay",
+                    BackgroundColor3 = genv.blockedoverlay or Color3.fromRGB(12, 13, 18),
+                    BackgroundTransparency = 0.88,
+                    BorderSizePixel = 0,
+                    Size = UDim2.new(1, 0, 1, 0),
+                    ZIndex = 15,
+                    Active = true,
+                    AutoButtonColor = false,
+                    Text = "",
+                }, button)
+                table.insert(genv.UIElements, overlay)
+                corner(overlay, 10)
 
-            new("UIListLayout", {
-                FillDirection = Enum.FillDirection.Horizontal,
-                VerticalAlignment = Enum.VerticalAlignment.Center,
-                HorizontalAlignment = Enum.HorizontalAlignment.Center,
-                Padding = UDim.new(0, 6),
-            }, lockRow)
+                local overlayStroke = stroke(overlay, Color3.fromRGB(48, 42, 54), 1, 0.6)
 
-            local lockIcon = new("ImageLabel", {
-                Name = "LockIcon",
-                Size = UDim2.new(0, 14, 0, 14),
-                BackgroundTransparency = 1,
-                Image = "rbxassetid://134724289526879",
-                ImageColor3 = genv.blockedtext or Color3.fromRGB(210, 210, 210),
-                ZIndex = 6,
-            }, lockRow)
-            table.insert(genv.UIElements, lockIcon)
+                local lockBadge = new("Frame", {
+                    Name = "LockBadge",
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    Position = UDim2.new(1, -10, 0.5, 0),
+                    Size = UDim2.new(0, 0, 0, 22),
+                    AutomaticSize = Enum.AutomaticSize.X,
+                    BackgroundColor3 = Color3.fromRGB(30, 20, 26),
+                    BackgroundTransparency = 0.15,
+                    BorderSizePixel = 0,
+                    ZIndex = 16,
+                }, overlay)
+                corner(lockBadge, 6)
+                local badgeStroke = stroke(lockBadge, Color3.fromRGB(180, 50, 75), 1, 0.35)
 
-            local lockLabel = new("TextLabel", {
-                Name = "BlockedText",
-                BackgroundTransparency = 1,
-                Size = UDim2.new(0, 0, 1, 0),
-                AutomaticSize = Enum.AutomaticSize.X,
-                FontFace = font(Enum.FontWeight.Medium),
-                TextColor3 = genv.blockedtext or Color3.fromRGB(210, 210, 210),
-                TextSize = 13,
-                Text = cfg.lockText or "Locked",
-                ZIndex = 6,
-            }, lockRow)
-            table.insert(genv.UIElements, lockLabel)
+                new("UIPadding", {
+                    PaddingLeft = UDim.new(0, 7),
+                    PaddingRight = UDim.new(0, 7),
+                }, lockBadge)
+
+                new("UIListLayout", {
+                    FillDirection = Enum.FillDirection.Horizontal,
+                    VerticalAlignment = Enum.VerticalAlignment.Center,
+                    HorizontalAlignment = Enum.HorizontalAlignment.Center,
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Padding = UDim.new(0, 5),
+                }, lockBadge)
+
+                local lockIcon = new("ImageLabel", {
+                    Name = "LockIcon",
+                    Size = UDim2.new(0, 12, 0, 12),
+                    BackgroundTransparency = 1,
+                    Image = "rbxassetid://134724289526879",
+                    ImageColor3 = Color3.fromRGB(244, 63, 94),
+                    LayoutOrder = 1,
+                    ZIndex = 17,
+                }, lockBadge)
+                table.insert(genv.UIElements, lockIcon)
+
+                local lockLabel = new("TextLabel", {
+                    Name = "BlockedText",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(0, 0, 1, 0),
+                    AutomaticSize = Enum.AutomaticSize.X,
+                    FontFace = font(Enum.FontWeight.SemiBold),
+                    TextColor3 = Color3.fromRGB(250, 120, 140),
+                    TextSize = 11,
+                    Text = cfg.lockText or "LOCKED",
+                    LayoutOrder = 2,
+                    ZIndex = 17,
+                }, lockBadge)
+                table.insert(genv.UIElements, lockLabel)
+
+                overlay.MouseEnter:Connect(function()
+                    TweenService:Create(overlay, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        BackgroundTransparency = 0.78,
+                    }):Play()
+                    TweenService:Create(overlayStroke, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        Color = Color3.fromRGB(244, 63, 94),
+                        Transparency = 0.2,
+                    }):Play()
+                    TweenService:Create(lockBadge, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        BackgroundColor3 = Color3.fromRGB(180, 30, 60),
+                        BackgroundTransparency = 0,
+                    }):Play()
+                    TweenService:Create(badgeStroke, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        Color = Color3.fromRGB(255, 95, 135),
+                        Transparency = 0,
+                    }):Play()
+                    TweenService:Create(lockIcon, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        ImageColor3 = WHITE,
+                    }):Play()
+                    lockLabel.Text = "UNLOCK"
+                    lockLabel.TextColor3 = WHITE
+                end)
+
+                overlay.MouseLeave:Connect(function()
+                    TweenService:Create(overlay, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        BackgroundTransparency = 0.88,
+                    }):Play()
+                    TweenService:Create(overlayStroke, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        Color = Color3.fromRGB(48, 42, 54),
+                        Transparency = 0.6,
+                    }):Play()
+                    TweenService:Create(lockBadge, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        BackgroundColor3 = Color3.fromRGB(30, 20, 26),
+                        BackgroundTransparency = 0.15,
+                    }):Play()
+                    TweenService:Create(badgeStroke, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        Color = Color3.fromRGB(180, 50, 75),
+                        Transparency = 0.35,
+                    }):Play()
+                    TweenService:Create(lockIcon, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                        ImageColor3 = Color3.fromRGB(244, 63, 94),
+                    }):Play()
+                    lockLabel.Text = cfg.lockText or "LOCKED"
+                    lockLabel.TextColor3 = Color3.fromRGB(250, 120, 140)
+                end)
+
+                overlay.MouseButton1Click:Connect(function()
+                    if Library.ShowPremiumPrompt then
+                        Library:ShowPremiumPrompt()
+                    end
+                end)
+
+                if Library.LockedElements then
+                    table.insert(Library.LockedElements, overlay)
+                end
+            end
 
             registerItem(button, side, ELEMENT_HEIGHT, cfg.name)
             return button
@@ -9690,9 +12926,9 @@ end
 
             local track = new("Frame", {
                 Name = "trackcolor",
-                AnchorPoint = Vector2.new(0.5, 0.5),
-                Position = UDim2.new(0.5, 0, 0.78, 0),
-                Size = UDim2.new(0.9, 0, 0, 5),
+                AnchorPoint = Vector2.new(0, 0.5),
+                Position = UDim2.new(0, 12, 0.78, 0),
+                Size = UDim2.new(1, -24, 0, 5),
                 BackgroundColor3 = genv.trackcolor or Color3.fromRGB(40, 40, 40),
                 BorderSizePixel = 0,
                 Active = true,
@@ -9735,19 +12971,20 @@ end
             new("TextLabel", {
                 AnchorPoint = Vector2.new(0, 0.5),
                 Position = UDim2.new(0, 12, 0.32, 0),
-                Size = UDim2.new(1, -70, 0, 13),
+                Size = UDim2.new(1, -108, 0, 13),
                 BackgroundTransparency = 1,
                 FontFace = font(),
                 TextColor3 = WHITE,
                 TextSize = 13,
+                TextTruncate = Enum.TextTruncate.AtEnd,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Text = cfg.name or "",
             }, slider)
 
             local number = new("TextLabel", {
                 AnchorPoint = Vector2.new(1, 0.5),
-                Position = UDim2.new(0.97, 0, 0.32, 0),
-                Size = UDim2.new(0, 50, 0, 13),
+                Position = UDim2.new(1, -50, 0.32, 0),
+                Size = UDim2.new(0, 48, 0, 13),
                 BackgroundTransparency = 1,
                 FontFace = font(),
                 TextColor3 = WHITE,
@@ -9755,6 +12992,40 @@ end
                 TextXAlignment = Enum.TextXAlignment.Right,
                 Text = "0",
             }, slider)
+
+            local minusBtn = new("TextButton", {
+                Name = "SliderMinus",
+                AnchorPoint = Vector2.new(1, 0.5),
+                Position = UDim2.new(1, -30, 0.32, 0),
+                Size = UDim2.new(0, 16, 0, 16),
+                BackgroundColor3 = genv.KeybindBox or Color3.fromRGB(22, 23, 28),
+                BorderSizePixel = 0,
+                AutoButtonColor = false,
+                FontFace = font(Enum.FontWeight.Bold),
+                Text = "-",
+                TextColor3 = Color3.fromRGB(185, 190, 205),
+                TextSize = 13,
+                ZIndex = 5,
+            }, slider)
+            corner(minusBtn, 4)
+            stroke(minusBtn, Color3.fromRGB(45, 48, 60), 1, 0.5)
+
+            local plusBtn = new("TextButton", {
+                Name = "SliderPlus",
+                AnchorPoint = Vector2.new(1, 0.5),
+                Position = UDim2.new(1, -11, 0.32, 0),
+                Size = UDim2.new(0, 16, 0, 16),
+                BackgroundColor3 = genv.KeybindBox or Color3.fromRGB(22, 23, 28),
+                BorderSizePixel = 0,
+                AutoButtonColor = false,
+                FontFace = font(Enum.FontWeight.Bold),
+                Text = "+",
+                TextColor3 = Color3.fromRGB(185, 190, 205),
+                TextSize = 12,
+                ZIndex = 5,
+            }, slider)
+            corner(plusBtn, 4)
+            stroke(plusBtn, Color3.fromRGB(45, 48, 60), 1, 0.5)
 
             attachTooltip(slider, cfg.tooltip or cfg.desc)
             registerItem(slider, side, ELEMENT_HEIGHT, cfg.name)
@@ -9796,12 +13067,15 @@ end
                 return tostring(math.floor(value + 0.5)) .. sfx
             end
 
+            local currentValue = roundValue(tonumber(cfg.value or cfg.default or cfg.currentvalue) or min_v)
+
             local function setFromPercent(percent, skipCallback)
                 percent = math.clamp(tonumber(percent) or 0, 0, 1)
                 fill.Size = UDim2.new(percent, 0, 1, 0)
                 knob.Position = UDim2.new(percent, math.floor(7 - percent * 14), 0.5, 0)
                 local final = roundValue(min_v + percent * (max_v - min_v))
-                Library.Flags[cfg.flag] = final
+                currentValue = final
+                if cfg.flag then Library.Flags[cfg.flag] = final end
                 number.Text = formatNumber(final)
                 if not skipCallback and cfg.callback then cfg.callback(final) end
             end
@@ -9813,20 +13087,19 @@ end
                 setFromPercent((x - minX) / trackWidth)
             end
 
-            local initialValue
-            if type(Library.Flags[cfg.flag]) == "number" then
+            local initialValue = currentValue
+            if cfg.flag and type(Library.Flags[cfg.flag]) == "number" then
                 initialValue = Library.Flags[cfg.flag]
-            elseif Library.savedFlags and type(Library.savedFlags[cfg.flag]) == "number" then
+            elseif cfg.flag and Library.savedFlags and type(Library.savedFlags[cfg.flag]) == "number" then
                 initialValue = Library.savedFlags[cfg.flag]
-            else
-                initialValue = tonumber(cfg.value or cfg.default or cfg.currentvalue) or min_v
             end
-            Library.Flags[cfg.flag] = roundValue(initialValue)
-            setFromPercent(math.clamp((Library.Flags[cfg.flag] - min_v) / (max_v - min_v), 0, 1))
+            currentValue = roundValue(initialValue)
+            if cfg.flag then Library.Flags[cfg.flag] = currentValue end
+            setFromPercent(math.clamp((currentValue - min_v) / (max_v - min_v), 0, 1), true)
 
             task.defer(function()
                 if track.AbsoluteSize.X > 0 then
-                    setFromPercent(math.clamp((Library.Flags[cfg.flag] - min_v) / (max_v - min_v), 0, 1), true)
+                    setFromPercent(math.clamp((currentValue - min_v) / (max_v - min_v), 0, 1), true)
                 end
             end)
 
@@ -9837,8 +13110,30 @@ end
                 TweenService:Create(knob, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = sz}):Play()
             end
 
+            local isLocked = (cfg.locked == true or cfg.premium == true or cfg.is_premium == true) and (not Library.IsPremium)
+            local obj = {min = min_v, max = max_v, step = step, flag = cfg.flag, callback = cfg.callback, isLocked = isLocked}
+
+            local function isOverStepBtn(pos)
+                if not pos then return false end
+                for _, sb in ipairs({minusBtn, plusBtn}) do
+                    if sb and sb.Parent then
+                        local bPos, bSize = sb.AbsolutePosition, sb.AbsoluteSize
+                        if pos.X >= bPos.X - 2 and pos.X <= bPos.X + bSize.X + 2 and pos.Y >= bPos.Y - 2 and pos.Y <= bPos.Y + bSize.Y + 2 then
+                            return true
+                        end
+                    end
+                end
+                return false
+            end
+
             local function beginDrag(input)
+                if dragging then return end
                 if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+                if isOverStepBtn(input.Position) then return end
+                if obj and obj.isLocked and not Library.IsPremium then
+                    Library:ShowPremiumPrompt()
+                    return
+                end
                 dragging = true
                 slideInput = input
                 Library.slider_drag = true
@@ -9857,7 +13152,7 @@ end
                 animate(UDim2.new(0, 15, 0, 15))
                 TweenService:Create(fill, TweenInfo.new(0.2), {BackgroundColor3 = genv.sliderfill or genv.accent or Color3.fromRGB(90, 90, 90)}):Play()
                 TweenService:Create(number, TweenInfo.new(0.2), {TextColor3 = WHITE}):Play()
-                Library.save_flags(cfg.flag)
+                if cfg.flag then Library.save_flags(cfg.flag) end
             end
 
             track.InputBegan:Connect(beginDrag)
@@ -9879,22 +13174,45 @@ end
                 end
             end)
 
-            local obj = {min = min_v, max = max_v, step = step, flag = cfg.flag, callback = cfg.callback}
-            function obj:GetValue() return Library.Flags[self.flag] end
+            function obj:GetValue()
+                if self.flag then return Library.Flags[self.flag] end
+                return currentValue
+            end
             function obj:SetValue(value, skipCallback)
-                if type(value) ~= "number" then return end
-                setFromPercent(math.clamp((value - self.min) / (self.max - self.min), 0, 1), skipCallback == true)
-                if not skipCallback then
+                if self.isLocked and not Library.IsPremium then return end
+                if type(value) ~= "number" or value ~= value then return end
+                local span = self.max - self.min
+                local pct = span > 0 and math.clamp((value - self.min) / span, 0, 1) or 0
+                setFromPercent(pct, skipCallback == true)
+                if not skipCallback and cfg.flag then
                     Library.save_flags(cfg.flag)
                 end
             end
             obj.Set = obj.SetValue
 
-            Library:RegisterObject(cfg.flag, obj)
+            bindTap(minusBtn, function()
+                if obj.isLocked and not Library.IsPremium then
+                    Library:ShowPremiumPrompt()
+                    return
+                end
+                obj:SetValue(roundValue(currentValue - step))
+            end)
+            bindTap(plusBtn, function()
+                if obj.isLocked and not Library.IsPremium then
+                    Library:ShowPremiumPrompt()
+                    return
+                end
+                obj:SetValue(roundValue(currentValue + step))
+            end)
+
+            if cfg.flag then Library:RegisterObject(cfg.flag, obj) end
+            if (cfg.locked or cfg.premium or cfg.is_premium) and not Library.IsPremium then
+                Library:LockElement(slider, obj)
+            end
+
             return obj
         end
         Module.create_slider2 = Module.create_slider
-        Tab.create_slider2 = Tab.create_slider
 
         local function buildTextEntry(cfg, side, nameKey, boxKey, rowName, boxName)
             local container = row(rowName, nameKey)
@@ -9905,8 +13223,8 @@ end
                 AnchorPoint = Vector2.new(1, 0.5),
                 BackgroundColor3 = genv[boxKey] or Color3.fromRGB(22, 23, 27),
                 BorderSizePixel = 0,
-                Position = UDim2.new(0.96, 0, 0.5, 0),
-                Size = UDim2.new(0.46, 0, 0, 24),
+                Position = UDim2.new(1, -12, 0.5, 0),
+                Size = UDim2.new(0.21, 0, 0, 24),
                 ClearTextOnFocus = false,
                 Text = "",
                 PlaceholderText = cfg.placeholder or cfg.placeholdertext or "...",
@@ -9933,40 +13251,8 @@ end
             return box
         end
 
-        function Module:create_textbox(arg)
-            local cfg = resolve(self, arg)
-            local side = getSide(cfg)
-            local box = buildTextEntry(cfg, side, "tabcolor", "InputBox", "TextBox", "TextHolder")
-            local Textbox = {}
-
-            if Library.Flags[cfg.flag] == nil then
-                local saved = Library.savedFlags and Library.savedFlags[cfg.flag]
-                Library.Flags[cfg.flag] = saved ~= nil and saved or (cfg.value or cfg.default or "")
-            end
-            box.Text = tostring(Library.Flags[cfg.flag])
-
-            if cfg.callback then cfg.callback(Library.Flags[cfg.flag]) end
-
-            box.FocusLost:Connect(function()
-                Library.Flags[cfg.flag] = box.Text
-                if cfg.callback then cfg.callback(box.Text) end
-                Library.save_flags()
-            end)
-
-            function Textbox:update(text)
-                box.Text = tostring(text or "")
-                Library.Flags[cfg.flag] = box.Text
-                if cfg.callback then cfg.callback(box.Text) end
-            end
-            function Textbox:GetValue() return box.Text end
-            function Textbox:SetValue(value) box.Text = tostring(value or "") end
-
-            Library:RegisterObject(cfg.flag, Textbox)
-            return Textbox
-        end
-
-        function Module.create_input(arg)
-            local options = resolve(nil, arg)
+        function Module.create_input(arg1, arg2)
+            local options = resolve(arg1, arg2)
             local cfg = {
                 name = options.name or "Input",
                 flag = options.flag or "input_flag",
@@ -9977,22 +13263,30 @@ end
             local side = getSide(cfg)
             local box = buildTextEntry(cfg, side, "inputButton", "InputBox", "Input", "InputBox")
             box.TextXAlignment = Enum.TextXAlignment.Center
-            box.Text = options.default or options.value or ""
+            local initialText = options.default or options.value or ""
+            if cfg.flag and Library.SavedSettings and type(Library.SavedSettings[cfg.flag]) == "string" then
+                initialText = Library.SavedSettings[cfg.flag]
+            elseif cfg.flag and Library.savedFlags and type(Library.savedFlags[cfg.flag]) == "string" then
+                initialText = Library.savedFlags[cfg.flag]
+            end
+            box.Text = initialText
 
             local obj = {value = box.Text, callback = options.callback, flag = cfg.flag}
 
-            function obj:UpdateInput(text)
+            function obj:UpdateInput(text, skipCallback)
                 text = tostring(text or "")
                 self.value = text
                 box.Text = text
                 Library.Flags[self.flag] = text
-                Library.save_flags()
-                if self.callback then pcall(self.callback, text) end
+                if not skipCallback then
+                    Library.save_flags(self.flag)
+                    if self.callback then pcall(self.callback, text) end
+                end
             end
             function obj:ClearInput() self:UpdateInput("") end
             function obj:GetInput() return box.Text end
             function obj:GetValue() return box.Text end
-            function obj:SetValue(value) self:UpdateInput(value) end
+            function obj:SetValue(value, skipCallback) self:UpdateInput(value, skipCallback) end
             obj.Set = obj.SetValue
 
             Library.Flags[cfg.flag] = box.Text
@@ -10001,12 +13295,17 @@ end
             box:GetPropertyChangedSignal("Text"):Connect(function()
                 obj.value = box.Text
                 Library.Flags[cfg.flag] = box.Text
-                Library.save_flags()
+                Library.save_flags(cfg.flag)
             end)
 
             box.FocusLost:Connect(function()
                 if obj.callback then obj.callback(box.Text) end
             end)
+
+            if (cfg.locked or cfg.premium or cfg.is_premium) and not Library.IsPremium then
+                obj.isLocked = true
+                Library:LockElement(box.Parent, obj)
+            end
 
             return obj
         end
@@ -10014,6 +13313,19 @@ end
         function Module:create_keybind(arg)
             local cfg = resolve(self, arg)
             local side = getSide(cfg)
+            if IsMobile then
+                local mobileKey = cfg.keycode or cfg.default or "H"
+                local obj = {flag = cfg.flag, value = mobileKey}
+                function obj:GetValue()
+                    if self.flag then return Library.Flags[self.flag] end
+                    return self.value
+                end
+                function obj:SetValue(value)
+                    self.value = value
+                    if self.flag then Library.Flags[self.flag] = value end
+                end
+                return obj
+            end
             local keybind = row("Keybind", "Keybind")
             simpleLabel(keybind, cfg.name, 0.5)
 
@@ -10047,9 +13359,7 @@ end
 
             local function displayOf(value)
                 if not value then return "" end
-                local n = tostring(value):match("^MouseButton(%d+)$")
-                if n then return "Mouse" .. n end
-                return tostring(value)
+                return formatKeybindDisplay(value)
             end
 
             local function pressedName(input)
@@ -10062,11 +13372,12 @@ end
             end
             local rawDefault = cfg.keycode or cfg.default or "H"
             local defaultKey = (typeof(rawDefault) == "EnumItem" and rawDefault.Name) or tostring(rawDefault)
-            Library.Flags[cfg.flag] = Library.Flags[cfg.flag] or defaultKey
-            if Library.savedFlags and Library.savedFlags[cfg.flag] then
-                Library.Flags[cfg.flag] = Library.savedFlags[cfg.flag]
+            local currentKey = cfg.flag and Library.Flags[cfg.flag] or defaultKey
+            if cfg.flag and Library.savedFlags and Library.savedFlags[cfg.flag] then
+                currentKey = Library.savedFlags[cfg.flag]
             end
-            KeyText.Text = displayOf(Library.Flags[cfg.flag])
+            if cfg.flag then Library.Flags[cfg.flag] = currentKey end
+            KeyText.Text = displayOf(currentKey)
 
             local kbState = false
             local isButtonKb = (cfg.isButton == true) or (cfg.flag == "toggleui")
@@ -10078,27 +13389,29 @@ end
                 end
                 if isButtonKb then
                     if cfg.callback then
-                        task.spawn(cfg.callback, nil, Library.Flags[cfg.flag])
+                        task.spawn(cfg.callback, nil, currentKey)
                     end
                     return
                 end
                 kbState = not kbState
-                if cfg.callback then task.spawn(cfg.callback, kbState, Library.Flags[cfg.flag]) end
+                if cfg.callback then task.spawn(cfg.callback, kbState, currentKey) end
                 if Library.UpdateKeybindList then Library:UpdateKeybindList() end
             end
 
-            Library:RegisterKeybind(
-                cfg.flag,
-                cfg.name,
-                Library.Flags[cfg.flag],
-                function()
-                    if isButtonKb then return nil end
-                    return kbState
-                end,
-                toggleKb,
-                toggleKb,
-                isButtonKb
-            )          
+            if cfg.flag then
+                Library:RegisterKeybind(
+                    cfg.flag,
+                    cfg.name,
+                    currentKey,
+                    function()
+                        if isButtonKb then return nil end
+                        return kbState
+                    end,
+                    toggleKb,
+                    toggleKb,
+                    isButtonKb
+                )
+            end
 
             local function updateSize()
                 Box.Size = UDim2.new(0, math.max(40, KeyText.TextBounds.X + 12), 0, 22)
@@ -10115,39 +13428,57 @@ end
                 setting = true
                 KeyText.Text = "..."
                 local conn
-                conn = UserInputService.InputBegan:Connect(function(input)
+                task.defer(function()
+                conn = bind(UserInputService.InputBegan, function(input)
+                    if Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent then return end
                     local pressed = pressedName(input)
                     if not pressed then return end
-                    Library.Flags[cfg.flag] = pressed
-                    Library:UpdateKeybind(cfg.flag, pressed)
-                    Library.save_flags()
+                    currentKey = pressed
+                    if cfg.flag then
+                        Library.Flags[cfg.flag] = pressed
+                        Library:UpdateKeybind(cfg.flag, pressed)
+                        Library.save_flags(cfg.flag)
+                    end
                     KeyText.Text = displayOf(pressed)
                     updateSize()
                     setting = false
                     lastBound = tick()
                     conn:Disconnect()
                 end)
+                end)
             end)
 
             bind(UserInputService.InputBegan, function(input, processed)
-                if processed or setting then return end
+                if (Library.ActivePremiumPrompt and Library.ActivePremiumPrompt.Parent) or processed or setting then return end
                 if cfg.flag == "toggleui" then return end
                 local pressed = pressedName(input)
-                if pressed and pressed == Library.Flags[cfg.flag] then
+                if pressed and pressed == currentKey then
                     toggleKb()
                 end
             end)
 
-            local obj = {flag = cfg.flag, callback = cfg.callback}
-            function obj:GetValue() return Library.Flags[self.flag] end
+            local obj = {flag = cfg.flag, callback = cfg.callback, value = currentKey}
+            function obj:GetValue()
+                if self.flag then return Library.Flags[self.flag] end
+                return currentKey
+            end
             function obj:SetValue(value)
-                Library.Flags[self.flag] = value
-                Library:UpdateKeybind(self.flag, value)
+                currentKey = value
+                self.value = value
+                if self.flag then
+                    Library.Flags[self.flag] = value
+                    Library:UpdateKeybind(self.flag, value)
+                end
                 KeyText.Text = displayOf(value)
                 updateSize()
             end
 
-            Library:RegisterObject(cfg.flag, obj)
+            if cfg.flag then Library:RegisterObject(cfg.flag, obj) end
+            if (cfg.locked or cfg.premium or cfg.is_premium) and not Library.IsPremium then
+                obj.isLocked = true
+                Library:LockElement(keybind, obj)
+            end
+
             return obj
         end
 
@@ -10160,6 +13491,7 @@ end
 
         local function buildDropdown(cfg, multi, sideStyle)
             local side = getSide(cfg)
+            sideStyle = sideStyle == true
             local keys = DropdownKeys[(sideStyle and "side_" or "inline_") .. (multi and "multi" or "single")]
             local OPT_H = sideStyle and 18 or 20
             local OPT_GAP, PT, PB, MAX_H = 6, 8, 8, 140
@@ -10170,11 +13502,14 @@ end
 
             local dropdownRow = row(keys.row, keys.rowKey)
             dropdownRow.ZIndex = 1
+            if sideStyle then
+                dropdownRow.ClipsDescendants = false
+            end
 
             local Title
             if sideStyle then
                 Title = new("TextLabel", {
-                    Position = UDim2.new(0.04, 0, 0, (ELEMENT_HEIGHT - 15) / 2),
+                    Position = UDim2.new(0, 12, 0, (ELEMENT_HEIGHT - 15) / 2),
                     Size = UDim2.new(0.4, 0, 0, 15),
                     BackgroundTransparency = 1,
                     FontFace = font(),
@@ -10196,8 +13531,9 @@ end
             }, dropdownRow)
             if sideStyle then
                 Box.AnchorPoint = Vector2.new(1, 0)
-                Box.Position = UDim2.new(0.96, 0, 0, (ELEMENT_HEIGHT - BOX_HEIGHT) / 2)
-                Box.Size = UDim2.new(0.46, 0, 0, BOX_HEIGHT)
+                Box.Position = UDim2.new(1, -12, 0, (ELEMENT_HEIGHT - BOX_HEIGHT) / 2)
+                local sideBoxWidth = side == "middle" and 0.32 or 0.55
+                Box.Size = UDim2.new(sideBoxWidth, 0, 0, BOX_HEIGHT)
             else
                 Box.AnchorPoint = Vector2.new(0.5, 0)
                 Box.Position = UDim2.new(0.5, 0, 0, 5)
@@ -10242,6 +13578,7 @@ end
                 Padding = UDim.new(0, OPT_GAP),
             }, Options)
 
+            cfg.options = type(cfg.options) == "table" and cfg.options or {}
             local searchBox
             if #cfg.options > 6 or cfg.searchable then
                 searchBox = new("TextBox", {
@@ -10266,8 +13603,8 @@ end
             local Selected = new("TextLabel", {
                 AnchorPoint = Vector2.new(0, 0.5),
                 BackgroundTransparency = 1,
-                Position = UDim2.new(sideStyle and 0.07 or 0.05, 0, 0.5, 0),
-                Size = UDim2.new(1, -28, 1, 0),
+                Position = UDim2.new(0, sideStyle and 10 or 8, 0.5, 0),
+                Size = UDim2.new(1, -34, 1, 0),
                 ZIndex = 3,
                 FontFace = font(),
                 TextColor3 = WHITE,
@@ -10280,7 +13617,7 @@ end
                 Name = "Arrow",
                 AnchorPoint = Vector2.new(0.5, 0.5),
                 BackgroundTransparency = 1,
-                Position = UDim2.new(0.92, 0, 0.5, 0),
+                Position = UDim2.new(1, -14, 0.5, 0),
                 Size = UDim2.new(0, 10, 0, 10),
                 ZIndex = 3,
                 Image = "rbxassetid://17400678941",
@@ -10361,6 +13698,7 @@ end
                     Selected.Text = D.selectedOption ~= nil and tostring(D.selectedOption) or placeholder
                 end
             end
+            D.setText = setText
 
             local function setBump(active)
                 if not sideStyle then return end
@@ -10386,6 +13724,10 @@ end
             end
 
             function D:open()
+                if self.isLocked and not Library.IsPremium then
+                    Library:ShowPremiumPrompt()
+                    return
+                end
                 open = true
                 animToken += 1
                 Options.Visible = true
@@ -10485,19 +13827,19 @@ end
                                 else
                                     table.insert(D.selectedOptions, value)
                                 end
-                                Library.Flags[D.flag] = D.selectedOptions
+                                if D.flag then Library.Flags[D.flag] = D.selectedOptions end
                                 if D.callback then D.callback(D.selectedOptions) end
                                 setText()
                                 D:update()
-                                Library.save_flags(D.flag)
+                                if D.flag then Library.save_flags(D.flag) end
                             else
                                 D.selectedOption = value
-                                Library.Flags[D.flag] = value
+                                if D.flag then Library.Flags[D.flag] = value end
                                 if D.callback then D.callback(value) end
                                 setText()
                                 D:update()
                                 D:close()
-                                Library.save_flags(D.flag)
+                                if D.flag then Library.save_flags(D.flag) end
                             end
                         end)
                     end
@@ -10506,7 +13848,8 @@ end
                 local searchH = searchBox and 26 or 0
                 optionsHeight = 0
                 if count > 0 or searchBox then
-                    optionsHeight = count * OPT_H + (count - 1) * OPT_GAP + PT + PB + searchH
+                    local itemsH = count > 0 and (count * OPT_H + (count - 1) * OPT_GAP) or 0
+                    optionsHeight = itemsH + PT + PB + searchH
                 end
                 if sideStyle then
                     Options.CanvasSize = UDim2.new(0, 0, 0, optionsHeight)
@@ -10537,14 +13880,15 @@ end
             end
 
             function D:SetValue(value, ignoreCallback)
+                if self.isLocked and not Library.IsPremium then return end
                 if multi then
                     if type(value) ~= "table" then return end
                     self.selectedOptions = value
-                    Library.Flags[self.flag] = value
+                    if self.flag then Library.Flags[self.flag] = value end
                     if not ignoreCallback and self.callback then pcall(self.callback, value) end
                 else
                     self.selectedOption = value
-                    Library.Flags[self.flag] = value
+                    if self.flag then Library.Flags[self.flag] = value end
                     if not ignoreCallback and self.callback then pcall(self.callback, value) end
                 end
                 setText()
@@ -10559,13 +13903,15 @@ end
                 end
             end
             D.SetOptions = D.SetOption
+            D.set_options = D.UpdateOptions
+            D.update_options = D.UpdateOptions
 
             table.insert(allRegisteredDropdowns, D)
 
             if cfg.flag == "savedconfigs" then
                 D.selectedOption = Library.ActiveConfig or "None"
             else
-                local saved = Library.savedFlags and Library.savedFlags[cfg.flag]
+                local saved = (cfg.flag and Library.SavedSettings and Library.SavedSettings[cfg.flag]) or (cfg.flag and Library.savedFlags and Library.savedFlags[cfg.flag])
                 if multi then
                     if type(saved) == "table" then D.selectedOptions = saved end
                 else
@@ -10590,9 +13936,21 @@ end
                 end)
             end
 
-            bindTap(Box, function()
+            bindTap(Box, function(pos)
+                if pos and open and pos.Y > Box.AbsolutePosition.Y + Box.AbsoluteSize.Y then
+                    return
+                end
+                if D.isLocked and not Library.IsPremium then
+                    Library:ShowPremiumPrompt()
+                    return
+                end
                 if open then D:close() else D:open() end
             end)
+
+            if (cfg.locked or cfg.premium or cfg.is_premium) and not Library.IsPremium then
+                D.isLocked = true
+                Library:LockElement(dropdownRow, D)
+            end
 
             return D
         end
@@ -10614,24 +13972,36 @@ end
             return buildDropdown(resolve(self, arg), true, true)
         end
 
-        function Module:create_divider(arg)
-            local cfg = resolve(self, arg)
+        function Module.create_divider(arg1, arg2)
+            local cfg = resolve(arg1, arg2)
             local side = getSide(cfg)
+            local dividerHeight = 14
+
             local div = new("Frame", {
                 Name = "Divider",
                 BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, 14),
+                Size = UDim2.new(1, 0, 0, dividerHeight),
                 ZIndex = 2,
             }, itemsSection)
+
             local lineDiv = new("Frame", {
+                Name = "DividerLine",
                 Position = UDim2.new(0, 4, 0.5, 0),
                 Size = UDim2.new(1, -8, 0, 1),
-                BackgroundColor3 = genv.uiline or Color3.fromRGB(35, 36, 42),
+                BackgroundColor3 = genv.uiline or Color3.fromRGB(74, 57, 103),
+                BackgroundTransparency = 0.15,
                 BorderSizePixel = 0,
                 ZIndex = 3,
             }, div)
-            registerItem(div, side, 14, "")
+            corner(lineDiv, 1)
+
+            table.insert(genv.UIElements, lineDiv)
+            registerItem(div, side, dividerHeight, "")
             return div
+        end
+
+        function Module.create_devider(arg1, arg2)
+            return Module.create_divider(arg1, arg2)
         end
 
         return Module
@@ -10646,44 +14016,76 @@ end
         end
     end)
 
-    WindowController.create_tab = function(selfOrName, nameOrIcon, iconId)
-        local tabName, tabIcon
+    Library.WindowController.create_tab = function(selfOrName, nameOrIcon, iconId)
         if type(selfOrName) == "table" and type(selfOrName.name) == "string" then
-            tabName = selfOrName.name
-            tabIcon = selfOrName.icon
+            return Library.Tab.create_tab(Library.Tab, selfOrName)
         elseif type(nameOrIcon) == "table" and type(nameOrIcon.name) == "string" then
-            tabName = nameOrIcon.name
-            tabIcon = nameOrIcon.icon
-        else
-            tabName = (type(selfOrName) == "string") and selfOrName or nameOrIcon
-            tabIcon = (type(selfOrName) == "string") and nameOrIcon or iconId
+            return Library.Tab.create_tab(Library.Tab, nameOrIcon)
         end
-        return Tab.create_tab(Tab, tabName, tabIcon)
+        local tabName = (type(selfOrName) == "string") and selfOrName or nameOrIcon
+        local tabIcon = (type(selfOrName) == "string") and nameOrIcon or iconId
+        return Library.Tab.create_tab(Library.Tab, tabName, tabIcon)
     end
-    WindowController.Tab = WindowController.create_tab
-    WindowController.FinishLoading = function()
+    Library.WindowController.Tab = Library.WindowController.create_tab
+    Library.WindowController.FinishLoading = function()
         Library:FinishLoading()
     end
-    WindowController.Notify = function(_, opts)
+    Library.WindowController.Notify = function(_, opts)
         return Library:Notify(opts)
     end
-    WindowController.Prompt = function(_, opts)
+    Library.WindowController.Prompt = function(_, opts)
         return Library:Prompt(opts)
     end
-    WindowController.SetAtmosphereEnabled = function(_, val)
+    Library.WindowController.SetAtmosphereEnabled = function(_, val)
         return Library:SetAtmosphereEnabled(val)
     end
-    WindowController.SetAtmosphere = function(_, val)
+    Library.WindowController.SetAtmosphere = function(_, val)
         return Library:SetAtmosphere(val)
     end
-    WindowController.SetScale = function(_, s)
+    Library.WindowController.SetAtmosphereColor = function(_, val)
+        return Library:SetAtmosphereColor(val)
+    end
+    Library.WindowController.SetScale = function(_, s)
         return Library:SetScale(s)
     end
-    WindowController.Toggle = function(_)
+    Library.WindowController.Toggle = function(_)
         Library:visible()
     end
+    Library.WindowController.toggle = Library.WindowController.Toggle
+    Library.WindowController.destroy = function(_)
+        Library:Unload()
+    end
+    Library.WindowController.Destroy = Library.WindowController.destroy
+    Library.WindowController.Unload = Library.WindowController.destroy
+    Library.WindowController.ListConfigs = function(_)
+        return Library:ListConfigs()
+    end
+    Library.WindowController.SaveConfig = function(_, name)
+        return Library:SaveConfig(name)
+    end
+    Library.WindowController.LoadConfig = function(_, name)
+        return Library:LoadConfig(name)
+    end
+    Library.WindowController.DeleteConfig = function(_, name)
+        return Library:DeleteConfig(name)
+    end
+    Library.WindowController.RefreshConfigs = function(_)
+        return Library:RefreshConfigs()
+    end
+    Library.WindowController.ExportConfig = function(_, name)
+        return Library:ExportConfig(name)
+    end
+    Library.WindowController.ImportConfig = function(_, rawCode, saveName)
+        return Library:ImportConfig(rawCode, saveName)
+    end
+    Library.WindowController.Caps = Library.Caps
+    Library.WindowController.IsWeak = Library.IsWeak
+    Library.WindowController.CanMemoryHack = Library.CanMemoryHack
+    Library.WindowController.CheckCapability = function(_, name)
+        return Library:CheckCapability(name)
+    end
 
-    return WindowController
+    return Library.WindowController
 end
 
 return Library
