@@ -4544,7 +4544,7 @@ end
 
 local LOADER_URL = (genv and type(genv._MoondietyLoaderUrl) == "string" and genv._MoondietyLoaderUrl) or "https://moondiety.com/loader"
 local LOADER_CODE = (genv and type(genv._MoondietyTeleportPayload) == "string" and genv._MoondietyTeleportPayload)
-    or ('pcall(function() local p="Moondiety/V2/settings.json" if isfile and isfile(p) then local ok,d=pcall(function() return game:GetService("HttpService"):JSONDecode(readfile(p)) end) if ok and type(d)=="table" and d.universal_autoload_script==false then return end end if getgenv then getgenv()._MoondietyServerHop=true end shared._MoondietyServerHop=true loadstring(game:HttpGet("' .. LOADER_URL .. '"))() end)')
+    or ('pcall(function() if not game:IsLoaded() then game.Loaded:Wait() end local p="Moondiety/V2/settings.json" if isfile and isfile(p) then local ok,d=pcall(function() return game:GetService("HttpService"):JSONDecode(readfile(p)) end) if ok and type(d)=="table" and d.universal_autoload_script==false then return end end if getgenv then getgenv()._MoondietyServerHop=true end shared._MoondietyServerHop=true loadstring(game:HttpGet("' .. LOADER_URL .. '"))() end)')
 
 local queueAlreadySet = false
 local lastQueueSetTime = 0
@@ -4607,7 +4607,9 @@ pcall(function()
                     ensureFolder(ROOT_FOLDER .. "/Cache")
                     writefile(ROOT_FOLDER .. "/Cache/hop.txt", tostring(os.time()))
                 end)
-                queueOnTeleport(true)
+                if not queueAlreadySet then
+                    queueOnTeleport(true)
+                end
             end
         end
     end)
