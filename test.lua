@@ -268,15 +268,16 @@ local SupportedGames = {
     { Name = "99 Nights In The Forest", UniverseId = 7326934954 },
     { Name = "Ability Arena", UniverseId = 10230942274 },
     { Name = "Adopt Me", UniverseId = 383310974, PlaceId = 920587237 },
-    { Name = "Blox Fruits", UniverseId = 994732206, PlaceId = 2753915549, PlaceIds = { 2753915549, 4442272183, 7449423635 } },
     { Name = "Bloxstrike", UniverseId = 7633926880 },
     { Name = "Brookhaven", UniverseId = 1686885941 },
     { Name = "Dead Rails", UniverseId = 7018190066 },
     { Name = "Dont Splash", UniverseId = 10771421858, PlaceId = 139386728420706 },
+    { Name = "Doors", UniverseId = 2440500124 },
     { Name = "Drain The Lake", UniverseId = 10267363348, PlaceId = 138381251771774 },
     { Name = "Escape Tsunami for Brainrots", UniverseId = 9363735110 },
     { Name = "Evade", UniverseId = 3647333358 },
     { Name = "Feed A Mosquito", UniverseId = 10747719434 },
+    { Name = "Fling Things and People", UniverseId = 2668101271 },
     { Name = "Forsaken", UniverseId = 6331902150 },
     { Name = "Grow A Garden", UniverseId = 7436755782 },
     { Name = "Grow A Garden 2", UniverseId = 10200395747 },
@@ -290,6 +291,21 @@ local SupportedGames = {
     { Name = "The Strongest Battlegrounds", UniverseId = 3808081382 },
     { Name = "Throw Food For Animals", UniverseId = 10766972131, PlaceId = 120219252362013 },
 }
+
+do
+    local activeLoaders = (genv and genv._MoondietyLoaders) or (shared and shared._MoondietyLoaders)
+    if type(activeLoaders) == "table" and #activeLoaders > 0 then
+        table.clear(SupportedGames)
+        for _, g in ipairs(activeLoaders) do
+            table.insert(SupportedGames, {
+                Name = g.Name,
+                UniverseId = g.GameId or g.UniverseId,
+                PlaceId = g.PlaceId,
+                PlaceIds = g.PlaceIds,
+            })
+        end
+    end
+end
 
 local supportedGamesListeners = {}
 local scriptActiveUsers = 3500
@@ -2776,6 +2792,19 @@ Library = {
     AtmosphereEnabled = true,
     Atmospheres = {"Pookie Kitty", "Astral Fog", "Celestial Stardust", "Cyber Grid Sparks", "Autumn Breeze", "Frost Snowfall", "None"},
     SupportedGames = SupportedGames,
+    RegisterSupportedGame = function(selfOrData, dataOrNil)
+        local data = (type(selfOrData) == "table" and selfOrData.Name and selfOrData) or (type(dataOrNil) == "table" and dataOrNil)
+        if not data or not data.Name then return end
+        table.insert(SupportedGames, {
+            Name = data.Name,
+            UniverseId = data.GameId or data.UniverseId,
+            PlaceId = data.PlaceId,
+            PlaceIds = data.PlaceIds,
+        })
+        if fetchSupportedGamesPlaying then
+            fetchSupportedGamesPlaying()
+        end
+    end,
     ScriptActiveUsers = scriptActiveUsers,
     JoinDiscord = joinDiscord,
     SetAtmosphere = function(selfOrName, nameOrNil)
