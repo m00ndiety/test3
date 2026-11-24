@@ -3336,6 +3336,7 @@ local ColorMap = {
     UserCard = "tabcolor",
     Note = "tabcolor",
     Tab = "tabcolor",
+    CreatorMiniTab = "tabcolor",
     ColorPalette = "dropdownoptionscolor",
     BlockedOverlay = "blockedoverlay",
     SearchBox = "uicontainer",
@@ -11070,6 +11071,9 @@ keybindHudRows[kb.name] = {
         if Library.ActivePromptThemeUpdater then
             pcall(Library.ActivePromptThemeUpdater)
         end
+        if Library.CreatorThemeUpdater then
+            pcall(Library.CreatorThemeUpdater)
+        end
 
         for _, tabObject in ipairs(tabs:GetChildren()) do
             if tabObject.Name == "Tab" and tabObject:GetAttribute("MoondietyPremiumTab") == true then
@@ -14034,7 +14038,6 @@ local stickyMerge = makeSticky("StickyMerge", SECTION_X, SECTION_W, 49)
         local iconSelX = isMiniBanner and 11 or 12
         local textRestX = isMiniBanner and 26 or 32
         local textSelX = isMiniBanner and 29 or 35
-        local baseTabBg = genv.tabcolor or Color3.fromRGB(27, 28, 33)
 
         tabBtn.MouseEnter:Connect(function()
             if Library.Tab.current_tab and Library.Tab.current_tab.tab == tabBtn then
@@ -14043,8 +14046,9 @@ local stickyMerge = makeSticky("StickyMerge", SECTION_X, SECTION_W, 49)
                 TweenService:Create(TabText, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, textSelX + 1, 0.5, 0)}):Play()
                 return
             end
+            local curTabBg = genv.tabcolor or Color3.fromRGB(27, 28, 33)
             TweenService:Create(tabScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1.02}):Play()
-            TweenService:Create(tabBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {BackgroundColor3 = baseTabBg:lerp(WHITE, 0.08)}):Play()
+            TweenService:Create(tabBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {BackgroundColor3 = curTabBg:lerp(WHITE, 0.08)}):Play()
             TweenService:Create(Logo, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, iconRestX + 2, 0.5, 0), ImageTransparency = isMiniBanner and 0 or 0.2}):Play()
             TweenService:Create(TabText, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, textRestX + 2, 0.5, 0), TextTransparency = isMiniBanner and 0 or 0.2}):Play()
         end)
@@ -14055,7 +14059,8 @@ local stickyMerge = makeSticky("StickyMerge", SECTION_X, SECTION_W, 49)
                 TweenService:Create(TabText, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Position = UDim2.new(0, textSelX, 0.5, 0)}):Play()
                 return
             end
-            TweenService:Create(tabBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {BackgroundColor3 = baseTabBg}):Play()
+            local curTabBg = genv.tabcolor or Color3.fromRGB(27, 28, 33)
+            TweenService:Create(tabBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {BackgroundColor3 = curTabBg}):Play()
             TweenService:Create(Logo, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Position = UDim2.new(0, iconRestX, 0.5, 0), ImageTransparency = isMiniBanner and 0 or 0.55}):Play()
             TweenService:Create(TabText, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Position = UDim2.new(0, textRestX, 0.5, 0), TextTransparency = isMiniBanner and 0.08 or (isPremTab and 0.2 or 0.55)}):Play()
         end)
@@ -17058,6 +17063,7 @@ end
         local tileBg = Color3.fromRGB(27, 28, 37)
         local lineCol = Color3.fromRGB(48, 50, 66)
         local subCol = Color3.fromRGB(154, 160, 180)
+        local creatorThemeRefs = { accentBtns = {}, accentStrokes = {}, accentIcons = {} }
         local nGames = tostring(#SupportedGames)
         local BANNER_URL = "https://raw.githubusercontent.com/m00ndiety/Visual/main/banner.jpg"
         local BANNER_CACHE = "Moondiety/V2/Assets/discord_banner.jpg"
@@ -17140,18 +17146,22 @@ end
             return new("TextLabel", props, parent)
         end
 
-        local function solidButton(parent, label, pos, sz, anchor, color, hoverColor, textColor, onTap)
+        local function solidButton(parent, label, pos, sz, anchor, color, hoverColor, textColor, onTap, useAccent)
+            local initCol = useAccent and (genv.accent or Color3.fromRGB(244, 63, 94)) or color
             local b = new("TextButton", {
                 AnchorPoint = anchor,
                 Position = pos,
                 Size = sz,
-                BackgroundColor3 = color,
+                BackgroundColor3 = initCol,
                 BorderSizePixel = 0,
                 AutoButtonColor = false,
                 Text = "",
                 ZIndex = 8,
             }, parent)
             corner(b, 9)
+            if useAccent then
+                table.insert(creatorThemeRefs.accentBtns, b)
+            end
             new("TextLabel", {
                 BackgroundTransparency = 1,
                 Size = UDim2.fromScale(1, 1),
@@ -17162,10 +17172,13 @@ end
                 ZIndex = 9,
             }, b)
             b.MouseEnter:Connect(function()
-                TweenService:Create(b, TweenInfo.new(0.15), {BackgroundColor3 = hoverColor}):Play()
+                local c = useAccent and (genv.accent or Color3.fromRGB(244, 63, 94)) or color
+                local hc = useAccent and c:lerp(WHITE, 0.15) or hoverColor
+                TweenService:Create(b, TweenInfo.new(0.15), {BackgroundColor3 = hc}):Play()
             end)
             b.MouseLeave:Connect(function()
-                TweenService:Create(b, TweenInfo.new(0.15), {BackgroundColor3 = color}):Play()
+                local c = useAccent and (genv.accent or Color3.fromRGB(244, 63, 94)) or color
+                TweenService:Create(b, TweenInfo.new(0.15), {BackgroundColor3 = c}):Play()
             end)
             bindTap(b, onTap)
             return b
@@ -17308,7 +17321,7 @@ end
                 if membersLbl and membersLbl.Parent then membersLbl.Text = members end
             end)
 
-            solidButton(card, "Join Server", UDim2.new(1, -16, 0, 108), UDim2.new(0, 114, 0, 34), Vector2.new(1, 0), accent, accent:lerp(WHITE, 0.15), WHITE, inviteCopy)
+            solidButton(card, "Join Server", UDim2.new(1, -16, 0, 108), UDim2.new(0, 114, 0, 34), Vector2.new(1, 0), accent, accent:lerp(WHITE, 0.15), WHITE, inviteCopy, true)
         end)
 
         creatorTab:create_custom_card("middle", 88, function(card)
@@ -17353,7 +17366,7 @@ end
             }, card)
             corner(gb, 9)
             local gbStroke = stroke(gb, accent, 1, 0.35)
-            new("ImageLabel", {
+            local gbIcon = new("ImageLabel", {
                 AnchorPoint = Vector2.new(0, 0.5),
                 Position = UDim2.new(0, 11, 0.5, 0),
                 Size = UDim2.new(0, 14, 0, 14),
@@ -17362,6 +17375,8 @@ end
                 ImageColor3 = accent:lerp(WHITE, 0.25),
                 ZIndex = 9,
             }, gb)
+            table.insert(creatorThemeRefs.accentStrokes, gbStroke)
+            table.insert(creatorThemeRefs.accentIcons, gbIcon)
             new("TextLabel", {
                 BackgroundTransparency = 1,
                 Position = UDim2.new(0, 29, 0, 0),
@@ -17549,7 +17564,7 @@ end
                 }, card)
                 corner(ub, 9)
                 local ubStroke = stroke(ub, accent, 1, 0.35)
-                new("ImageLabel", {
+                local ubIcon = new("ImageLabel", {
                     AnchorPoint = Vector2.new(0, 0.5),
                     Position = UDim2.new(0, 11, 0.5, 0),
                     Size = UDim2.new(0, 14, 0, 14),
@@ -17558,6 +17573,8 @@ end
                     ImageColor3 = accent:lerp(WHITE, 0.25),
                     ZIndex = 9,
                 }, ub)
+                table.insert(creatorThemeRefs.accentStrokes, ubStroke)
+                table.insert(creatorThemeRefs.accentIcons, ubIcon)
                 new("TextLabel", {
                     BackgroundTransparency = 1,
                     Position = UDim2.new(0, 29, 0, 0),
@@ -17649,6 +17666,19 @@ end
                     end)
                 end)
             end)
+        end
+
+        Library.CreatorThemeUpdater = function()
+            local cAccent = genv.accent or Color3.fromRGB(244, 63, 94)
+            for _, b in ipairs(creatorThemeRefs.accentBtns) do
+                if b and b.Parent then b.BackgroundColor3 = cAccent end
+            end
+            for _, s in ipairs(creatorThemeRefs.accentStrokes) do
+                if s and s.Parent then s.Color = cAccent end
+            end
+            for _, ic in ipairs(creatorThemeRefs.accentIcons) do
+                if ic and ic.Parent then ic.ImageColor3 = cAccent:lerp(WHITE, 0.25) end
+            end
         end
     end
 
