@@ -265,6 +265,7 @@ fetchDiscordStats()
 
 local SupportedGames = {
     { Name = "100 Days At Sea", UniverseId = 9167377564 },
+    { Name = "100 Miles Down the River", UniverseId = 10770526777, PlaceIds = { 95105291546154, 124873042389337 } },
     { Name = "99 Nights In The Forest", UniverseId = 7326934954 },
     { Name = "Ability Arena", UniverseId = 10230942274 },
     { Name = "Adopt Me", UniverseId = 383310974, PlaceId = 920587237 },
@@ -281,6 +282,7 @@ local SupportedGames = {
     { Name = "Forsaken", UniverseId = 6331902150 },
     { Name = "Grow A Garden", UniverseId = 7436755782 },
     { Name = "Grow A Garden 2", UniverseId = 10200395747 },
+    { Name = "Jujutsu Shenanigans", UniverseId = 3508322461 },
     { Name = "Land or Die!", UniverseId = 9312646406 },
     { Name = "Murder Mystery 2", UniverseId = 66654135 },
     { Name = "Plant vs Brainrot", UniverseId = 8316902627 },
@@ -290,22 +292,31 @@ local SupportedGames = {
     { Name = "Steal an Egg", UniverseId = 10563114921, PlaceId = 107778070777162 },
     { Name = "The Strongest Battlegrounds", UniverseId = 3808081382 },
     { Name = "Throw Food For Animals", UniverseId = 10766972131, PlaceId = 120219252362013 },
+    { Name = "Tower of Hell", UniverseId = 703124385, PlaceIds = { 1962086868, 3582763398 } },
 }
 
-do
+local loaderSync = { ref = nil, count = 0 }
+local function syncSupportedGamesFromLoader()
     local activeLoaders = (genv and genv._MoondietyLoaders) or (shared and shared._MoondietyLoaders)
     if type(activeLoaders) == "table" and #activeLoaders > 0 then
-        table.clear(SupportedGames)
-        for _, g in ipairs(activeLoaders) do
-            table.insert(SupportedGames, {
-                Name = g.Name,
-                UniverseId = g.GameId or g.UniverseId,
-                PlaceId = g.PlaceId,
-                PlaceIds = g.PlaceIds,
-            })
+        if activeLoaders ~= loaderSync.ref or #activeLoaders ~= loaderSync.count then
+            loaderSync.ref = activeLoaders
+            loaderSync.count = #activeLoaders
+            table.clear(SupportedGames)
+            for _, g in ipairs(activeLoaders) do
+                table.insert(SupportedGames, {
+                    Name = g.Name,
+                    UniverseId = g.GameId or g.UniverseId,
+                    PlaceId = g.PlaceId,
+                    PlaceIds = g.PlaceIds,
+                })
+            end
+            return true
         end
     end
+    return false
 end
+syncSupportedGamesFromLoader()
 
 local supportedGamesListeners = {}
 local scriptActiveUsers = 3500
@@ -2868,10 +2879,18 @@ Library = {
     LockedObjects = {},
     PremiumOnlyTabs = {},
 }
-if genv and type(genv.Moondiety) == "table" and genv.Moondiety ~= Library and type(genv.Moondiety.disconnect) == "function" then
-    pcall(function() genv.Moondiety:disconnect() end)
+local isDualWindow = (genv and genv._MoondietyDualWindow == true)
+if isDualWindow then
+    if genv and type(genv.MoondietyUniversal) == "table" and genv.MoondietyUniversal ~= Library and type(genv.MoondietyUniversal.disconnect) == "function" then
+        pcall(function() genv.MoondietyUniversal:disconnect() end)
+    end
+    if genv then genv.MoondietyUniversal = Library end
+else
+    if genv and type(genv.Moondiety) == "table" and genv.Moondiety ~= Library and type(genv.Moondiety.disconnect) == "function" then
+        pcall(function() genv.Moondiety:disconnect() end)
+    end
+    if genv then genv.Moondiety = Library end
 end
-genv.Moondiety = Library
 
 local isFileFn = (typeof(isfile) == "function" and isfile) or (type(isfile) == "function" and isfile)
 local readFileFn = (typeof(readfile) == "function" and readfile) or (type(readfile) == "function" and readfile)
@@ -2929,7 +2948,62 @@ if isUserPremium and genv then
 elseif genv then
     genv._MoondietyPremium = false
 end
+local isUserCreator = (LRM_KeyTier == "creator")
+if isUserCreator then
+    isUserPremium = true
+    if genv then
+        genv._MoondietyPremium = true
+        genv._MoondietyVerifiedPremium = true
+    end
+end
+Library.IsCreator = (isUserCreator == true)
 Library.IsPremium = (isUserPremium == true)
+
+local function fetchCreatorsList()
+    local lpName = LocalPlayer and LocalPlayer.Name and string.lower(LocalPlayer.Name)
+    if not lpName or lpName == "" then return end
+    task.spawn(function()
+        local body = nil
+        local creatorsUrl = "https://raw.githubusercontent.com/m00ndiety/Visual/main/Creatorts.txt"
+        if httpRequest then
+            local okReq, res = pcall(httpRequest, {Url = creatorsUrl, Method = "GET"})
+            if okReq and type(res) == "table" and type(res.Body) == "string" and #res.Body > 0 then
+                body = res.Body
+            end
+        end
+        if not body and hasHttpGet then
+            local okGet, res = pcall(game.HttpGet, game, creatorsUrl)
+            if okGet and type(res) == "string" and #res > 0 then
+                body = res
+            end
+        end
+        if not body then return end
+        local matched = false
+        for token in body:gmatch("[^%s,;]+") do
+            if string.lower(token) == lpName then
+                matched = true
+                break
+            end
+        end
+        if matched then
+            isUserCreator = true
+            isUserPremium = true
+            Library.IsCreator = true
+            Library.IsPremium = true
+            if genv then
+                genv._MoondietyPremium = true
+                genv._MoondietyVerifiedPremium = true
+            end
+            if type(Library.UnlockAll) == "function" then
+                pcall(Library.UnlockAll, Library)
+            end
+            if type(Library.UpdateTierTags) == "function" then
+                pcall(Library.UpdateTierTags, Library)
+            end
+        end
+    end)
+end
+fetchCreatorsList()
 
 local CONTAINER_SIZE = UDim2.new(0.44, 0, 0.44, 0)
 local CONTAINER_SIZE_TOUCH = UDim2.new(0.92, 0, 0.78, 0)
@@ -4266,7 +4340,7 @@ function Library:SetMultiLanguage(enabled, targetLang)
     local containers = {}
     if Library.core then table.insert(containers, Library.core) end
     if Library.HudGui then table.insert(containers, Library.HudGui) end
-    if genv.CloseUi and genv.CloseUi ~= Library.core then table.insert(containers, genv.CloseUi) end
+    if not isDualWindow and genv.CloseUi and genv.CloseUi ~= Library.core then table.insert(containers, genv.CloseUi) end
 
     local meta = localeMap[targetLang]
     local pendingMap = {}
@@ -5035,7 +5109,7 @@ function Library:RegisterActionButton(cfg)
     local btnGui = Library.HudGui
     if not btnGui then
         btnGui = Instance.new("ScreenGui")
-        btnGui.Name = "MoondietyHUD"
+        btnGui.Name = isDualWindow and "MoondietyUniversalHUD" or "MoondietyHUD"
         btnGui.ResetOnSpawn = false
         btnGui.IgnoreGuiInset = true
         btnGui.DisplayOrder = 99999
@@ -6258,11 +6332,13 @@ end
 function Library:Unload()
     if Library.Unloading then return end
     Library.Unloading = true
-    if genv then
-        genv._MoondietyLoaderActive = nil
-    end
-    if shared then
-        shared._MoondietyLoaderActive = nil
+    if not isDualWindow then
+        if genv then
+            genv._MoondietyLoaderActive = nil
+        end
+        if shared then
+            shared._MoondietyLoaderActive = nil
+        end
     end
 
     for flag, value in pairs(Library.Flags or {}) do
@@ -6328,8 +6404,14 @@ function Library:clear()
     Library.ActionButtons = {}
     local parentGui = getSafeGuiParent()
     for _, object in ipairs(parentGui:GetChildren()) do
-        if object.Name == "Moondiety" or object.Name == "MoondietyHUD" or object.Name == "MoondietyCursor" then
-            pcall(function() object:Destroy() end)
+        if isDualWindow then
+            if object.Name == "MoondietyUniversal" or object.Name == "MoondietyUniversalHUD" then
+                pcall(function() object:Destroy() end)
+            end
+        else
+            if object.Name == "Moondiety" or object.Name == "MoondietyHUD" or object.Name == "MoondietyCursor" then
+                pcall(function() object:Destroy() end)
+            end
         end
     end
 end
@@ -6736,8 +6818,12 @@ local function buildUserCard(parent, attachTooltip)
 end
 
 function Library.new(selfOrOpts, options)
+    syncSupportedGamesFromLoader()
     Library:clear()
     Library:disconnect()
+    if genv and isDualWindow then
+        genv._MoondietyDualWindow = nil
+    end
     hasFinishedLoading = false
     local opts = (type(selfOrOpts) == "table" and selfOrOpts ~= Library) and selfOrOpts or (type(options) == "table" and options or {})
     options = opts
@@ -6748,14 +6834,18 @@ function Library.new(selfOrOpts, options)
     local openInfoModal, closeInfoModal
     local isInfoModalOpen = false
     local screen = new("ScreenGui", {
-        Name = "Moondiety",
+        Name = isDualWindow and "MoondietyUniversal" or "Moondiety",
         ResetOnSpawn = false,
         IgnoreGuiInset = true,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
     })
     screen.Parent = getSafeGuiParent()
     Library.core = screen
-    genv.CloseUi = screen
+    if isDualWindow then
+        genv.CloseUiUniversal = screen
+    else
+        genv.CloseUi = screen
+    end
     screen.Destroying:Connect(function()
         Library:disconnect()
         if Library.HudGui then
@@ -6796,7 +6886,7 @@ function Library.new(selfOrOpts, options)
     local MainHolder = new("Frame", {
         Name = "MainHolder",
         AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Position = isDualWindow and UDim2.new(0.5, 28, 0.5, 28) or UDim2.new(0.5, 0, 0.5, 0),
         Size = fullSize,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -7204,13 +7294,18 @@ function Library.new(selfOrOpts, options)
     end
 
     local isPremHeader = (Library.IsPremium == true)
+    local isCreatorHeader = (Library.IsCreator == true)
+    local creatorGold = Color3.fromRGB(251, 191, 36)
+    local creatorGoldDeep = Color3.fromRGB(245, 158, 11)
     local headerTierHovered = false
+    local initHeaderCol = isCreatorHeader and (genv.uicontainer or Color3.fromRGB(24, 25, 30)):lerp(creatorGoldDeep, 0.34)
+        or (genv.uicontainer or Color3.fromRGB(24, 25, 30)):lerp(genv.accent or Color3.fromRGB(168, 85, 247), isPremHeader and 0.48 or 0.18)
     local headerTierTag = new("TextButton", {
         Name = "HeaderTierTag",
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -78, 0.5, 0),
-        Size = UDim2.new(0, isPremHeader and 88 or 68, 0, 26),
-        BackgroundColor3 = (genv.uicontainer or Color3.fromRGB(24, 25, 30)):lerp(genv.accent or Color3.fromRGB(168, 85, 247), isPremHeader and 0.48 or 0.18),
+        Size = UDim2.new(0, (isCreatorHeader or isPremHeader) and 88 or 68, 0, 26),
+        BackgroundColor3 = initHeaderCol,
         BorderSizePixel = 0,
         AutoButtonColor = false,
         Text = "",
@@ -7221,7 +7316,7 @@ function Library.new(selfOrOpts, options)
         Rotation = 90,
         Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(205, 210, 228)),
     }, headerTierTag)
-    local headerTierStroke = stroke(headerTierTag, (genv.accent or Color3.fromRGB(168, 85, 247)):lerp(WHITE, isPremHeader and 0 or 0.15), 1.1, isPremHeader and 0.1 or 0.25)
+    local headerTierStroke = stroke(headerTierTag, isCreatorHeader and creatorGold or (genv.accent or Color3.fromRGB(168, 85, 247)):lerp(WHITE, isPremHeader and 0 or 0.15), 1.1, (isCreatorHeader or isPremHeader) and 0.08 or 0.25)
 
     local headerTierCrown = new("ImageLabel", {
         Name = "TierCrown",
@@ -7229,8 +7324,8 @@ function Library.new(selfOrOpts, options)
         Position = UDim2.new(0, 9, 0.5, 0),
         Size = UDim2.new(0, 12, 0, 12),
         BackgroundTransparency = 1,
-        Image = "rbxassetid://10709818626",
-        ImageColor3 = isPremHeader and WHITE or (genv.accent or Color3.fromRGB(168, 85, 247)):lerp(WHITE, 0.3),
+        Image = isCreatorHeader and "rbxassetid://10734966248" or "rbxassetid://10709818626",
+        ImageColor3 = isCreatorHeader and Color3.fromRGB(253, 224, 71) or (isPremHeader and WHITE or (genv.accent or Color3.fromRGB(168, 85, 247)):lerp(WHITE, 0.3)),
         ZIndex = 101,
     }, headerTierTag)
 
@@ -7241,8 +7336,8 @@ function Library.new(selfOrOpts, options)
         Size = UDim2.new(1, -34, 1, 0),
         BackgroundTransparency = 1,
         FontFace = font(Enum.FontWeight.Bold),
-        Text = isPremHeader and "PREMIUM" or "FREE",
-        TextColor3 = isPremHeader and WHITE or WHITE:lerp(genv.accent or Color3.fromRGB(168, 85, 247), 0.12),
+        Text = isCreatorHeader and "CREATOR" or (isPremHeader and "PREMIUM" or "FREE"),
+        TextColor3 = (isCreatorHeader or isPremHeader) and WHITE or WHITE:lerp(genv.accent or Color3.fromRGB(168, 85, 247), 0.12),
         TextSize = 10,
         TextXAlignment = Enum.TextXAlignment.Center,
         TextYAlignment = Enum.TextYAlignment.Center,
@@ -7288,12 +7383,19 @@ function Library.new(selfOrOpts, options)
         if Library.UpdateHUDThemes then Library.UpdateHUDThemes() end
     end)
     headerTierTag.MouseButton1Click:Connect(function()
-        if not Library.IsPremium then
+        if Library.IsCreator then
+            Library:Notify({
+                Title = "Moondiety Creator",
+                Content = "Creator badge and Lifetime Premium active.",
+                Duration = 2.5,
+                Type = "Success"
+            })
+        elseif not Library.IsPremium then
             Library:ShowPremiumPrompt()
         else
             Library:Notify({
                 Title = "Moondiety Premium",
-                Content = "Lifetime permanent premium license active.",
+                Content = "Lifetime Premium active.",
                 Duration = 2,
                 Type = "Success"
             })
@@ -7733,23 +7835,28 @@ TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = WHITE}):
     end
 
     function Library:UpdateTierTags()
-        local isPrem = (self.IsPremium == true)
+        local isCreator = (self.IsCreator == true)
+        local isPrem = (self.IsPremium == true) or isCreator
         self.IsPremium = isPrem
+
+        local goldCol = Color3.fromRGB(251, 191, 36)
+        local goldDeep = Color3.fromRGB(245, 158, 11)
 
         if self.HeaderTierTag and self.HeaderTierTag.Parent then
             local tagBtn = self.HeaderTierTag
             local tagLabel = tagBtn:FindFirstChild("TierLabel")
+            local tagCrown = tagBtn:FindFirstChild("TierCrown")
             local tagStroke = tagBtn:FindFirstChildOfClass("UIStroke")
 
             local cContainer = genv.uicontainer or Color3.fromRGB(19, 20, 24)
             local cLine = genv.uiline or Color3.fromRGB(34, 35, 42)
             local cAccent = genv.accent or Color3.fromRGB(168, 85, 247)
             local showUpgrade = (not isPrem) and headerTierHovered
-            local tagW = isPrem and 88 or (showUpgrade and 88 or 68)
+            local tagW = (isCreator or isPrem) and 88 or (showUpgrade and 88 or 68)
 
-            local targetBackground = isPrem
-                and cAccent:lerp(cContainer, 0.55)
-                or cContainer:lerp(WHITE, showUpgrade and 0.08 or 0.05)
+            local targetBackground = isCreator
+                and cContainer:lerp(goldDeep, 0.34)
+                or (isPrem and cAccent:lerp(cContainer, 0.55) or cContainer:lerp(WHITE, showUpgrade and 0.08 or 0.05))
 
             TweenService:Create(
                 tagBtn,
@@ -7762,16 +7869,21 @@ TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = WHITE}):
                     tagStroke,
                     TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
                     {
-                        Color = (isPrem or showUpgrade) and cAccent or cLine,
-                        Transparency = (isPrem or showUpgrade) and 0.15 or 0.25
+                        Color = isCreator and goldCol or ((isPrem or showUpgrade) and cAccent or cLine),
+                        Transparency = isCreator and 0.08 or ((isPrem or showUpgrade) and 0.15 or 0.25)
                     }
                 ):Play()
             end
 
+            if tagCrown then
+                tagCrown.Image = isCreator and "rbxassetid://10734966248" or "rbxassetid://10709818626"
+                tagCrown.ImageColor3 = isCreator and Color3.fromRGB(253, 224, 71) or ((isPrem or showUpgrade) and WHITE or cAccent:lerp(WHITE, 0.3))
+            end
+
             if tagLabel then
                 animateTierLabel(
-                    isPrem and "PREMIUM" or (showUpgrade and "UPGRADE" or "FREE"),
-                    (isPrem or showUpgrade) and WHITE
+                    isCreator and "CREATOR" or (isPrem and "PREMIUM" or (showUpgrade and "UPGRADE" or "FREE")),
+                    (isCreator or isPrem or showUpgrade) and WHITE
                         or Color3.fromRGB(170, 176, 196)
                 )
                 tagLabel.TextSize = 10
@@ -7779,13 +7891,37 @@ TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = WHITE}):
         end
 
         if self.UserAvatarStatusDot and self.UserAvatarStatusDot.Parent then
-            self.UserAvatarStatusDot.BackgroundColor3 = isPrem and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(34, 197, 94)
+            self.UserAvatarStatusDot.BackgroundColor3 = isCreator and goldCol or (isPrem and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(34, 197, 94))
         end
 
         if self.UserAvatarStroke and self.UserAvatarStroke.Parent then
-            self.UserAvatarStroke.Color = isPrem and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(44, 46, 58)
-            self.UserAvatarStroke.Transparency = isPrem and 0.2 or 0.6
+            self.UserAvatarStroke.Color = isCreator and goldCol or (isPrem and (genv.accent or Color3.fromRGB(168, 85, 247)) or Color3.fromRGB(44, 46, 58))
+            self.UserAvatarStroke.Transparency = isCreator and 0.1 or (isPrem and 0.2 or 0.6)
         end
+
+        if modalData and modalData.userTierTag then
+            local cContainer = genv.uicontainer or Color3.fromRGB(19, 20, 24)
+            local cAccent = genv.accent or Color3.fromRGB(168, 85, 247)
+            modalData.userTierTag.BackgroundColor3 = isCreator and goldDeep:lerp(cContainer, 0.55) or (isPrem and cAccent:lerp(cContainer, 0.45) or cContainer:lerp(cAccent, 0.12))
+            if modalData.userTierStroke then
+                modalData.userTierStroke.Color = isCreator and goldCol or cAccent
+            end
+            if modalData.userTierLabel then
+                modalData.userTierLabel.Text = isCreator and "CONTENT CREATOR" or (isPrem and "LIFETIME PREMIUM" or "FREE TIER")
+                modalData.userTierLabel.TextColor3 = isCreator and Color3.fromRGB(254, 243, 199) or (isPrem and WHITE or Color3.fromRGB(200, 205, 225))
+            end
+        end
+    end
+
+    function Library:SetCreatorMode(enabled)
+        self.IsCreator = (enabled == true)
+        if self.IsCreator then
+            self.IsPremium = true
+        else
+            self.IsPremium = (genv and genv._MoondietyVerifiedPremium == true) or (LRM_KeyTier == "premium") or (LRM_IsUserPremium == true) or false
+        end
+        if self.UpdateTierTags then self:UpdateTierTags() end
+        if updateHUDThemes then pcall(updateHUDThemes) end
     end
 
     function Library:UnlockAll()
@@ -8314,7 +8450,7 @@ TweenService:Create(closeBar2, TweenInfo.new(0.15), {BackgroundColor3 = WHITE}):
             Size = UDim2.new(1, -28, 0, 16),
             BackgroundTransparency = 1,
             FontFace = font(Enum.FontWeight.Medium),
-            Text = "Support us to keep the script keyless & unlock every VIP perk",
+            Text = "Support us to keep the script keyless & unlock every Premium perk",
             TextColor3 = Color3.fromRGB(180, 185, 200),
             TextSize = 11,
             TextTruncate = Enum.TextTruncate.AtEnd,
@@ -10949,28 +11085,33 @@ keybindHudRows[kb.name] = {
         end
 
         if headerTierTag then
-            local prem = (Library.IsPremium == true)
+            local isCre = (Library.IsCreator == true)
+            local prem = (Library.IsPremium == true) or isCre
             local showUpgrade = (not prem) and headerTierHovered
-            local tierBaseColor = prem and cAccent:lerp(cContainer, 0.42) or (showUpgrade and cAccent:lerp(cContainer, 0.28) or cContainer:lerp(cAccent, 0.18))
-            local tagW = prem and 88 or (showUpgrade and 88 or 68)
+            local goldCol = Color3.fromRGB(251, 191, 36)
+            local goldDeep = Color3.fromRGB(245, 158, 11)
+            local tierBaseColor = isCre and cContainer:lerp(goldDeep, 0.34)
+                or (prem and cAccent:lerp(cContainer, 0.42) or (showUpgrade and cAccent:lerp(cContainer, 0.28) or cContainer:lerp(cAccent, 0.18)))
+            local tagW = (isCre or prem) and 88 or (showUpgrade and 88 or 68)
 
             TweenService:Create(headerTierTag, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
                 BackgroundColor3 = tierBaseColor,
                 Size = UDim2.new(0, tagW, 0, 26)
             }):Play()
             if headerTierStroke then
-                headerTierStroke.Color = prem and cAccent or cAccent:lerp(WHITE, showUpgrade and 0.35 or 0.15)
-                headerTierStroke.Transparency = prem and 0.1 or (showUpgrade and 0.05 or 0.25)
+                headerTierStroke.Color = isCre and goldCol or (prem and cAccent or cAccent:lerp(WHITE, showUpgrade and 0.35 or 0.15))
+                headerTierStroke.Transparency = isCre and 0.08 or (prem and 0.1 or (showUpgrade and 0.05 or 0.25))
             end
             if headerTierCrown then
+                headerTierCrown.Image = isCre and "rbxassetid://10734966248" or "rbxassetid://10709818626"
                 TweenService:Create(headerTierCrown, TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-                    ImageColor3 = (prem or showUpgrade) and WHITE or cAccent:lerp(WHITE, 0.3)
+                    ImageColor3 = isCre and Color3.fromRGB(253, 224, 71) or ((prem or showUpgrade) and WHITE or cAccent:lerp(WHITE, 0.3))
                 }):Play()
             end
             if headerTierLabel then
                 animateTierLabel(
-                    prem and "PREMIUM" or (showUpgrade and "UPGRADE" or "FREE"),
-                    (prem or showUpgrade) and WHITE or WHITE:lerp(cAccent, 0.12)
+                    isCre and "CREATOR" or (prem and "PREMIUM" or (showUpgrade and "UPGRADE" or "FREE")),
+                    (isCre or prem or showUpgrade) and WHITE or WHITE:lerp(cAccent, 0.12)
                 )
                 headerTierLabel.TextSize = 10
             end
@@ -11040,9 +11181,16 @@ keybindHudRows[kb.name] = {
             modalData.modalAvatarStroke.Color = cAccent
         end
         if modalData.userTierTag then
-            local isPrem = (Library.IsPremium == true)
-            modalData.userTierTag.BackgroundColor3 = isPrem and cAccent:lerp(cContainer, 0.45) or cContainer:lerp(cAccent, 0.12)
-            if modalData.userTierStroke then modalData.userTierStroke.Color = cAccent end
+            local isCre = (Library.IsCreator == true)
+            local isPrem = (Library.IsPremium == true) or isCre
+            local goldCol = Color3.fromRGB(251, 191, 36)
+            local goldDeep = Color3.fromRGB(245, 158, 11)
+            modalData.userTierTag.BackgroundColor3 = isCre and goldDeep:lerp(cContainer, 0.55) or (isPrem and cAccent:lerp(cContainer, 0.45) or cContainer:lerp(cAccent, 0.12))
+            if modalData.userTierStroke then modalData.userTierStroke.Color = isCre and goldCol or cAccent end
+            if modalData.userTierLabel then
+                modalData.userTierLabel.Text = isCre and "CONTENT CREATOR" or (isPrem and "LIFETIME PREMIUM" or "FREE TIER")
+                modalData.userTierLabel.TextColor3 = isCre and Color3.fromRGB(254, 243, 199) or (isPrem and WHITE or Color3.fromRGB(200, 205, 225))
+            end
         end
         if modalData.telemetryPills then
             for _, pill in ipairs(modalData.telemetryPills) do
@@ -11631,6 +11779,7 @@ keybindHudRows[kb.name] = {
         modalData.modalScale = modalScale
 
         openInfoModal = function()
+            syncSupportedGamesFromLoader()
             if isModalOpen then return end
             isModalOpen = true
             isInfoModalOpen = true
@@ -11643,9 +11792,10 @@ keybindHudRows[kb.name] = {
                 end
             end
             if modalData.userTierLabel then
-                local isPremNow = (Library.IsPremium == true)
-                modalData.userTierLabel.Text = isPremNow and "LIFETIME VIP" or "FREE TIER"
-                modalData.userTierLabel.TextColor3 = isPremNow and WHITE or Color3.fromRGB(200, 205, 225)
+                local isCreNow = (Library.IsCreator == true)
+                local isPremNow = (Library.IsPremium == true) or isCreNow
+                modalData.userTierLabel.Text = isCreNow and "CONTENT CREATOR" or (isPremNow and "LIFETIME PREMIUM" or "FREE TIER")
+                modalData.userTierLabel.TextColor3 = isCreNow and Color3.fromRGB(254, 243, 199) or (isPremNow and WHITE or Color3.fromRGB(200, 205, 225))
             end
             if updateHUDThemes then pcall(updateHUDThemes) end
             tooltip.Visible = false
@@ -11774,18 +11924,21 @@ keybindHudRows[kb.name] = {
             ZIndex = 894,
         }, modalUserRow)
 
-        local isPremUser = (Library.IsPremium == true)
+        local isCreUser = (Library.IsCreator == true)
+        local isPremUser = (Library.IsPremium == true) or isCreUser
+        local goldModalDeep = Color3.fromRGB(245, 158, 11)
+        local goldModalCol = Color3.fromRGB(251, 191, 36)
         local userTierTag = new("Frame", {
             Name = "UserTierTag",
             Size = UDim2.new(0, 0, 0, 16),
             AutomaticSize = Enum.AutomaticSize.X,
-            BackgroundColor3 = isPremUser and (genv.accent or Color3.fromRGB(244, 63, 94)):lerp(Color3.fromRGB(20, 22, 28), 0.45) or (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(genv.accent or Color3.fromRGB(244, 63, 94), 0.12),
+            BackgroundColor3 = isCreUser and goldModalDeep:lerp(Color3.fromRGB(20, 22, 28), 0.55) or (isPremUser and (genv.accent or Color3.fromRGB(244, 63, 94)):lerp(Color3.fromRGB(20, 22, 28), 0.45) or (genv.uicontainer or Color3.fromRGB(24, 25, 33)):lerp(genv.accent or Color3.fromRGB(244, 63, 94), 0.12)),
             BorderSizePixel = 0,
             ZIndex = 894,
         }, modalUserRow)
         corner(userTierTag, 4)
         new("UIPadding", {PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6)}, userTierTag)
-        local userTierStroke = stroke(userTierTag, genv.accent or Color3.fromRGB(244, 63, 94), 1, 0.4)
+        local userTierStroke = stroke(userTierTag, isCreUser and goldModalCol or (genv.accent or Color3.fromRGB(244, 63, 94)), 1, 0.4)
         modalData.userTierTag = userTierTag
         modalData.userTierStroke = userTierStroke
 
@@ -11795,9 +11948,9 @@ keybindHudRows[kb.name] = {
             Size = UDim2.new(0, 0, 1, 0),
             AutomaticSize = Enum.AutomaticSize.X,
             FontFace = font(Enum.FontWeight.Bold),
-            TextColor3 = isPremUser and WHITE or Color3.fromRGB(200, 205, 225),
+            TextColor3 = isCreUser and Color3.fromRGB(254, 243, 199) or (isPremUser and WHITE or Color3.fromRGB(200, 205, 225)),
             TextSize = 9,
-            Text = isPremUser and "LIFETIME VIP" or "FREE TIER",
+            Text = isCreUser and "CONTENT CREATOR" or (isPremUser and "LIFETIME PREMIUM" or "FREE TIER"),
             ZIndex = 895,
         }, userTierTag)
         modalData.userTierLabel = userTierLabel
@@ -13143,6 +13296,20 @@ keybindHudRows[kb.name] = {
         end
     end
     modalData.initModal()
+    function Library:OpenSupportedGames()
+        syncSupportedGamesFromLoader()
+        if openInfoModal then
+            openInfoModal()
+        end
+        task.delay(0.08, function()
+            if modalData.modalScroll and modalData.supportedCard and modalData.modalScroll.Parent then
+                local offsetY = math.max(0, modalData.supportedCard.AbsolutePosition.Y - modalData.modalScroll.AbsolutePosition.Y + modalData.modalScroll.CanvasPosition.Y - 4)
+                TweenService:Create(modalData.modalScroll, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                    CanvasPosition = Vector2.new(0, offsetY)
+                }):Play()
+            end
+        end)
+    end
     Library.WindowController = {}
     Library.Tab = {}
     Library.AllTabs = {}
@@ -13251,14 +13418,45 @@ keybindHudRows[kb.name] = {
                 local isPremiumTab = data.tab:GetAttribute("MoondietyPremiumTab") == true
                 data.tab.TextLabel.TextColor3 = WHITE
                 data.tab.TextLabel.FontFace = font(Enum.FontWeight.Bold)
-                TweenService:Create(data.tab.TextLabel, TweenInfo.new(0.25), {TextTransparency = 0, Position = UDim2.new(0, 35, 0.5, 0)}):Play()
+                TweenService:Create(data.tab.TextLabel, TweenInfo.new(0.25), {TextTransparency = 0, Position = UDim2.new(0, data.isCreatorMiniTab and 29 or 35, 0.5, 0)}):Play()
             end
             if data.tab:FindFirstChild("Logo") then
                 data.tab.Logo.ImageColor3 = WHITE
-                TweenService:Create(data.tab.Logo, TweenInfo.new(0.25), {ImageTransparency = 0, Position = UDim2.new(0, 12, 0.5, 0)}):Play()
+                TweenService:Create(data.tab.Logo, TweenInfo.new(0.25), {ImageTransparency = 0, Position = UDim2.new(0, data.isCreatorMiniTab and 11 or 12, 0.5, 0)}):Play()
+            end
+            if data.isCreatorMiniTab then
+                local miniStroke = data.tab:FindFirstChildOfClass("UIStroke")
+                if miniStroke then
+                    TweenService:Create(miniStroke, TweenInfo.new(0.2), {Transparency = 0.3}):Play()
+                end
             end
             for _, object in tabs:GetChildren() do
-                if object.Name == "Tab" and object ~= data.tab then
+                if object.Name == "CreatorMiniTab" and object ~= data.tab then
+                    local baseMiniBg = genv.tabcolor or Color3.fromRGB(27, 28, 33)
+                    TweenService:Create(object, TweenInfo.new(0.25), {BackgroundColor3 = baseMiniBg}):Play()
+                    if object:FindFirstChild("Fill") then
+                        TweenService:Create(object.Fill, TweenInfo.new(0.25), {BackgroundTransparency = 1}):Play()
+                    end
+                    if object:FindFirstChild("ActiveBar") then
+                        TweenService:Create(object.ActiveBar, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                            Size = UDim2.new(0, 3, 0, 6),
+                            BackgroundTransparency = 1,
+                        }):Play()
+                    end
+                    if object:FindFirstChild("TextLabel") then
+                        object.TextLabel.TextColor3 = Color3.fromRGB(254, 243, 199)
+                        object.TextLabel.FontFace = font(Enum.FontWeight.SemiBold)
+                        TweenService:Create(object.TextLabel, TweenInfo.new(0.25), {TextTransparency = 0.08, Position = UDim2.new(0, 26, 0.5, 0)}):Play()
+                    end
+                    if object:FindFirstChild("Logo") then
+                        object.Logo.ImageColor3 = Color3.fromRGB(251, 191, 36)
+                        TweenService:Create(object.Logo, TweenInfo.new(0.25), {ImageTransparency = 0, Position = UDim2.new(0, 8, 0.5, 0)}):Play()
+                    end
+                    local miniStroke = object:FindFirstChildOfClass("UIStroke")
+                    if miniStroke then
+                        TweenService:Create(miniStroke, TweenInfo.new(0.2), {Transparency = 0.65}):Play()
+                    end
+                elseif object.Name == "Tab" and object ~= data.tab then
                     TweenService:Create(object, TweenInfo.new(0.25), {BackgroundColor3 = genv.tabcolor or Color3.fromRGB(27, 28, 33)}):Play()
                     TweenService:Create(object.Fill, TweenInfo.new(0.25), {BackgroundTransparency = 1}):Play()
                     if object:FindFirstChild("ActiveBar") then
@@ -13284,7 +13482,7 @@ keybindHudRows[kb.name] = {
 
     function Library.Tab.create_tab(selfOrName, nameOrIcon, iconId)
         local name, rawIcon
-        local cfgTable = (type(selfOrName) == "table" and selfOrName) or (type(nameOrIcon) == "table" and nameOrIcon) or nil
+        local cfgTable = (type(selfOrName) == "table" and type(selfOrName.name) == "string" and selfOrName) or (type(nameOrIcon) == "table" and type(nameOrIcon.name) == "string" and nameOrIcon) or nil
         if type(selfOrName) == "table" and type(selfOrName.name) == "string" then
             name = selfOrName.name
             rawIcon = selfOrName.icon
@@ -13312,11 +13510,13 @@ keybindHudRows[kb.name] = {
                 iconImage = "rbxassetid://" .. raw
             end
         end
+        local isMiniBanner = (cfgTable and cfgTable.isCreatorMiniTab == true)
         local tabBtn = new("TextButton", {
-            Name = "Tab",
+            Name = isMiniBanner and "CreatorMiniTab" or "Tab",
+            LayoutOrder = isMiniBanner and -10 or (Library._tabCount + 1),
             BackgroundColor3 = genv.tabcolor or Color3.fromRGB(27, 28, 33),
             BorderSizePixel = 0,
-            Size = UDim2.new(1, -8, 0, 36),
+            Size = UDim2.new(1, -8, 0, isMiniBanner and 30 or 36),
             ZIndex = 2,
             AutoButtonColor = false,
             Text = "",
@@ -13326,7 +13526,9 @@ keybindHudRows[kb.name] = {
         corner(tabBtn, 10)
         tabBtn:SetAttribute("MoondietyPremiumTab", isPremTab == true)
         local premiumTabStroke
-        if isPremTab then
+        if isMiniBanner then
+            premiumTabStroke = stroke(tabBtn, Color3.fromRGB(251, 191, 36), 1, 0.65)
+        elseif isPremTab then
             premiumTabStroke = stroke(tabBtn, genv.accent or Color3.fromRGB(168, 85, 247), 1.25, 0.12)
         end
         local tabScale = new("UIScale", {Scale = 1}, tabBtn)
@@ -13345,11 +13547,11 @@ keybindHudRows[kb.name] = {
             Name = "Logo",
             AnchorPoint = Vector2.new(0, 0.5),
             Position = UDim2.new(0, 8, 0.5, 0),
-            Size = UDim2.new(0, 16, 0, 16),
+            Size = UDim2.new(0, isMiniBanner and 14 or 16, 0, isMiniBanner and 14 or 16),
             BackgroundTransparency = 1,
             Image = iconImage,
-            ImageColor3 = Color3.fromRGB(150, 155, 170),
-            ImageTransparency = 0.55,
+            ImageColor3 = isMiniBanner and Color3.fromRGB(251, 191, 36) or Color3.fromRGB(150, 155, 170),
+            ImageTransparency = isMiniBanner and 0 or 0.55,
             Visible = hasIcon,
             ZIndex = 4,
         }, tabBtn)
@@ -13358,17 +13560,19 @@ keybindHudRows[kb.name] = {
         local TabText = new("TextLabel", {
             Name = "TextLabel",
             AnchorPoint = Vector2.new(0, 0.5),
-            Position = hasIcon and UDim2.new(0, 32, 0.5, 0) or UDim2.new(0, 12, 0.5, 0),
-            Size = hasIcon and UDim2.new(1, -40 - tabTextRightPad, 0, 14) or UDim2.new(1, -24 - tabTextRightPad, 0, 14),
+            Position = hasIcon and UDim2.new(0, isMiniBanner and 26 or 32, 0.5, 0) or UDim2.new(0, 12, 0.5, 0),
+            Size = hasIcon and UDim2.new(1, -(isMiniBanner and 30 or 40) - tabTextRightPad, 0, isMiniBanner and 12 or 14) or UDim2.new(1, -24 - tabTextRightPad, 0, 14),
             BackgroundTransparency = 1,
-            FontFace = font(isPremTab and Enum.FontWeight.SemiBold or Enum.FontWeight.Medium),
+            FontFace = font((isMiniBanner or isPremTab) and Enum.FontWeight.SemiBold or Enum.FontWeight.Medium),
             Text = name,
-            TextColor3 = isPremTab and WHITE or Color3.fromRGB(150, 155, 170),
+            TextColor3 = isMiniBanner and Color3.fromRGB(254, 243, 199) or (isPremTab and WHITE or Color3.fromRGB(150, 155, 170)),
             TextScaled = true,
             TextXAlignment = Enum.TextXAlignment.Left,
-            TextTransparency = isPremTab and 0.2 or 0.55,
+            TextTransparency = isMiniBanner and 0.08 or (isPremTab and 0.2 or 0.55),
             ZIndex = 4,
         }, tabBtn)
+
+
 
         local Fill = new("Frame", {
             Name = "Fill",
@@ -13826,28 +14030,34 @@ local stickyMerge = makeSticky("StickyMerge", SECTION_X, SECTION_W, 49)
         itemsSection:GetPropertyChangedSignal("CanvasPosition"):Connect(refreshSticky)
         itemsSection:GetPropertyChangedSignal("Visible"):Connect(refreshSticky)
 
+        local iconRestX = 8
+        local iconSelX = isMiniBanner and 11 or 12
+        local textRestX = isMiniBanner and 26 or 32
+        local textSelX = isMiniBanner and 29 or 35
+        local baseTabBg = genv.tabcolor or Color3.fromRGB(27, 28, 33)
+
         tabBtn.MouseEnter:Connect(function()
             if Library.Tab.current_tab and Library.Tab.current_tab.tab == tabBtn then
                 TweenService:Create(tabScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1.03}):Play()
-                TweenService:Create(Logo, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, 13, 0.5, 0)}):Play()
-                TweenService:Create(TabText, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, 36, 0.5, 0)}):Play()
+                TweenService:Create(Logo, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, iconSelX + 1, 0.5, 0)}):Play()
+                TweenService:Create(TabText, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, textSelX + 1, 0.5, 0)}):Play()
                 return
             end
             TweenService:Create(tabScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1.02}):Play()
-            TweenService:Create(tabBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {BackgroundColor3 = (genv.tabcolor or Color3.fromRGB(27, 28, 33)):lerp(WHITE, 0.07)}):Play()
-            TweenService:Create(Logo, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, 10, 0.5, 0), ImageTransparency = 0.2}):Play()
-            TweenService:Create(TabText, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, 34, 0.5, 0), TextTransparency = 0.2}):Play()
+            TweenService:Create(tabBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {BackgroundColor3 = baseTabBg:lerp(WHITE, 0.08)}):Play()
+            TweenService:Create(Logo, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, iconRestX + 2, 0.5, 0), ImageTransparency = isMiniBanner and 0 or 0.2}):Play()
+            TweenService:Create(TabText, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, textRestX + 2, 0.5, 0), TextTransparency = isMiniBanner and 0 or 0.2}):Play()
         end)
         tabBtn.MouseLeave:Connect(function()
             TweenService:Create(tabScale, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Scale = 1}):Play()
             if Library.Tab.current_tab and Library.Tab.current_tab.tab == tabBtn then
-                TweenService:Create(Logo, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 12, 0.5, 0)}):Play()
-                TweenService:Create(TabText, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 35, 0.5, 0)}):Play()
+                TweenService:Create(Logo, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Position = UDim2.new(0, iconSelX, 0.5, 0)}):Play()
+                TweenService:Create(TabText, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Position = UDim2.new(0, textSelX, 0.5, 0)}):Play()
                 return
             end
-            TweenService:Create(tabBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {BackgroundColor3 = genv.tabcolor or Color3.fromRGB(27, 28, 33)}):Play()
-            TweenService:Create(Logo, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 8, 0.5, 0), ImageTransparency = 0.55}):Play()
-            TweenService:Create(TabText, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 32, 0.5, 0), TextTransparency = isPremTab and 0.2 or 0.55}):Play()
+            TweenService:Create(tabBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {BackgroundColor3 = baseTabBg}):Play()
+            TweenService:Create(Logo, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Position = UDim2.new(0, iconRestX, 0.5, 0), ImageTransparency = isMiniBanner and 0 or 0.55}):Play()
+            TweenService:Create(TabText, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {Position = UDim2.new(0, textRestX, 0.5, 0), TextTransparency = isMiniBanner and 0.08 or (isPremTab and 0.2 or 0.55)}):Play()
         end)
 
         local Module = {}
@@ -13862,17 +14072,22 @@ local stickyMerge = makeSticky("StickyMerge", SECTION_X, SECTION_W, 49)
             tabModule = Module,
             items = ItemsList,
             relayout = relayout,
+            isCreatorMiniTab = isMiniBanner,
         }
-        table.insert(Library.AllTabs, tabRecord)
+        if not isMiniBanner then
+            table.insert(Library.AllTabs, tabRecord)
+        end
 
         bindTap(tabBtn, function()
             Library.Tab.open_tab(tabRecord)
         end)
 
-        if tabBtn.Visible and not Library.Tab.current_tab then
+        if not isMiniBanner and tabBtn.Visible and not Library.Tab.current_tab then
             Library.Tab.open_tab(tabRecord)
         end
-        Library._tabCount += 1
+        if not isMiniBanner then
+            Library._tabCount += 1
+        end
 
         local isPremOnlyTab = (cfgTable and cfgTable.premium_only == true) == true
         local function resolve(arg1, arg2)
@@ -16725,6 +16940,25 @@ end
             return Module.create_divider(arg1, arg2)
         end
 
+        function Module:create_custom_card(side, height, buildFn)
+            local cardFrame = new("Frame", {
+                Name = "CustomCard",
+                BackgroundColor3 = genv.tabcolor or Color3.fromRGB(24, 25, 32),
+                BorderSizePixel = 0,
+                ClipsDescendants = true,
+                ZIndex = 3,
+            }, itemsSection)
+            corner(cardFrame, 12)
+            table.insert(genv.UIElements, cardFrame)
+            registerItem(cardFrame, side or "middle", height or 120, "")
+            if buildFn then
+                buildFn(cardFrame, function(newH)
+                    updateItemHeight(cardFrame, newH, false)
+                end)
+            end
+            return cardFrame
+        end
+
         return Module
     end
 
@@ -16807,6 +17041,615 @@ end
     Library.WindowController.CanMemoryHack = Library.CanMemoryHack
     Library.WindowController.CheckCapability = function(_, name)
         return Library:CheckCapability(name)
+    end
+
+    do
+        local creatorTab = Library.Tab.create_tab(Library.Tab, {
+            name = "Creator",
+            icon = "Star",
+            isCreatorMiniTab = true,
+        })
+
+        local accent = genv.accent or Color3.fromRGB(244, 63, 94)
+        local goldCol = Color3.fromRGB(251, 191, 36)
+        local goldDeep = Color3.fromRGB(245, 158, 11)
+        local mintCol = Color3.fromRGB(52, 211, 153)
+        local cardBg = Color3.fromRGB(20, 21, 28)
+        local tileBg = Color3.fromRGB(27, 28, 37)
+        local lineCol = Color3.fromRGB(48, 50, 66)
+        local subCol = Color3.fromRGB(154, 160, 180)
+        local nGames = tostring(#SupportedGames)
+        local BANNER_URL = "https://raw.githubusercontent.com/m00ndiety/Visual/main/banner.jpg"
+        local BANNER_CACHE = "Moondiety/V2/Assets/discord_banner.jpg"
+
+        local function loadRemoteBanner(imgLabel, url, localPath)
+            local getAsset = getcustomasset or getsynasset
+            if not getAsset then return end
+            if isfile and isfile(localPath) then
+                local okRead, data = pcall(readfile, localPath)
+                if okRead and type(data) == "string" and #data > 1000 then
+                    local okAsset, asset = pcall(getAsset, localPath)
+                    if okAsset and asset and imgLabel and imgLabel.Parent then
+                        imgLabel.Image = asset
+                        return
+                    end
+                end
+            end
+            task.spawn(function()
+                local body = nil
+                if httpRequest then
+                    local okReq, res = pcall(httpRequest, {Url = url, Method = "GET"})
+                    if okReq and type(res) == "table" and type(res.Body) == "string" and #res.Body > 1000 then
+                        body = res.Body
+                    end
+                end
+                if not body and hasHttpGet then
+                    local okGet, res = pcall(game.HttpGet, game, url)
+                    if okGet and type(res) == "string" and #res > 1000 then
+                        body = res
+                    end
+                end
+                if body and writefile then
+                    ensureFolder("Moondiety")
+                    ensureFolder("Moondiety/V2")
+                    ensureFolder("Moondiety/V2/Assets")
+                    pcall(writefile, localPath, body)
+                    if isfile and isfile(localPath) then
+                        local okAsset, asset = pcall(getAsset, localPath)
+                        if okAsset and asset and imgLabel and imgLabel.Parent then
+                            imgLabel.Image = asset
+                        end
+                    end
+                end
+            end)
+        end
+
+        local function inviteCopy()
+            if setclipboard then
+                pcall(setclipboard, "https://discord.gg/moondiety")
+            elseif copyclipboard then
+                pcall(copyclipboard, "https://discord.gg/moondiety")
+            end
+            if Library.JoinDiscord then
+                pcall(function() Library:JoinDiscord("moondiety") end)
+            end
+            Library:Notify({
+                Title = "Copied",
+                Content = "Discord link copied",
+                Duration = 3,
+                Type = "Success",
+            })
+        end
+
+        local function txt(parent, text, size, weight, color, pos, sz, extra)
+            local props = {
+                BackgroundTransparency = 1,
+                FontFace = font(weight),
+                Text = text,
+                TextSize = size,
+                TextColor3 = color,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextYAlignment = Enum.TextYAlignment.Top,
+                Position = pos,
+                Size = sz,
+                ZIndex = 6,
+            }
+            if extra then
+                for k, v in pairs(extra) do props[k] = v end
+            end
+            return new("TextLabel", props, parent)
+        end
+
+        local function solidButton(parent, label, pos, sz, anchor, color, hoverColor, textColor, onTap)
+            local b = new("TextButton", {
+                AnchorPoint = anchor,
+                Position = pos,
+                Size = sz,
+                BackgroundColor3 = color,
+                BorderSizePixel = 0,
+                AutoButtonColor = false,
+                Text = "",
+                ZIndex = 8,
+            }, parent)
+            corner(b, 9)
+            new("TextLabel", {
+                BackgroundTransparency = 1,
+                Size = UDim2.fromScale(1, 1),
+                FontFace = font(Enum.FontWeight.Bold),
+                Text = label,
+                TextColor3 = textColor,
+                TextSize = 12,
+                ZIndex = 9,
+            }, b)
+            b.MouseEnter:Connect(function()
+                TweenService:Create(b, TweenInfo.new(0.15), {BackgroundColor3 = hoverColor}):Play()
+            end)
+            b.MouseLeave:Connect(function()
+                TweenService:Create(b, TweenInfo.new(0.15), {BackgroundColor3 = color}):Play()
+            end)
+            bindTap(b, onTap)
+            return b
+        end
+
+        local function verifiedTick(parent, order)
+            return new("TextLabel", {
+                LayoutOrder = order,
+                BackgroundTransparency = 1,
+                Size = UDim2.new(0, 20, 0, 20),
+                Font = Enum.Font.GothamBold,
+                Text = utf8.char(0xE000),
+                TextColor3 = WHITE,
+                TextSize = 17,
+                TextYAlignment = Enum.TextYAlignment.Center,
+                ZIndex = 9,
+            }, parent)
+        end
+
+        local function dot(parent, order, color)
+            local d = new("Frame", {
+                LayoutOrder = order,
+                Size = UDim2.new(0, 7, 0, 7),
+                BackgroundColor3 = color,
+                BorderSizePixel = 0,
+                ZIndex = 9,
+            }, parent)
+            corner(d, 4)
+            return d
+        end
+
+        local function rowLayout(parent, gap)
+            new("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                VerticalAlignment = Enum.VerticalAlignment.Center,
+                Padding = UDim.new(0, gap),
+            }, parent)
+        end
+
+        creatorTab:create_custom_card("middle", 156, function(card)
+            card.BackgroundColor3 = cardBg
+            stroke(card, lineCol, 1, 0.3)
+
+            local banner = new("Frame", {
+                Name = "BannerHolder",
+                Size = UDim2.new(1, 0, 0, 98),
+                BackgroundColor3 = Color3.fromRGB(48, 16, 36),
+                BorderSizePixel = 0,
+                ClipsDescendants = true,
+                ZIndex = 4,
+            }, card)
+            new("UIGradient", {
+                Rotation = 90,
+                Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(120, 24, 52)),
+            }, banner)
+
+            local bannerImg = new("ImageLabel", {
+                Size = UDim2.fromScale(1, 1),
+                BackgroundTransparency = 1,
+                Image = "",
+                ScaleType = Enum.ScaleType.Crop,
+                ZIndex = 5,
+            }, banner)
+            loadRemoteBanner(bannerImg, BANNER_URL, BANNER_CACHE)
+
+            local fade = new("Frame", {
+                AnchorPoint = Vector2.new(0, 1),
+                Position = UDim2.new(0, 0, 1, 0),
+                Size = UDim2.new(1, 0, 0, 48),
+                BackgroundColor3 = cardBg,
+                BorderSizePixel = 0,
+                ZIndex = 6,
+            }, banner)
+            new("UIGradient", {
+                Rotation = 90,
+                Transparency = NumberSequence.new({
+                    NumberSequenceKeypoint.new(0, 1),
+                    NumberSequenceKeypoint.new(1, 0),
+                }),
+            }, fade)
+
+            local iconWrap = new("Frame", {
+                Position = UDim2.new(0, 16, 0, 68),
+                Size = UDim2.new(0, 56, 0, 56),
+                BackgroundColor3 = Color3.fromRGB(11, 11, 15),
+                BorderSizePixel = 0,
+                ZIndex = 8,
+            }, card)
+            corner(iconWrap, 14)
+            stroke(iconWrap, cardBg, 4, 0)
+            new("ImageLabel", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.fromScale(0.5, 0.5),
+                Size = UDim2.new(0, 38, 0, 38),
+                BackgroundTransparency = 1,
+                Image = "rbxassetid://85678543701264",
+                ImageColor3 = Color3.fromRGB(230, 35, 65),
+                ZIndex = 9,
+            }, iconWrap)
+
+            local nameRow = new("Frame", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 84, 0, 105),
+                Size = UDim2.new(1, -218, 0, 22),
+                ZIndex = 8,
+            }, card)
+            rowLayout(nameRow, 5)
+            txt(nameRow, "Moondiety", 18, Enum.FontWeight.ExtraBold, WHITE, nil, UDim2.new(0, 0, 1, 0), {
+                AutomaticSize = Enum.AutomaticSize.X,
+                LayoutOrder = 1,
+                TextYAlignment = Enum.TextYAlignment.Center,
+                ZIndex = 9,
+            })
+            verifiedTick(nameRow, 2)
+
+            local statsRow = new("Frame", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 84, 0, 130),
+                Size = UDim2.new(1, -218, 0, 16),
+                ZIndex = 8,
+            }, card)
+            rowLayout(statsRow, 6)
+            dot(statsRow, 1, Color3.fromRGB(34, 197, 94))
+            local onlineLbl = txt(statsRow, discordFetched and discordOnlineCountStr or "5.0k Online", 11, Enum.FontWeight.Medium, Color3.fromRGB(226, 232, 240), nil, UDim2.new(0, 0, 1, 0), {
+                AutomaticSize = Enum.AutomaticSize.X,
+                LayoutOrder = 2,
+                TextYAlignment = Enum.TextYAlignment.Center,
+                ZIndex = 9,
+            })
+            dot(statsRow, 3, Color3.fromRGB(110, 116, 135))
+            local membersLbl = txt(statsRow, discordFetched and discordMemberCountStr or "153.3k Members", 11, Enum.FontWeight.Medium, subCol, nil, UDim2.new(0, 0, 1, 0), {
+                AutomaticSize = Enum.AutomaticSize.X,
+                LayoutOrder = 4,
+                TextYAlignment = Enum.TextYAlignment.Center,
+                ZIndex = 9,
+            })
+            table.insert(discordStatsListeners, function(members, online)
+                if onlineLbl and onlineLbl.Parent then onlineLbl.Text = online end
+                if membersLbl and membersLbl.Parent then membersLbl.Text = members end
+            end)
+
+            solidButton(card, "Join Server", UDim2.new(1, -16, 0, 108), UDim2.new(0, 114, 0, 34), Vector2.new(1, 0), accent, accent:lerp(WHITE, 0.15), WHITE, inviteCopy)
+        end)
+
+        creatorTab:create_custom_card("middle", 88, function(card)
+            card.BackgroundColor3 = cardBg
+            stroke(card, lineCol, 1, 0.3)
+
+            new("ImageLabel", {
+                Size = UDim2.fromScale(1, 1),
+                BackgroundTransparency = 1,
+                Image = "rbxassetid://109797740454839",
+                ScaleType = Enum.ScaleType.Crop,
+                ImageTransparency = 0.12,
+                ZIndex = 3,
+            }, card)
+            local shade = new("Frame", {
+                Size = UDim2.fromScale(1, 1),
+                BackgroundColor3 = cardBg,
+                BorderSizePixel = 0,
+                ZIndex = 4,
+            }, card)
+            new("UIGradient", {
+                Rotation = 0,
+                Transparency = NumberSequence.new({
+                    NumberSequenceKeypoint.new(0, 0.02),
+                    NumberSequenceKeypoint.new(0.55, 0.16),
+                    NumberSequenceKeypoint.new(1, 0.78),
+                }),
+            }, shade)
+
+            txt(card, "100% Keyless scripts hub", 15, Enum.FontWeight.Bold, WHITE, UDim2.new(0, 16, 0, 14), UDim2.new(1, -200, 0, 18))
+            txt(card, "Skip the daily key links other hubs force on you. Moondiety runs keyless across " .. nGames .. " games.", 11, Enum.FontWeight.Medium, Color3.fromRGB(190, 196, 214), UDim2.new(0, 16, 0, 36), UDim2.new(1, -200, 0, 36), {TextWrapped = true})
+
+            local gb = new("TextButton", {
+                AnchorPoint = Vector2.new(1, 0.5),
+                Position = UDim2.new(1, -16, 0.5, 0),
+                Size = UDim2.new(0, 156, 0, 36),
+                BackgroundColor3 = tileBg,
+                BorderSizePixel = 0,
+                AutoButtonColor = false,
+                Text = "",
+                ZIndex = 8,
+            }, card)
+            corner(gb, 9)
+            local gbStroke = stroke(gb, accent, 1, 0.35)
+            new("ImageLabel", {
+                AnchorPoint = Vector2.new(0, 0.5),
+                Position = UDim2.new(0, 11, 0.5, 0),
+                Size = UDim2.new(0, 14, 0, 14),
+                BackgroundTransparency = 1,
+                Image = "rbxassetid://10723395215",
+                ImageColor3 = accent:lerp(WHITE, 0.25),
+                ZIndex = 9,
+            }, gb)
+            new("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 29, 0, 0),
+                Size = UDim2.new(1, -35, 1, 0),
+                FontFace = font(Enum.FontWeight.Bold),
+                Text = "All " .. nGames .. " Games",
+                TextColor3 = WHITE,
+                TextSize = 12,
+                ZIndex = 9,
+            }, gb)
+            gb.MouseEnter:Connect(function()
+                TweenService:Create(gb, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(36, 37, 48)}):Play()
+                TweenService:Create(gbStroke, TweenInfo.new(0.15), {Transparency = 0.05}):Play()
+            end)
+            gb.MouseLeave:Connect(function()
+                TweenService:Create(gb, TweenInfo.new(0.15), {BackgroundColor3 = tileBg}):Play()
+                TweenService:Create(gbStroke, TweenInfo.new(0.15), {Transparency = 0.35}):Play()
+            end)
+            bindTap(gb, function()
+                Library:OpenSupportedGames()
+            end)
+        end)
+
+        creatorTab:create_custom_card("middle", 306, function(card)
+            card.BackgroundColor3 = cardBg
+            stroke(card, goldCol, 1, 0.55)
+
+            local glow = new("Frame", {
+                Size = UDim2.new(1, 0, 0, 74),
+                BackgroundColor3 = goldCol,
+                BorderSizePixel = 0,
+                ZIndex = 3,
+            }, card)
+            new("UIGradient", {
+                Rotation = 90,
+                Transparency = NumberSequence.new({
+                    NumberSequenceKeypoint.new(0, 0.85),
+                    NumberSequenceKeypoint.new(1, 1),
+                }),
+            }, glow)
+
+            new("ImageLabel", {
+                Position = UDim2.new(0, 16, 0, 14),
+                Size = UDim2.new(0, 30, 0, 30),
+                BackgroundTransparency = 1,
+                Image = "rbxassetid://85526302253445",
+                ZIndex = 6,
+            }, card)
+            txt(card, "Creator Program", 16, Enum.FontWeight.Bold, WHITE, UDim2.new(0, 54, 0, 12), UDim2.new(1, -130, 0, 19))
+            txt(card, "Post a video on TikTok, YouTube, Instagram, etc. to get perks", 11, Enum.FontWeight.Medium, subCol, UDim2.new(0, 54, 0, 32), UDim2.new(1, -120, 0, 15))
+
+            local viewsPill = new("Frame", {
+                AnchorPoint = Vector2.new(1, 0),
+                Position = UDim2.new(1, -16, 0, 17),
+                Size = UDim2.new(0, 48, 0, 21),
+                BackgroundColor3 = goldCol,
+                BackgroundTransparency = 0.86,
+                BorderSizePixel = 0,
+                ZIndex = 6,
+            }, card)
+            corner(viewsPill, 10)
+            stroke(viewsPill, goldCol, 1, 0.45)
+            new("TextLabel", {
+                BackgroundTransparency = 1,
+                Size = UDim2.fromScale(1, 1),
+                FontFace = font(Enum.FontWeight.Bold),
+                Text = "NEW",
+                TextColor3 = Color3.fromRGB(253, 224, 71),
+                TextSize = 10,
+                ZIndex = 7,
+            }, viewsPill)
+
+            local tilesRow = new("Frame", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 16, 0, 62),
+                Size = UDim2.new(1, -32, 0, 88),
+                ZIndex = 6,
+            }, card)
+            new("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Padding = UDim.new(0, 8),
+            }, tilesRow)
+
+            local perks = {
+                {icon = "rbxassetid://10709818626", title = "Lifetime Premium", sub = "All paid features unlocked"},
+                {icon = "rbxassetid://10747373426", title = "Discord Roles", sub = "Creator & Premium roles"},
+                {icon = "rbxassetid://10734966248", title = "Creator Badge", sub = "Gold icon on your GUI"},
+            }
+            for i, perk in ipairs(perks) do
+                local tile = new("Frame", {
+                    LayoutOrder = i,
+                    Size = UDim2.new(1 / 3, -16 / 3, 1, 0),
+                    BackgroundColor3 = tileBg,
+                    BorderSizePixel = 0,
+                    ZIndex = 6,
+                }, tilesRow)
+                corner(tile, 10)
+                stroke(tile, lineCol, 1, 0.45)
+                local ring = new("Frame", {
+                    Position = UDim2.new(0, 11, 0, 11),
+                    Size = UDim2.new(0, 28, 0, 28),
+                    BackgroundColor3 = goldCol,
+                    BackgroundTransparency = 0.85,
+                    BorderSizePixel = 0,
+                    ZIndex = 7,
+                }, tile)
+                corner(ring, 14)
+                new("ImageLabel", {
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Position = UDim2.fromScale(0.5, 0.5),
+                    Size = UDim2.new(0, 15, 0, 15),
+                    BackgroundTransparency = 1,
+                    Image = perk.icon,
+                    ImageColor3 = goldCol,
+                    ZIndex = 8,
+                }, ring)
+                txt(tile, perk.title, 12, Enum.FontWeight.Bold, WHITE, UDim2.new(0, 11, 0, 46), UDim2.new(1, -22, 0, 15), {ZIndex = 7})
+                txt(tile, perk.sub, 10, Enum.FontWeight.Medium, subCol, UDim2.new(0, 11, 0, 63), UDim2.new(1, -22, 0, 18), {TextWrapped = true, ZIndex = 7})
+            end
+
+            new("Frame", {
+                Position = UDim2.new(0, 16, 0, 162),
+                Size = UDim2.new(1, -32, 0, 1),
+                BackgroundColor3 = lineCol,
+                BackgroundTransparency = 0.35,
+                BorderSizePixel = 0,
+                ZIndex = 6,
+            }, card)
+
+            local rules = {
+                "Post on TikTok, YouTube, Insta, etc. using any Moondiety game script",
+                "Include discord.gg/moondiety in the video or description",
+                "Hit 1,000 views (long video) or 5,000 (short), then open a ticket",
+            }
+            for i, ruleText in ipairs(rules) do
+                local yPos = 172 + (i - 1) * 24
+                local badge = new("Frame", {
+                    Position = UDim2.new(0, 16, 0, yPos + 4),
+                    Size = UDim2.new(0, 15, 0, 15),
+                    BackgroundColor3 = mintCol,
+                    BackgroundTransparency = 0.82,
+                    BorderSizePixel = 0,
+                    ZIndex = 6,
+                }, card)
+                corner(badge, 8)
+                new("TextLabel", {
+                    BackgroundTransparency = 1,
+                    Size = UDim2.fromScale(1, 1),
+                    FontFace = font(Enum.FontWeight.Bold),
+                    Text = tostring(i),
+                    TextColor3 = mintCol,
+                    TextSize = 9,
+                    ZIndex = 7,
+                }, badge)
+                txt(card, ruleText, 11, Enum.FontWeight.Medium, Color3.fromRGB(216, 222, 236), UDim2.new(0, 38, 0, yPos), UDim2.new(1, -54, 0, 23), {
+                    TextWrapped = true,
+                    TextYAlignment = Enum.TextYAlignment.Center,
+                    ZIndex = 7,
+                })
+            end
+
+            solidButton(card, "Apply in Discord", UDim2.new(0, 16, 0, 256), UDim2.new(1, -32, 0, 36), Vector2.new(0, 0), goldDeep, goldCol, Color3.fromRGB(18, 15, 10), inviteCopy)
+        end)
+        local curSubName = tostring((options and options.SubName) or (genv and genv.hubsubname) or ""):lower()
+        local isUnivMode = isDualWindow or (curSubName:find("universal") ~= nil)
+        if not isUnivMode then
+            local loadingUniv = false
+            creatorTab:create_custom_card("middle", 84, function(card)
+                card.BackgroundColor3 = cardBg
+                stroke(card, lineCol, 1, 0.3)
+
+                txt(card, "Universal Script", 15, Enum.FontWeight.Bold, WHITE, UDim2.new(0, 16, 0, 14), UDim2.new(1, -200, 0, 18))
+                txt(card, "Run Moondiety Universal at the same time as this game script.", 11, Enum.FontWeight.Medium, Color3.fromRGB(190, 196, 214), UDim2.new(0, 16, 0, 36), UDim2.new(1, -200, 0, 34), {TextWrapped = true})
+
+                local ub = new("TextButton", {
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    Position = UDim2.new(1, -16, 0.5, 0),
+                    Size = UDim2.new(0, 156, 0, 36),
+                    BackgroundColor3 = tileBg,
+                    BorderSizePixel = 0,
+                    AutoButtonColor = false,
+                    Text = "",
+                    ZIndex = 8,
+                }, card)
+                corner(ub, 9)
+                local ubStroke = stroke(ub, accent, 1, 0.35)
+                new("ImageLabel", {
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    Position = UDim2.new(0, 11, 0.5, 0),
+                    Size = UDim2.new(0, 14, 0, 14),
+                    BackgroundTransparency = 1,
+                    Image = "rbxassetid://10723404337",
+                    ImageColor3 = accent:lerp(WHITE, 0.25),
+                    ZIndex = 9,
+                }, ub)
+                new("TextLabel", {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, 29, 0, 0),
+                    Size = UDim2.new(1, -35, 1, 0),
+                    FontFace = font(Enum.FontWeight.Bold),
+                    Text = "Load Universal",
+                    TextColor3 = WHITE,
+                    TextSize = 12,
+                    ZIndex = 9,
+                }, ub)
+                ub.MouseEnter:Connect(function()
+                    TweenService:Create(ub, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(36, 37, 48)}):Play()
+                    TweenService:Create(ubStroke, TweenInfo.new(0.15), {Transparency = 0.05}):Play()
+                end)
+                ub.MouseLeave:Connect(function()
+                    TweenService:Create(ub, TweenInfo.new(0.15), {BackgroundColor3 = tileBg}):Play()
+                    TweenService:Create(ubStroke, TweenInfo.new(0.15), {Transparency = 0.35}):Play()
+                end)
+                bindTap(ub, function()
+                    if loadingUniv then return end
+                    loadingUniv = true
+                    Library:Notify({
+                        Title = "Universal",
+                        Content = "Loading Universal script...",
+                        Duration = 3,
+                        Type = "Info",
+                    })
+                    task.spawn(function()
+                        local univUrl = "https://flowauth.net/v1/loaders/77b23a38dbb3b594349bfb4e964a73d0.lua"
+                        local code = nil
+                        if httpRequest then
+                            local okReq, resp = pcall(httpRequest, {Url = univUrl, Method = "GET"})
+                            if okReq and type(resp) == "table" and type(resp.Body) == "string" and #resp.Body > 50 then
+                                code = resp.Body
+                            end
+                        end
+                        if not code and hasHttpGet then
+                            local okGet, res = pcall(game.HttpGet, game, univUrl)
+                            if okGet and type(res) == "string" and #res > 50 then
+                                code = res
+                            end
+                        end
+                        if not code then
+                            loadingUniv = false
+                            Library:Notify({
+                                Title = "Universal",
+                                Content = "Could not fetch Universal script",
+                                Duration = 4,
+                                Type = "Error",
+                            })
+                            return
+                        end
+                        local fn = loadstring(code, "=MoondietyUniversal")
+                        if not fn then
+                            loadingUniv = false
+                            Library:Notify({
+                                Title = "Universal",
+                                Content = "Could not load Universal script",
+                                Duration = 4,
+                                Type = "Error",
+                            })
+                            return
+                        end
+                        local activeKey = _loadKey() or (genv and type(genv.script_key) == "string" and #genv.script_key >= 6 and genv.script_key or nil)
+                        local prevHub = genv and genv.hubname
+                        local prevSub = genv and genv.hubsubname
+                        if genv then
+                            genv._MoondietyDualWindow = true
+                        end
+                        local okRun = pcall(fn, activeKey)
+                        if not okRun and activeKey then
+                            if genv then genv._MoondietyDualWindow = true end
+                            okRun = pcall(fn, nil)
+                        end
+                        if genv then
+                            genv._MoondietyDualWindow = nil
+                            if prevHub ~= nil then genv.hubname = prevHub end
+                            if prevSub ~= nil then genv.hubsubname = prevSub end
+                        end
+                        loadingUniv = false
+                        if not okRun then
+                            Library:Notify({
+                                Title = "Universal",
+                                Content = "Could not start Universal script",
+                                Duration = 4,
+                                Type = "Error",
+                            })
+                        end
+                    end)
+                end)
+            end)
+        end
     end
 
     return Library.WindowController
